@@ -1,0 +1,31 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const Producto_controllers_1 = require("../controllers/Producto.controllers");
+const Presentacionproducto_controllers_1 = require("../controllers/Presentacionproducto.controllers");
+const ProductoMedida_controllers_1 = require("../controllers/ProductoMedida.controllers");
+const Ingredientes_controllers_1 = require("../controllers/Ingredientes.controllers");
+const router = (0, express_1.Router)();
+//router.use(authMiddleware)
+router.post("/producto", Producto_controllers_1.createProducto);
+router.put('/producto/:id', Producto_controllers_1.updateProducto);
+router.get('/productos', Producto_controllers_1.getProductos);
+router.get('/getInsumo', Producto_controllers_1.getInsumo);
+router.delete('/productos/:id', Producto_controllers_1.deleteProducto);
+router.get('/producto/:id', Producto_controllers_1.getProducto);
+router.get('/productopaquete/:id', Presentacionproducto_controllers_1.getProductoPaquete);
+router.get('/productospaquete/:id', Presentacionproducto_controllers_1.getProductosPaquete);
+router.get('/ObtenerPresentacion/:id', Presentacionproducto_controllers_1.ObtenerPresentacion);
+router.get('/PrecioProducto/:id', Producto_controllers_1.PrecioProducto);
+router.get('/productopromocions', Presentacionproducto_controllers_1.getProductoPromocion);
+router.get('/productoSucursal/:id/:categoriaId/:subcategoriaId', Presentacionproducto_controllers_1.getProductoSucursal);
+router.get('/Buscarproducto', Producto_controllers_1.getBuscarProductos);
+router.get('/getpaquete/:id', Presentacionproducto_controllers_1.getPaquete);
+router.get('/getPaquetesinSucursal', Presentacionproducto_controllers_1.getPaquetesinSucursal);
+router.get('/getPaqueteSucursal/:ids/:id', Presentacionproducto_controllers_1.getPaqueteSucursal);
+router.get('/getAllProducts', ProductoMedida_controllers_1.getAllProducts);
+router.get('/getProductod/:categoriaId/:subcategoriaId', Presentacionproducto_controllers_1.getProductod);
+router.get('/unique-products-summed', Presentacionproducto_controllers_1.getUniqueProductsWithSummedQuantities); // New route
+router.get('/getProductoIngrediente/:id', Ingredientes_controllers_1.getProductoIngrediente);
+router.get('/getProductoInMedida/:id', ProductoMedida_controllers_1.getProductoInMedida);
+exports.default = router;

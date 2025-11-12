@@ -1,0 +1,11 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const Sucursal_controllers_1 = require("../controllers/Sucursal.controllers");
+const router = (0, express_1.Router)();
+router.post("/Sucursal", Sucursal_controllers_1.createSucursal);
+router.get("/Sucursales", Sucursal_controllers_1.getSucursales);
+router.get("/BuscarSucursal/:id", Sucursal_controllers_1.getSucursalById);
+router.put("/UpdSucursal/:id", Sucursal_controllers_1.updateSucursal);
+router.delete("/DelSucursal/:id", Sucursal_controllers_1.deleteSucursal);
+exports.default = router;

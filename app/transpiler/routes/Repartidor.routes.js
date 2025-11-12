@@ -1,0 +1,12 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const Repartidor_controllers_1 = require("../controllers/Repartidor.controllers");
+const router = (0, express_1.Router)();
+router.post("/repartidor", Repartidor_controllers_1.createRepartidor);
+router.get("/repartidor", Repartidor_controllers_1.getRepartidores);
+router.get("/repartidoractivo", Repartidor_controllers_1.getRepartidorActivos);
+router.get("/repartidor/:id", Repartidor_controllers_1.getRepartidor);
+router.put("/repartidor/:id", Repartidor_controllers_1.updateRepartidor);
+router.delete("/repartidor/:id", Repartidor_controllers_1.deleteRepartidor);
+exports.default = router;

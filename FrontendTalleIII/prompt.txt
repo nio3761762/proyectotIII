@@ -1,0 +1,14 @@
+Listar Usuarios (List Users)
+
+1Genera un diagrama de secuencia para el caso de uso "Listar Usuarios" en la interfaz "Gestión de Usuarios". Los participantes son: Usuario (actor), Vista (Usuario.vue), Control (frontend controller/service),
+Servidor (backend API), Base de datos.
+
+ Flujo positivo:
+ 1. Usuario (Administrador) accede a la interfaz "Gestión de Usuarios".
+ 2. Vista (Usuario.vue) muestra una interfaz de carga y solicita al Control la lista de usuarios.
+ 3. Control envía una solicitud HTTP GET a la ruta del Servidor: /Usuarios (función listarUsuarios).
+ 4. Servidor consulta la Base de datos para recuperar la lista de usuarios.
+ 5. Base de datos devuelve la lista de usuarios al Servidor.
+ 6. Servidor devuelve la lista de usuarios al Control.
+ 7. Control procesa la respuesta y la envía a la Vista.
+ 8. Vista (Usuario.vue) actualiza la interfaz y muestra la lista de usuarios al Usuario.

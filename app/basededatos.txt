@@ -1,0 +1,687 @@
+
+CREATE TABLE Pais (
+    IdPais VARCHAR(50) PRIMARY KEY,
+    Nombre VARCHAR(100)
+);
+
+CREATE TABLE Departamento (
+    IdDepto VARCHAR(50) PRIMARY KEY,
+    Nombre VARCHAR(100),
+    IdPais VARCHAR(50),
+    FOREIGN KEY (IdPais) REFERENCES Pais(IdPais)
+);
+
+CREATE TABLE Ciudad (
+    IdCiudad VARCHAR(50) PRIMARY KEY,
+    Nombre VARCHAR(100),
+    IdDepto VARCHAR(50),
+    FOREIGN KEY (IdDepto) REFERENCES Departamento(IdDepto)
+);
+
+CREATE TABLE Distritos (
+    IdDistrito VARCHAR(50) PRIMARY KEY,
+    Nombre VARCHAR(100),
+    IdCiudad VARCHAR(50),
+    FOREIGN KEY (IdCiudad) REFERENCES Ciudad(IdCiudad)
+);
+
+CREATE TABLE Barrio (
+    IdBarrio VARCHAR(50) PRIMARY KEY,
+    Nombre VARCHAR(100),
+    IdDistrito VARCHAR(50),
+    FOREIGN KEY (IdDistrito) REFERENCES Distritos(IdDistrito)
+);
+
+CREATE TABLE Direccion (
+    IdDireccion VARCHAR(255) PRIMARY KEY,
+    Direccion VARCHAR(255),
+    Referencia VARCHAR(120),
+    Ubicacion VARCHAR(255),
+    IdBarrio VARCHAR(50),
+    FOREIGN KEY (IdBarrio) REFERENCES Barrio(IdBarrio)
+);
+
+CREATE TABLE Genero (
+    IdGenero INT PRIMARY KEY,
+    Nombre VARCHAR(50)
+);
+
+CREATE TABLE Estado (
+    IdEstado INT PRIMARY KEY,
+    Nombre VARCHAR(50)
+);
+
+CREATE TABLE TipoDocumento (
+    IdTipoDocumento VARCHAR(50) PRIMARY KEY,
+    Nombre VARCHAR(50)
+);
+
+CREATE TABLE Complemento (
+    IdComplemento VARCHAR(50) PRIMARY KEY,
+    Nombre VARCHAR(50)
+);
+
+CREATE TABLE TipoProveedor (
+    IdTipoProveedor INT PRIMARY KEY,
+    Nombre VARCHAR(150)
+);
+
+CREATE TABLE TipoLicencia (
+    IdTipoLicencia VARCHAR(150) PRIMARY KEY,
+    NombreTipoLicencia VARCHAR(100) UNIQUE
+);
+
+CREATE TABLE EmpresaReparto (
+    IdEmpresaReparto VARCHAR(150) PRIMARY KEY,
+    NombreEmpresa VARCHAR(100) UNIQUE
+);
+
+CREATE TABLE Horario (
+    IdHorario VARCHAR(150) PRIMARY KEY,
+    HoraEntrada TIME,
+    HoraSalida TIME
+);
+
+CREATE TABLE Salario (
+    IdSalario VARCHAR(150) PRIMARY KEY,
+    Salario DECIMAL(10, 2) DEFAULT 0.00,
+    Moneda VARCHAR(10),
+    Fecha DATE
+);
+
+CREATE TABLE MetodoPago (
+    IdMetodoPago INT PRIMARY KEY,
+    Nombre VARCHAR(100)
+);
+
+CREATE TABLE TipoPromocion (
+    IdTipoPromocion INT PRIMARY KEY,
+    Nombre VARCHAR(100)
+);
+
+CREATE TABLE TipoPedido (
+    IdTipoPedido VARCHAR(50) PRIMARY KEY,
+    Nombre VARCHAR(50)
+);
+
+CREATE TABLE TipoEntrega (
+    IdTipoEntrega VARCHAR(50) PRIMARY KEY,
+    Nombre VARCHAR(50)
+);
+
+CREATE TABLE Icono (
+    IdIcono VARCHAR(50) PRIMARY KEY,
+    Icono VARCHAR(255)
+);
+
+CREATE TABLE Enlace (
+    IdEnlace VARCHAR(50) PRIMARY KEY,
+    Enlace VARCHAR(255)
+);
+
+CREATE TABLE Permiso (
+    IdPermiso VARCHAR(50) PRIMARY KEY,
+    Nombre VARCHAR(255)
+);
+
+CREATE TABLE CategoriaMedida (
+    IdCategoriaMedida VARCHAR(50) PRIMARY KEY,
+    Nombre VARCHAR(100),
+    FechaRegistro DATE,
+    FechaActualizacion DATE,
+    IdEstado INT,
+    FOREIGN KEY (IdEstado) REFERENCES Estado(IdEstado)
+);
+
+CREATE TABLE UnidadMedida (
+    IdUnidadMedida INT PRIMARY KEY,
+    Nombre VARCHAR(100),
+    Abreviatura VARCHAR(100),
+    Cantidad NUMERIC(10, 3),
+    FechaRegistro DATE,
+    IdEstado INT,
+    IdCategoriaMedida VARCHAR(50),
+    FOREIGN KEY (IdEstado) REFERENCES Estado(IdEstado),
+    FOREIGN KEY (IdCategoriaMedida) REFERENCES CategoriaMedida(IdCategoriaMedida)
+);
+
+CREATE TABLE Imagen (
+    IdImagen VARCHAR(255) PRIMARY KEY,
+    Url VARCHAR(255)
+);
+
+CREATE TABLE Categoria (
+    IdCategoria VARCHAR(50) PRIMARY KEY,
+    Nombre VARCHAR(100),
+    FechaRegistro DATE,
+    FechaActualizacion DATE,
+    IdEstado INT,
+    IdImagen VARCHAR(255),
+    FOREIGN KEY (IdEstado) REFERENCES Estado(IdEstado),
+    FOREIGN KEY (IdImagen) REFERENCES Imagen(IdImagen)
+);
+
+CREATE TABLE Subcategoria (
+    IdSubCategoria VARCHAR(50) PRIMARY KEY,
+    Nombre VARCHAR(100),
+    IdCategoria VARCHAR(50),
+    IdEstado INT,
+    FOREIGN KEY (IdCategoria) REFERENCES Categoria(IdCategoria),
+    FOREIGN KEY (IdEstado) REFERENCES Estado(IdEstado)
+);
+
+CREATE TABLE Marca (
+    IdMarca VARCHAR(50) PRIMARY KEY,
+    Nombre VARCHAR(100)
+);
+
+CREATE TABLE TipoProducto (
+    IdTipoProducto VARCHAR(50) PRIMARY KEY,
+    Nombre VARCHAR(100)
+);
+
+CREATE TABLE Producto (
+    IdProducto VARCHAR(100) PRIMARY KEY,
+    Nombre VARCHAR(100),
+    Descripcion VARCHAR(255),
+    FechaRegistro DATE,
+    FechaActualizacion DATE,
+    FechaVencimiento DATE,
+    IdSubCategoria VARCHAR(50),
+    IdEstado INT,
+    IdMarca VARCHAR(50),
+    IdTipoProducto VARCHAR(50),
+    IdImagen VARCHAR(255),
+    FOREIGN KEY (IdSubCategoria) REFERENCES Subcategoria(IdSubCategoria),
+    FOREIGN KEY (IdEstado) REFERENCES Estado(IdEstado),
+    FOREIGN KEY (IdMarca) REFERENCES Marca(IdMarca),
+    FOREIGN KEY (IdTipoProducto) REFERENCES TipoProducto(IdTipoProducto),
+    FOREIGN KEY (IdImagen) REFERENCES Imagen(IdImagen)
+);
+
+CREATE TABLE Comision (
+    IdComision VARCHAR(100) PRIMARY KEY,
+    Cantidad INT,
+    Porcentaje NUMERIC(10, 2),
+    IdProducto VARCHAR(100),
+    IdEstado INT,
+    FOREIGN KEY (IdProducto) REFERENCES Producto(IdProducto),
+    FOREIGN KEY (IdEstado) REFERENCES Estado(IdEstado)
+);
+
+CREATE TABLE Ingrediente (
+    IdIngrediente VARCHAR(100) PRIMARY KEY,
+    Peso NUMERIC(10, 3),
+    IdProductoIngrediente VARCHAR(100),
+    IdProducto VARCHAR(100),
+    IdUnidadMedida INT,
+    FOREIGN KEY (IdProductoIngrediente) REFERENCES Producto(IdProducto),
+    FOREIGN KEY (IdProducto) REFERENCES Producto(IdProducto),
+    FOREIGN KEY (IdUnidadMedida) REFERENCES UnidadMedida(IdUnidadMedida)
+);
+
+CREATE TABLE Precio (
+    IdPrecio VARCHAR(100) PRIMARY KEY,
+    Precio NUMERIC(10, 2),
+    FechaRegistro DATE,
+    IdEstado INT,
+    FOREIGN KEY (IdEstado) REFERENCES Estado(IdEstado)
+);
+
+CREATE TABLE ProductoMedida (
+    IdProductoMedida VARCHAR(50) PRIMARY KEY,
+    FechaRegistro DATE,
+    Cantidad NUMERIC(10, 3),
+    PrecioVenta NUMERIC(10, 2),
+    PrecioMayor NUMERIC(10, 2),
+    IdProducto VARCHAR(100),
+    IdUnidadMedida INT,
+    IdPrecio VARCHAR(100),
+    FOREIGN KEY (IdProducto) REFERENCES Producto(IdProducto),
+    FOREIGN KEY (IdUnidadMedida) REFERENCES UnidadMedida(IdUnidadMedida),
+    FOREIGN KEY (IdPrecio) REFERENCES Precio(IdPrecio)
+);
+
+CREATE TABLE Presentacion (
+    IdPresentacion VARCHAR(50) PRIMARY KEY,
+    Nombre VARCHAR(50),
+    FechaRegistro DATE,
+    FechaActualizacion DATE,
+    IdEstado INT,
+    FOREIGN KEY (IdEstado) REFERENCES Estado(IdEstado)
+);
+
+CREATE TABLE PresentacionProducto (
+    IdPaquete VARCHAR(50) PRIMARY KEY,
+    Nombre VARCHAR(150),
+    Cantidad INT,
+    FechaRegistro DATE,
+    PrecioVenta NUMERIC(10, 2),
+    PrecioMayor NUMERIC(10, 2),
+    IdProducto VARCHAR(100),
+    IdUnidadMedida INT,
+    IdEstado INT,
+    IdPresentacion VARCHAR(50),
+    IdImagen VARCHAR(255),
+    FOREIGN KEY (IdProducto) REFERENCES Producto(IdProducto),
+    FOREIGN KEY (IdUnidadMedida) REFERENCES UnidadMedida(IdUnidadMedida),
+    FOREIGN KEY (IdEstado) REFERENCES Estado(IdEstado),
+    FOREIGN KEY (IdPresentacion) REFERENCES Presentacion(IdPresentacion),
+    FOREIGN KEY (IdImagen) REFERENCES Imagen(IdImagen)
+);
+
+CREATE TABLE Promocion (
+    IdPromocion VARCHAR(100) PRIMARY KEY,
+    Nombre VARCHAR(100),
+    Descripcion VARCHAR(255),
+    FechaRegistro DATE,
+    FechaActualizacion DATE,
+    IdEstado INT,
+    IdTipoPromocion INT,
+    IdImagen VARCHAR(255),
+    FOREIGN KEY (IdEstado) REFERENCES Estado(IdEstado),
+    FOREIGN KEY (IdTipoPromocion) REFERENCES TipoPromocion(IdTipoPromocion),
+    FOREIGN KEY (IdImagen) REFERENCES Imagen(IdImagen)
+);
+
+CREATE TABLE PromocionProducto (
+    IdPromocionProducto VARCHAR(100) PRIMARY KEY,
+    Cantidad INT,
+    Descuento NUMERIC(10, 2),
+    IdProducto VARCHAR(100),
+    IdPaquete VARCHAR(50),
+    IdPromocion VARCHAR(100),
+    IdEstado INT,
+    FOREIGN KEY (IdProducto) REFERENCES Producto(IdProducto),
+    FOREIGN KEY (IdPaquete) REFERENCES PresentacionProducto(IdPaquete),
+    FOREIGN KEY (IdPromocion) REFERENCES Promocion(IdPromocion),
+    FOREIGN KEY (IdEstado) REFERENCES Estado(IdEstado)
+);
+
+CREATE TABLE Rango (
+    IdRango VARCHAR(50) PRIMARY KEY,
+    HoraInicio TIME,
+    HoraFin TIME,
+    FechaInicio DATE,
+    FechaFin DATE,
+    IdPromocion VARCHAR(100),
+    FOREIGN KEY (IdPromocion) REFERENCES Promocion(IdPromocion)
+);
+
+CREATE TABLE Persona (
+    IdPersona VARCHAR(150) PRIMARY KEY,
+    Nombre VARCHAR(100),
+    ApellidoPaterno VARCHAR(100),
+    ApellidoMaterno VARCHAR(100),
+    FechaDeNacimiento DATE,
+    FechaRegistro DATE,
+    FechaActualizacion DATE,
+    IdImagen VARCHAR(255),
+    IdDireccion VARCHAR(255),
+    IdGenero INT,
+    IdEstado INT,
+    IdSalario VARCHAR(150),
+    FOREIGN KEY (IdImagen) REFERENCES Imagen(IdImagen),
+    FOREIGN KEY (IdDireccion) REFERENCES Direccion(IdDireccion),
+    FOREIGN KEY (IdGenero) REFERENCES Genero(IdGenero),
+    FOREIGN KEY (IdEstado) REFERENCES Estado(IdEstado),
+    FOREIGN KEY (IdSalario) REFERENCES Salario(IdSalario)
+);
+
+CREATE TABLE Cliente (
+    IdCliente VARCHAR(150) PRIMARY KEY,
+    IdPersona VARCHAR(150),
+    FOREIGN KEY (IdPersona) REFERENCES Persona(IdPersona)
+);
+
+CREATE TABLE Celular (
+    IdCelular VARCHAR(50) PRIMARY KEY,
+    Numero VARCHAR(20),
+    IdPersona VARCHAR(150),
+    IdEstado INT,
+    FOREIGN KEY (IdPersona) REFERENCES Persona(IdPersona),
+    FOREIGN KEY (IdEstado) REFERENCES Estado(IdEstado)
+);
+
+CREATE TABLE Documento (
+    IdDocumento VARCHAR(50) PRIMARY KEY,
+    Documento VARCHAR(100),
+    IdTipoDocumento VARCHAR(50),
+    IdComplemento VARCHAR(50),
+    IdPersona VARCHAR(150),
+    FOREIGN KEY (IdTipoDocumento) REFERENCES TipoDocumento(IdTipoDocumento),
+    FOREIGN KEY (IdComplemento) REFERENCES Complemento(IdComplemento),
+    FOREIGN KEY (IdPersona) REFERENCES Persona(IdPersona)
+);
+
+CREATE TABLE Email (
+    IdEmail VARCHAR(150) PRIMARY KEY,
+    Email VARCHAR(255),
+    IdPersona VARCHAR(150),
+    FOREIGN KEY (IdPersona) REFERENCES Persona(IdPersona)
+);
+
+CREATE TABLE Usuario (
+    IdUsuario VARCHAR(150) PRIMARY KEY,
+    Contrasena VARCHAR(150),
+    Pin VARCHAR(150),
+    Token VARCHAR(255),
+    RToken VARCHAR(255),
+    PinRecuperacion VARCHAR(10),
+    IdPersona VARCHAR(150),
+    IdEstado INT,
+    FOREIGN KEY (IdPersona) REFERENCES Persona(IdPersona),
+    FOREIGN KEY (IdEstado) REFERENCES Estado(IdEstado)
+);
+
+CREATE TABLE Rol (
+    IdRol VARCHAR(50) PRIMARY KEY,
+    Nombre VARCHAR(100),
+    FechaRegistro DATE,
+    FechaActualizacion DATE,
+    IdEstado INT,
+    FOREIGN KEY (IdEstado) REFERENCES Estado(IdEstado)
+);
+
+CREATE TABLE RolUsuario (
+    IdRolUsuario VARCHAR(50) PRIMARY KEY,
+    FechaRegistro DATE,
+    FechaActualizacion DATE,
+    IdRol VARCHAR(50),
+    IdUsuario VARCHAR(150),
+    FOREIGN KEY (IdRol) REFERENCES Rol(IdRol),
+    FOREIGN KEY (IdUsuario) REFERENCES Usuario(IdUsuario)
+);
+
+CREATE TABLE Menu (
+    IdMenu VARCHAR(50) PRIMARY KEY,
+    Nombre VARCHAR(100),
+    Visible INT,
+    IdIcono VARCHAR(50),
+    IdEnlace VARCHAR(50),
+    FOREIGN KEY (IdIcono) REFERENCES Icono(IdIcono),
+    FOREIGN KEY (IdEnlace) REFERENCES Enlace(IdEnlace)
+);
+
+CREATE TABLE RolMenu (
+    IdRolMenu VARCHAR(50) PRIMARY KEY,
+    FechaRegistro DATE,
+    IdRol VARCHAR(50),
+    IdPermiso VARCHAR(50),
+    IdMenu VARCHAR(50),
+    Permitido INT,
+    FOREIGN KEY (IdRol) REFERENCES Rol(IdRol),
+    FOREIGN KEY (IdPermiso) REFERENCES Permiso(IdPermiso),
+    FOREIGN KEY (IdMenu) REFERENCES Menu(IdMenu)
+);
+
+CREATE TABLE MenuPermiso (
+    IdMenuPermiso VARCHAR(50) PRIMARY KEY,
+    IdMenu VARCHAR(50),
+    IdPermiso VARCHAR(50),
+    FOREIGN KEY (IdMenu) REFERENCES Menu(IdMenu),
+    FOREIGN KEY (IdPermiso) REFERENCES Permiso(IdPermiso)
+);
+
+CREATE TABLE Administrardatos (
+    IdDatos INT PRIMARY KEY,
+    Nombre VARCHAR(100),
+    Celular VARCHAR(20),
+    Foto VARCHAR(255),
+    IdPropietario VARCHAR(150),
+    IdEmail VARCHAR(150),
+    FOREIGN KEY (Foto) REFERENCES Imagen(IdImagen),
+    FOREIGN KEY (IdPropietario) REFERENCES Persona(IdPersona),
+    FOREIGN KEY (IdEmail) REFERENCES Email(IdEmail)
+);
+
+CREATE TABLE Sucursal (
+    IdSucursal VARCHAR(100) PRIMARY KEY,
+    Nombre VARCHAR(100),
+    Nro INT,
+    FechaRegistro DATE,
+    FechaActualizacion DATE,
+    Celular VARCHAR(100),
+    Central INT,
+    IdDireccion VARCHAR(255),
+    IdDatos INT,
+    IdEstado INT,
+    IdHorario VARCHAR(150),
+    FOREIGN KEY (IdDireccion) REFERENCES Direccion(IdDireccion),
+    FOREIGN KEY (IdDatos) REFERENCES Administrardatos(IdDatos),
+    FOREIGN KEY (IdEstado) REFERENCES Estado(IdEstado),
+    FOREIGN KEY (IdHorario) REFERENCES Horario(IdHorario)
+);
+
+CREATE TABLE ProductoSucursal (
+    IdProductoSucursal VARCHAR(100) PRIMARY KEY,
+    Fecha DATE,
+    Cantidad INT,
+    IdProducto VARCHAR(100),
+    IdPaquete VARCHAR(50),
+    IdSucursal VARCHAR(100),
+    FOREIGN KEY (IdProducto) REFERENCES Producto(IdProducto),
+    FOREIGN KEY (IdPaquete) REFERENCES PresentacionProducto(IdPaquete),
+    FOREIGN KEY (IdSucursal) REFERENCES Sucursal(IdSucursal)
+);
+
+CREATE TABLE UsuarioSucursal (
+    IdUsuarioSucursal VARCHAR(100) PRIMARY KEY,
+    FechaAsignado DATE,
+    FechaActualizacion DATE,
+    IdEstado INT,
+    IdUsuario VARCHAR(150),
+    IdSucursal VARCHAR(100),
+    FOREIGN KEY (IdEstado) REFERENCES Estado(IdEstado),
+    FOREIGN KEY (IdUsuario) REFERENCES Usuario(IdUsuario),
+    FOREIGN KEY (IdSucursal) REFERENCES Sucursal(IdSucursal)
+);
+
+CREATE TABLE Venta (
+    IdVenta VARCHAR(100) PRIMARY KEY,
+    FechaVenta DATE,
+    HoraVenta TIME,
+    IdEstado INT,
+    IdUsuario VARCHAR(150),
+    IdPersona VARCHAR(150),
+    IdSucursal VARCHAR(100),
+    FOREIGN KEY (IdEstado) REFERENCES Estado(IdEstado),
+    FOREIGN KEY (IdUsuario) REFERENCES Usuario(IdUsuario),
+    FOREIGN KEY (IdPersona) REFERENCES Persona(IdPersona),
+    FOREIGN KEY (IdSucursal) REFERENCES Sucursal(IdSucursal)
+);
+
+CREATE TABLE DetalleVenta (
+    IdDetalleVenta VARCHAR(100) PRIMARY KEY,
+    Cantidad INT,
+    Precio NUMERIC(10, 2),
+    Modo INT,
+    IdVenta VARCHAR(100),
+    IdProducto VARCHAR(100),
+    IdPromocion VARCHAR(100),
+    IdPaquete VARCHAR(50),
+    Descuento NUMERIC(10, 2),
+    FOREIGN KEY (IdVenta) REFERENCES Venta(IdVenta),
+    FOREIGN KEY (IdProducto) REFERENCES Producto(IdProducto),
+    FOREIGN KEY (IdPromocion) REFERENCES Promocion(IdPromocion),
+    FOREIGN KEY (IdPaquete) REFERENCES PresentacionProducto(IdPaquete)
+);
+
+CREATE TABLE Factura (
+    IdFactura VARCHAR(100) PRIMARY KEY,
+    NroFactura VARCHAR(255),
+    FechaEmicion DATE,
+    Aprobado VARCHAR(10),
+    UrlFactura VARCHAR(255),
+    IdVenta VARCHAR(100),
+    IdEnlace VARCHAR(50),
+    FOREIGN KEY (IdVenta) REFERENCES Venta(IdVenta),
+    FOREIGN KEY (IdEnlace) REFERENCES Enlace(IdEnlace)
+);
+
+CREATE TABLE Pago (
+    IdPago VARCHAR(100) PRIMARY KEY,
+    Monto NUMERIC(10, 2),
+    Cambio NUMERIC(10, 2),
+    FechaPago DATE,
+    IdMetodoPago INT,
+    IdVenta VARCHAR(100),
+    FOREIGN KEY (IdMetodoPago) REFERENCES MetodoPago(IdMetodoPago),
+    FOREIGN KEY (IdVenta) REFERENCES Venta(IdVenta)
+);
+
+CREATE TABLE Pedido (
+    IdPedido VARCHAR(50) PRIMARY KEY,
+    FechaRegistro DATE,
+    Hora TIME,
+    Detalle VARCHAR(255),
+    IdVenta VARCHAR(100),
+    IdTipoPedido VARCHAR(50),
+    IdEstado INT,
+    FOREIGN KEY (IdVenta) REFERENCES Venta(IdVenta),
+    FOREIGN KEY (IdTipoPedido) REFERENCES TipoPedido(IdTipoPedido),
+    FOREIGN KEY (IdEstado) REFERENCES Estado(IdEstado)
+);
+
+CREATE TABLE DetallePedido (
+    IdDetallePedido VARCHAR(100) PRIMARY KEY,
+    Cantidad INT,
+    Precio NUMERIC(10, 2),
+    Modo INT,
+    IdPedido VARCHAR(50),
+    IdProducto VARCHAR(100),
+    IdPromocion VARCHAR(100),
+    IdPaquete VARCHAR(50),
+    FOREIGN KEY (IdPedido) REFERENCES Pedido(IdPedido),
+    FOREIGN KEY (IdProducto) REFERENCES Producto(IdProducto),
+    FOREIGN KEY (IdPromocion) REFERENCES Promocion(IdPromocion),
+    FOREIGN KEY (IdPaquete) REFERENCES PresentacionProducto(IdPaquete)
+);
+
+CREATE TABLE Repartidor (
+    IdRepartidor VARCHAR(150) PRIMARY KEY,
+    IdEstado INT,
+    TipoVehiculo VARCHAR(100),
+    PlacaVehiculo VARCHAR(20) UNIQUE,
+    NumeroLicencia VARCHAR(50),
+    IdEmpresaReparto VARCHAR(150),
+    IdTipoLicencia VARCHAR(150),
+    IdPersona VARCHAR(150),
+    FOREIGN KEY (IdEstado) REFERENCES Estado(IdEstado),
+    FOREIGN KEY (IdEmpresaReparto) REFERENCES EmpresaReparto(IdEmpresaReparto),
+    FOREIGN KEY (IdTipoLicencia) REFERENCES TipoLicencia(IdTipoLicencia),
+    FOREIGN KEY (IdPersona) REFERENCES Persona(IdPersona)
+);
+
+CREATE TABLE Distribucion (
+    IdDistribucion VARCHAR(100) PRIMARY KEY,
+    FechaDistribucion DATE,
+    HoraDistribucion TIME,
+    Origen VARCHAR(50),
+    IdEstado INT,
+    IdPedido VARCHAR(50),
+    IdSucursal VARCHAR(100),
+    Observacion VARCHAR(255),
+    FOREIGN KEY (IdEstado) REFERENCES Estado(IdEstado),
+    FOREIGN KEY (IdPedido) REFERENCES Pedido(IdPedido),
+    FOREIGN KEY (IdSucursal) REFERENCES Sucursal(IdSucursal)
+);
+
+CREATE TABLE DetalleDistribucion (
+    IdDetalleDistribucion VARCHAR(100) PRIMARY KEY,
+    Cantidad INT,
+    Precio NUMERIC(10, 2),
+    CantidadDevueltas INT,
+    IdPedido VARCHAR(100),
+    IdProducto VARCHAR(100),
+    IdPromocion VARCHAR(100),
+    IdPaquete VARCHAR(50),
+    FOREIGN KEY (IdPedido) REFERENCES Distribucion(IdDistribucion),
+    FOREIGN KEY (IdProducto) REFERENCES Producto(IdProducto),
+    FOREIGN KEY (IdPromocion) REFERENCES Promocion(IdPromocion),
+    FOREIGN KEY (IdPaquete) REFERENCES PresentacionProducto(IdPaquete)
+);
+
+CREATE TABLE Entrega (
+    IdEntrega VARCHAR(50) PRIMARY KEY,
+    FechaEntrega DATE,
+    HoraEntrega TIME,
+    CostoEntrega NUMERIC(10, 2),
+    IdDireccion VARCHAR(255),
+    IdTipoEntrega VARCHAR(50),
+    IdPedido VARCHAR(50),
+    IdDistribucion VARCHAR(100),
+    IdEstado INT,
+    IdRepartidor VARCHAR(150),
+    FOREIGN KEY (IdDireccion) REFERENCES Direccion(IdDireccion),
+    FOREIGN KEY (IdTipoEntrega) REFERENCES TipoEntrega(IdTipoEntrega),
+    FOREIGN KEY (IdPedido) REFERENCES Pedido(IdPedido),
+    FOREIGN KEY (IdDistribucion) REFERENCES Distribucion(IdDistribucion),
+    FOREIGN KEY (IdEstado) REFERENCES Estado(IdEstado),
+    FOREIGN KEY (IdRepartidor) REFERENCES Repartidor(IdRepartidor)
+);
+
+CREATE TABLE SeguimientoEntrega (
+    IdSeguimiento VARCHAR(100) PRIMARY KEY,
+    IdEntrega VARCHAR(50),
+    Latitud DECIMAL(10, 8),
+    Longitud DECIMAL(11, 8),
+    FechaHoraUbicacion TIMESTAMP,
+    FOREIGN KEY (IdEntrega) REFERENCES Entrega(IdEntrega)
+);
+
+CREATE TABLE TrackingLink (
+    IdTracking VARCHAR(50) PRIMARY KEY,
+    Token VARCHAR(255),
+    IdRepartidor VARCHAR(150),
+    FechaExpiracion DATE,
+    IdEstado INT,
+    FechaCreacion DATE,
+    FOREIGN KEY (IdRepartidor) REFERENCES Repartidor(IdRepartidor),
+    FOREIGN KEY (IdEstado) REFERENCES Estado(IdEstado)
+);
+
+CREATE TABLE Proveedor (
+    IdProveedor VARCHAR(50) PRIMARY KEY,
+    RazonSocial VARCHAR(255),
+    IdTipoProveedor INT,
+    IdPersona VARCHAR(150),
+    IdEstado INT,
+    FOREIGN KEY (IdTipoProveedor) REFERENCES TipoProveedor(IdTipoProveedor),
+    FOREIGN KEY (IdPersona) REFERENCES Persona(IdPersona),
+    FOREIGN KEY (IdEstado) REFERENCES Estado(IdEstado)
+);
+
+CREATE TABLE Compra (
+    IdCompra VARCHAR(50) PRIMARY KEY,
+    NroComprobante VARCHAR(100),
+    FechaCompra DATE,
+    IdComprobante VARCHAR(50),
+    IdProveedor VARCHAR(50),
+    FOREIGN KEY (IdComprobante) REFERENCES Comprobante(IdComporobante),
+    FOREIGN KEY (IdProveedor) REFERENCES Proveedor(IdProveedor)
+);
+
+CREATE TABLE DetalleCompra (
+    IdDetalleCompra VARCHAR(50) PRIMARY KEY,
+    Descripcion VARCHAR(255),
+    Cantidad INT,
+    Precio NUMERIC(10, 2),
+    FechaVencimiento DATE,
+    IdMedida VARCHAR(50),
+    IdCompra VARCHAR(50),
+    FOREIGN KEY (IdMedida) REFERENCES ProductoMedida(IdProductoMedida),
+    FOREIGN KEY (IdCompra) REFERENCES Compra(IdCompra)
+);
+
+CREATE TABLE Comprobante (
+    IdComporobante VARCHAR(50) PRIMARY KEY,
+    Nombre VARCHAR(100)
+);
+
+CREATE TABLE ContadorSecuencias (
+    prefijo VARCHAR(5),
+    fecha DATE,
+    ultimaSecuencia INT,
+    PRIMARY KEY (prefijo, fecha)
+);

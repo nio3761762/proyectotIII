@@ -1,0 +1,10 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const Pago_controllers_1 = require("../controllers/Pago.controllers");
+const MetodoPago_controllers_1 = require("../controllers/MetodoPago.controllers");
+const router = (0, express_1.Router)();
+router.get('/getpago', Pago_controllers_1.getPagos);
+router.get('/getmetodopago', MetodoPago_controllers_1.getMetodoPagos);
+router.get('/getpagoVenta/:id', Pago_controllers_1.getPagosVenta);
+exports.default = router;

@@ -1,0 +1,11 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const Envio_controllers_1 = require("../controllers/Envio.controllers");
+const router = (0, express_1.Router)();
+router.post("/addEnvio", Envio_controllers_1.createEnvio);
+router.get("/envios", Envio_controllers_1.getEnvios);
+router.get("/envios/:Id_Envio", Envio_controllers_1.getEnvioById);
+router.put("/envios/:Id_Envio", Envio_controllers_1.updateEnvio);
+router.delete("/envios/:Id_Envio", Envio_controllers_1.deleteEnvio);
+exports.default = router;

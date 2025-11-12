@@ -1,0 +1,10 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const RolMEnu_controllers_1 = require("../controllers/RolMEnu.controllers");
+const router = (0, express_1.Router)();
+router.post('/RolMenu', RolMEnu_controllers_1.createRolMenu);
+router.put('/RolMenu/:id', RolMEnu_controllers_1.updateRolMenu);
+router.get('/RolMenu/:id', RolMEnu_controllers_1.GetMenusPorRol);
+router.get('/RolMenus/:id', RolMEnu_controllers_1.GetMenuPorRol);
+exports.default = router;

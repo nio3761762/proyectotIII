@@ -1,0 +1,11 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const EmpresaReparto_controllers_1 = require("../controllers/EmpresaReparto.controllers");
+const router = (0, express_1.Router)();
+router.post("/empresareparto", EmpresaReparto_controllers_1.createEmpresaReparto);
+router.get("/empresareparto", EmpresaReparto_controllers_1.getEmpresaRepartos);
+router.get("/empresareparto/:id", EmpresaReparto_controllers_1.getEmpresaReparto);
+router.put("/empresareparto/:id", EmpresaReparto_controllers_1.updateEmpresaReparto);
+router.delete("/empresareparto/:id", EmpresaReparto_controllers_1.deleteEmpresaReparto);
+exports.default = router;

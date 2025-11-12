@@ -1,0 +1,11 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const TipoLicencia_controllers_1 = require("../controllers/TipoLicencia.controllers");
+const router = (0, express_1.Router)();
+router.post("/tipolicencia", TipoLicencia_controllers_1.createTipoLicencia);
+router.get("/tipolicencia", TipoLicencia_controllers_1.getTipoLicencias);
+router.get("/tipolicencia/:id", TipoLicencia_controllers_1.getTipoLicencia);
+router.put("/tipolicencia/:id", TipoLicencia_controllers_1.updateTipoLicencia);
+router.delete("/tipolicencia/:id", TipoLicencia_controllers_1.deleteTipoLicencia);
+exports.default = router;

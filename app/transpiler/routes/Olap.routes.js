@@ -1,0 +1,14 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const Olap_controllers_1 = require("../controllers/Olap.controllers");
+const router = (0, express_1.Router)();
+router.get("/Olap/test", Olap_controllers_1.testDetalleVenta);
+router.get("/Olap/daily_summary", Olap_controllers_1.getDailySummary);
+router.get("/Olap/summary", Olap_controllers_1.getOlapDataForDateAndBranch);
+router.get("/Olap/cube", Olap_controllers_1.getCube);
+router.get("/Olap/latest_movements", Olap_controllers_1.getLatestMovements);
+router.get("/Olap/Cubes", Olap_controllers_1.getOlapData);
+router.get("/Olap/latest-movements", Olap_controllers_1.getLatestMovements);
+router.get("/Olap/recent-alerts", Olap_controllers_1.getRecentAlerts);
+exports.default = router;

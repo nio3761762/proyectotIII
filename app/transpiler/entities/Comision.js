@@ -1,0 +1,44 @@
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.Comision = void 0;
+const typeorm_1 = require("typeorm");
+const Estado_1 = require("./Estado");
+const Producto_1 = require("./Producto");
+let Comision = class Comision extends typeorm_1.BaseEntity {
+};
+exports.Comision = Comision;
+__decorate([
+    (0, typeorm_1.PrimaryColumn)({ name: 'idcomision', type: "varchar", length: 100 }),
+    __metadata("design:type", Number)
+], Comision.prototype, "IdComision", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'cantidad', type: "integer" }),
+    __metadata("design:type", Number)
+], Comision.prototype, "Cantidad", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'porcentaje', type: "numeric", precision: 10, scale: 2 }),
+    __metadata("design:type", Number)
+], Comision.prototype, "Porcentaje", void 0);
+__decorate([
+    (0, typeorm_1.ManyToOne)(() => Producto_1.Producto, (producto) => producto.Comision),
+    (0, typeorm_1.JoinColumn)({ name: "idproducto" }),
+    __metadata("design:type", Producto_1.Producto)
+], Comision.prototype, "Producto", void 0);
+__decorate([
+    (0, typeorm_1.ManyToOne)(() => Estado_1.Estado, (estado) => estado.Comision),
+    (0, typeorm_1.JoinColumn)({ name: "idestado" }),
+    __metadata("design:type", Estado_1.Estado)
+], Comision.prototype, "Estado", void 0);
+exports.Comision = Comision = __decorate([
+    (0, typeorm_1.Entity)()
+    //@Check(`"Estado" IN (0, 1)`)
+], Comision);

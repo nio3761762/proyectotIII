@@ -1,0 +1,117 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = __importDefault(require("express"));
+const morgan_1 = __importDefault(require("morgan"));
+const cors_1 = __importDefault(require("cors"));
+const swagger_ui_express_1 = __importDefault(require("swagger-ui-express"));
+const swaggwer_1 = __importDefault(require("./swaggwer"));
+const Usuario_routes_1 = __importDefault(require("./routes/Usuario.routes"));
+const AdmDatos_routes_1 = __importDefault(require("./routes/AdmDatos.routes"));
+const Rol_routes_1 = __importDefault(require("./routes/Rol.routes"));
+const Sucursal_routes_1 = __importDefault(require("./routes/Sucursal.routes"));
+const Barrio_routes_1 = __importDefault(require("./routes/Barrio.routes"));
+const RolMenu_routes_1 = __importDefault(require("./routes/RolMenu.routes"));
+const Menu_routes_1 = __importDefault(require("./routes/Menu.routes"));
+const dotenv_1 = __importDefault(require("dotenv"));
+const Persona_routes_1 = __importDefault(require("./routes/Persona.routes"));
+const upload_routes_1 = __importDefault(require("./routes/upload.routes"));
+const RolUsuario_routes_1 = __importDefault(require("./routes/RolUsuario.routes"));
+const Producto_routes_1 = __importDefault(require("./routes/Producto.routes"));
+const Marca_routes_1 = __importDefault(require("./routes/Marca.routes"));
+const Medida_routes_1 = __importDefault(require("./routes/Medida.routes"));
+const Categoria_routes_1 = __importDefault(require("./routes/Categoria.routes"));
+const UsuarioSucursal_routes_1 = __importDefault(require("./routes/UsuarioSucursal.routes"));
+const Promocion_routes_1 = __importDefault(require("./routes/Promocion.routes"));
+const SucursalProducto_routes_1 = __importDefault(require("./routes/SucursalProducto.routes"));
+const TipoPromocion_routes_1 = __importDefault(require("./routes/TipoPromocion.routes"));
+const Complemento_routes_1 = __importDefault(require("./routes/Complemento.routes"));
+const Proveedor_routes_1 = __importDefault(require("./routes/Proveedor.routes"));
+const Venta_routes_1 = __importDefault(require("./routes/Venta.routes"));
+const Pago_routes_1 = __importDefault(require("./routes/Pago.routes"));
+const File_routes_1 = __importDefault(require("./routes/File.routes"));
+const Factura_routes_1 = __importDefault(require("./routes/Factura.routes"));
+const Presentacion_routes_1 = __importDefault(require("./routes/Presentacion.routes"));
+const Comision_routes_1 = __importDefault(require("./routes/Comision.routes"));
+const Pedido_routes_1 = __importDefault(require("./routes/Pedido.routes"));
+const CategoriaMedida_routes_1 = __importDefault(require("./routes/CategoriaMedida.routes"));
+const Compra_routes_1 = __importDefault(require("./routes/Compra.routes"));
+const Comprobante_routes_1 = __importDefault(require("./routes/Comprobante.routes"));
+const Entrega_routes_1 = __importDefault(require("./routes/Entrega.routes"));
+const Direccion_routes_1 = __importDefault(require("./routes/Direccion.routes"));
+const Repartidor_routes_1 = __importDefault(require("./routes/Repartidor.routes"));
+const EmpresaReparto_routes_1 = __importDefault(require("./routes/EmpresaReparto.routes"));
+const TipoLicencia_routes_1 = __importDefault(require("./routes/TipoLicencia.routes"));
+const Distribucion_routes_1 = __importDefault(require("./routes/Distribucion.routes"));
+const Olap_routes_1 = __importDefault(require("./routes/Olap.routes"));
+const Reporte_routes_1 = __importDefault(require("./routes/Reporte.routes"));
+const Ingredientes_routes_1 = __importDefault(require("./routes/Ingredientes.routes"));
+const error_middleware_1 = require("./middleware/error.middleware");
+const Promocion_controllers_1 = require("./controllers/Promocion.controllers");
+const node_cron_1 = __importDefault(require("node-cron"));
+const app = (0, express_1.default)();
+//aqui decimos que utile el module morgan y quiero su propiedad dev del modulo
+app.use((0, morgan_1.default)('dev'));
+//tambien que utilice el modulo cors
+app.use((0, cors_1.default)());
+dotenv_1.default.config();
+app.use(express_1.default.json());
+app.use('/api-docs', swagger_ui_express_1.default.serve, swagger_ui_express_1.default.setup(swaggwer_1.default));
+//app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/api', upload_routes_1.default);
+app.use('/uploads', express_1.default.static('uploads'));
+app.use(upload_routes_1.default);
+app.use(Usuario_routes_1.default);
+app.use(RolUsuario_routes_1.default);
+app.use(AdmDatos_routes_1.default);
+app.use(Rol_routes_1.default);
+app.use(RolMenu_routes_1.default);
+app.use(Menu_routes_1.default);
+app.use(Producto_routes_1.default);
+app.use(Marca_routes_1.default);
+app.use(Medida_routes_1.default);
+app.use(Categoria_routes_1.default);
+app.use(Sucursal_routes_1.default);
+app.use(Barrio_routes_1.default);
+app.use(UsuarioSucursal_routes_1.default);
+app.use(Promocion_routes_1.default);
+app.use(SucursalProducto_routes_1.default);
+app.use(TipoPromocion_routes_1.default);
+app.use(Complemento_routes_1.default);
+app.use(Persona_routes_1.default);
+app.use(Proveedor_routes_1.default);
+app.use(Venta_routes_1.default);
+app.use(Pago_routes_1.default);
+app.use(File_routes_1.default);
+app.use(Factura_routes_1.default);
+app.use(Presentacion_routes_1.default);
+app.use(Comision_routes_1.default);
+app.use(Pedido_routes_1.default);
+app.use(CategoriaMedida_routes_1.default);
+app.use(Compra_routes_1.default);
+app.use(Entrega_routes_1.default);
+app.use(Direccion_routes_1.default);
+app.use(Repartidor_routes_1.default);
+app.use(EmpresaReparto_routes_1.default);
+app.use(TipoLicencia_routes_1.default);
+app.use(Distribucion_routes_1.default);
+app.use(Olap_routes_1.default);
+app.use(Reporte_routes_1.default);
+app.use(Ingredientes_routes_1.default);
+app.use(Comprobante_routes_1.default);
+app.use(error_middleware_1.errorHandler);
+// cada minuto (puedes ajustar según necesites)
+node_cron_1.default.schedule("* * * * *", async () => {
+    console.log("⏰ Verificando promociones...");
+    try {
+        // Llamamos las funciones directamente, sin req ni res
+        await (0, Promocion_controllers_1.actualizarPromociones)();
+        console.log("✔ Promociones procesadas automáticamente");
+    }
+    catch (error) {
+        console.error("❌ Error procesando promociones:", error);
+    }
+});
+exports.default = app;

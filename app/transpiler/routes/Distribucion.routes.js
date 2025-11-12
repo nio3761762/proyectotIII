@@ -1,0 +1,12 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const Distribucion_controllers_1 = require("../controllers/Distribucion.controllers");
+const router = (0, express_1.Router)();
+router.get("/distribuciones", Distribucion_controllers_1.getDistribuciones);
+router.get("/ObtenerCLienteDestino/:id", Distribucion_controllers_1.ObtenerCLienteDestino);
+router.post("/distribucion", Distribucion_controllers_1.createDistribucion);
+router.get("/distribucion/:id", Distribucion_controllers_1.getDistribucion);
+router.put("/distribucion/:id", Distribucion_controllers_1.updateDistribucion);
+router.delete("/distribucion/:id", Distribucion_controllers_1.deleteDistribucion);
+exports.default = router;

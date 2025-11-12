@@ -1,0 +1,14 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const Promocion_controllers_1 = require("../controllers/Promocion.controllers");
+const router = (0, express_1.Router)();
+router.post('/promocion', Promocion_controllers_1.createPromocion);
+router.put('/promocion/:id', Promocion_controllers_1.updatePromocion);
+router.delete('/promociones/:id', Promocion_controllers_1.deletePromocion);
+router.get('/promociones', Promocion_controllers_1.getPromociones);
+router.get('/promocionactiva', Promocion_controllers_1.getPromocionesActiva);
+router.get('/Onepromocione/:id', Promocion_controllers_1.getPromocion);
+router.post("/cerrar-vencidas", Promocion_controllers_1.cerrarPromocionesVencidas);
+router.post("/activar", Promocion_controllers_1.activarPromociones);
+exports.default = router;
