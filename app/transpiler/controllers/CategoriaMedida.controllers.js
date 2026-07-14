@@ -183,7 +183,6 @@ const updateCateriaMedida = async (req, res) => {
     try {
         const { id } = req.params;
         const { Registro } = req.body;
-        console.log(Registro);
         const unidadmedida = await CategoriaMedida_1.Categoriamedida.findOne({ where: { IdCategoriaMedida: id } });
         if (!unidadmedida)
             return res.status(404).json({ message: "Unidadmedida no encontrado" });

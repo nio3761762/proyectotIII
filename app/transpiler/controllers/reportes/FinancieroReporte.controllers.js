@@ -62,14 +62,7 @@ const getReporteFinancieroConsolidado = async (req, res) => {
             WHERE s.estado = 1 AND (s.fechafin IS NULL OR s.fechafin >= $1) AND s.fechainicio <= $2 AND ($3::varchar IS NULL OR es.idsucursal = $3)
             GROUP BY es.idsucursal
         `;
-        // 6. Compras (Globales/Filtradas)
-        const sqlCompras = `
-            SELECT COALESCE(SUM(preciototal), 0) as total 
-            FROM compra 
-            WHERE fechacompra BETWEEN $1 AND $2 AND estado = 1
-            AND ($3::varchar IS NULL OR EXISTS (SELECT 1 FROM sucursal WHERE idsucursal = $3 AND central = 1))
-        `;
-        // 7b. Gastos Generales (globales, sin sucursal)
+        // 6b. Gastos Generales (globales, sin sucursal)
         const sqlGastosGenerales = `
             SELECT COALESCE(SUM(costo), 0) as total, COUNT(*) as cantidad
             FROM gasto_general
@@ -80,6 +73,13 @@ const getReporteFinancieroConsolidado = async (req, res) => {
             FROM gasto_general
             WHERE estado = 1 AND fecha BETWEEN $1 AND $2
             ORDER BY fecha DESC, nombre ASC
+        `;
+        // 6. Compras (Globales/Filtradas)
+        const sqlCompras = `
+            SELECT COALESCE(SUM(preciototal), 0) as total 
+            FROM compra 
+            WHERE fechacompra BETWEEN $1 AND $2 AND estado = 1
+            AND ($3::varchar IS NULL OR EXISTS (SELECT 1 FROM sucursal WHERE idsucursal = $3 AND central = 1))
         `;
         // 8. GANANCIA DEL DÍA ACTUAL (Revendedores)
         const sqlHoy = `

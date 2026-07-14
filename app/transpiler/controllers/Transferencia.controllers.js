@@ -19,7 +19,6 @@ const registrarTransferencia = async (req, res) => {
     await queryRunner.startTransaction();
     try {
         const { transferencias, detalles } = req.body;
-        console.log(detalles, 'lista de productos');
         // 1. Validaciones básicas
         if (!transferencias.IdUsuario || !transferencias.IdSucursal) {
             throw new error_handler_1.HttpError(400, "Usuario y Sucursal son requeridos para la transferencia.");

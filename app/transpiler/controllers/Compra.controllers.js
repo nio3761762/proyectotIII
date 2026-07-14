@@ -154,11 +154,8 @@ const updateCompra = async (req, res) => {
                 ? Number(destino.PrecioInsumo)
                 : 0;
             let inventario = null;
-            console.log("Destino actual:", destino.IdInventario);
-            console.log("Buscando inventario para destino:", inventariosActuales, destino);
             if (destino.IdInventario) {
                 inventario = inventariosActuales.find(i => i.IdInventario === destino.IdInventario);
-                console.log("Inventario encontrado:", inventario);
             }
             if (inventario) {
                 procesados.add(inventario.IdInventario);

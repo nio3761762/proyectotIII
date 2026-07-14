@@ -4,7 +4,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
 import {  verifyPersona } from "./Persona.controllers";
-import { transporter } from "../config/mailer"
+
 import { generarIdSecuencial } from '../utils/idGenerator'; // Importar la función
 import { Persona } from "../entities/Persona";
 import { AppDataSource } from "../db";
@@ -28,29 +28,14 @@ export const ActualizarPassword = async (req: Request, res: Response) => {
     usuario.PinRecuperacion = pin;
     await usuario.save();
 
-    // Envía el correo con el PIN
-    await transporter.sendMail({
-      from: '"Recuperación de contraseña" <antoniofernandezt134@gmail.com>',
-      to: email,
-      subject: 'Tu PIN de recuperación de contraseña',
-      html: `
-        <p>Hola,</p>
-        <p>Has solicitado restablecer tu contraseña.</p>
-        <p>Usa el siguiente PIN para continuar:</p>
-        <h2 style="text-align: center; font-size: 24px; margin: 20px 0;">${pin}</h2>
-        <p>Este PIN es válido por 1 hora.</p>
-        <p>Si no fuiste tú quien lo solicitó, puedes ignorar este mensaje.</p>
-      `,
-    });
-
     return res.json({
-      message: 'Correo enviado con el PIN. Revisa tu bandeja de entrada.',
+      message: 'PIN generado correctamente.',
       PinRecuperar: pin
     });
 
   } catch (error) {
     console.error(error);
-    return res.status(500).json({ mensaje: 'Error al enviar el correo' });
+    return res.status(500).json({ mensaje: 'Error al generar el PIN' });
   }
 };
 
@@ -211,24 +196,6 @@ export const RecuperarContrasena = async (req: Request, res: Response) => {
     }
    // const Pin = Math.floor(1000 + Math.random() * 9000).toString();
 
-    // Enviar correo de confirmación con las nuevas credenciales (SIN ENCRIPTAR)
-    await transporter.sendMail({
-      from: '"Credenciales Actualizadas" <antoniofernandezt134@gmail.com>',
-      to: login, // El email del usuario
-      subject: 'Tus credenciales han sido actualizadas',
-      html: `
-                <p>Hola,${email.Nombre} ${email.ApellidoPaterno}</p>
-                <p>Tus credenciales de acceso han sido actualizadas exitosamente.</p>
-                <p>Aquí están tus nuevos datos:</p>
-                <ul>
-                    <li><strong>Nueva Contraseña:</strong> ${Password}</li>
-                
-                </ul>
-                <p>Te recomendamos guardar esta información en un lugar seguro.</p>
-                <p>Si no solicitaste este cambio, por favor, contacta a soporte inmediatamente.</p>
-            `,
-    });
-
     // Actualizar y encriptar contraseña y PIN, y limpiar el PIN de recuperación
     const salt = await bcrypt.genSalt(10);
     usuario.Contrasena = await bcrypt.hash(Password, salt);
@@ -237,7 +204,7 @@ export const RecuperarContrasena = async (req: Request, res: Response) => {
 
     await usuario.save();
 
-    return res.json({ message: "La contraseña y el PIN se actualizaron y se envió un correo de confirmación." });
+    return res.json({ message: "La contraseña y el PIN se actualizaron correctamente." });
 
   } catch (error) {
     if (error instanceof Error) {
@@ -265,24 +232,6 @@ export const CambiarContrasenia = async (req: Request, res: Response) => {
     }
    // const Pin = Math.floor(1000 + Math.random() * 9000).toString();
 
-    // Enviar correo de confirmación con las nuevas credenciales (SIN ENCRIPTAR)
-    await transporter.sendMail({
-      from: '"Credenciales Actualizadas" <antoniofernandezt134@gmail.com>',
-      to: login, // El email del usuario
-      subject: 'Tus credenciales han sido actualizadas',
-      html: `
-                <p>Hola,${email.Nombre} ${email.ApellidoPaterno}</p>
-                <p>Tus credenciales de acceso han sido actualizadas exitosamente.</p>
-                <p>Aquí están tus nuevos datos:</p>
-                <ul>
-                    <li><strong>Nueva Contraseña:</strong> ${Password}</li>
-                
-                </ul>
-                <p>Te recomendamos guardar esta información en un lugar seguro.</p>
-                <p>Si no solicitaste este cambio, por favor, contacta a soporte inmediatamente.</p>
-            `,
-    });
-
     // Actualizar y encriptar contraseña y PIN, y limpiar el PIN de recuperación
     const salt = await bcrypt.genSalt(10);
     usuario.Contrasena = await bcrypt.hash(Password, salt);
@@ -291,11 +240,11 @@ export const CambiarContrasenia = async (req: Request, res: Response) => {
 
     await usuario.save();
 
-    return res.json({ message: "La contraseña y el PIN se actualizaron y se envió un correo de confirmación." });
+    return res.json({ message: "La contraseña y el PIN se actualizaron correctamente." });
 
   } catch (error) {
     if (error instanceof Error) {
-      console.error("Error en RecuperarContrasena:", error);
+      console.error("Error en CambiarContrasenia:", error);
       return res.status(500).json({ message: error.message });
     }
   }
@@ -325,26 +274,6 @@ export const createUsuario = async (req: Request, res: Response) => {
   //  usuario.Pin = Pin;
       
     await usuario.save()
-
-// Enviar correo de bienvenida con las credenciales
-    await transporter.sendMail({
-      from: '"Bienvenido a Nuestro Sistema" <antoniofernandezt134@gmail.com>',
-      to: persona.Email,
-      subject: 'Tus credenciales de acceso',
-      html: `
-        <p>Hola, ${persona.Nombre} ${persona.ApellidoPaterno}</p>
-        <p>¡Bienvenido! Tu cuenta ha sido creada exitosamente.</p>
-        <p>Aquí están tus datos de acceso:</p>
-        <ul>
-            <li><strong>Usuario:</strong> ${persona.Email}</li>
-            <li><strong>Contraseña:</strong> ${plainPassword}</li>
-           
-        </ul>
-        <p>Te recomendamos guardar esta información en un lugar seguro.</p>
-      `,
-    });
-
-
 
     return res.json({ message: "El usuario se registro correctamente" })
 
@@ -418,23 +347,6 @@ export const updateUsuario = async (req: Request, res: Response) => {
     if (Persona.Contrasena) {
       const plainPassword = Persona.Contrasena;
 
-      // Enviar correo solo si la contraseña cambia
-      await transporter.sendMail({
-        from: '"Credenciales Actualizadas" <antoniofernandezt134@gmail.com>',
-        to: usuario.Persona.Email, // Usar el email existente del usuario
-        subject: 'Tus credenciales han sido actualizadas',
-        html: `
-          <p>Hola, ${usuario.Persona.Nombre} ${usuario.Persona.ApellidoPaterno}</p>
-          <p>Tus credenciales de acceso han sido actualizadas exitosamente.</p>
-          <p>Aquí están tus nuevos datos:</p>
-          <ul>
-              <li><strong>Nueva Contraseña:</strong> ${plainPassword}</li>
-    
-          </ul>
-          <p>Te recomendamos guardar esta información en un lugar seguro.</p>
-        `,
-      });
-      
       // Encriptar la nueva contraseña
       usuario.Contrasena = await bcrypt.hash(plainPassword, salt);
     }

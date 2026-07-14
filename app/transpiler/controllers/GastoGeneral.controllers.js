@@ -49,8 +49,8 @@ const getGastosGenerales = async (req, res) => {
       WHERE
         gg.estado = 1
         AND ($1::text IS NULL OR gg.nombre ILIKE '%' || $1::text || '%')
-        AND ($2::date IS NULL OR gg.fecha::date >= $2::date)
-        AND ($3::date IS NULL OR gg.fecha::date <= $3::date)
+        AND ($2::date IS NULL OR gg.fecha >= $2::date)
+        AND ($3::date IS NULL OR gg.fecha <= $3::date)
       ORDER BY gg.fecha DESC, gg.nombre ASC
       LIMIT $4 OFFSET $5
       `, [searchParam, fechadesde || null, fechahasta || null, Number(limit), offset]);
@@ -66,7 +66,6 @@ const getGastosGenerales = async (req, res) => {
     }
     catch (error) {
         if (error instanceof Error) {
-            console.error("Error SQL getGastosGenerales:", error.message, error.stack);
             return res.status(500).json({ message: error.message });
         }
     }

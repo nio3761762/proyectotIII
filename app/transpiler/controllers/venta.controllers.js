@@ -50,7 +50,6 @@ const registrarVenta = async (req, res) => {
     await queryRunner.startTransaction();
     try {
         const { ventas, detalles } = req.body;
-        console.log(detalles, 'lista de productos');
         // 1. Validaciones básicas
         if (!ventas.IdUsuario || !ventas.IdSucursal) {
             throw new error_handler_1.HttpError(400, "Usuario y Sucursal son requeridos para la venta.");

@@ -48,9 +48,6 @@ import revendedorControl from './routes/RevendedorControl.routes'
 import { errorHandler } from './middleware/error.middleware';
 
 
-import cron from 'node-cron';
-import { actualizarPromociones } from './controllers/Promocion.controllers';
-
 const app = express();
 app.use(morgan('dev'));
 app.use(cors());
@@ -104,15 +101,7 @@ app.use(inventario)
 app.use(transferencia)
 app.use(revendedorControl)
 
-cron.schedule("* * * * *", async () => {
-  try {
-    // Llamamos las funciones directamente, sin req ni res
-    await actualizarPromociones();
-  } catch (error) {
-    console.error("❌ Error procesando promociones:", error);
-  }
-});
-// });
+
  
 
 export default app;

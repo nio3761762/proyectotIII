@@ -74,7 +74,6 @@ const insertarEnlaceFactura = async (req, res) => {
     try {
         const { id } = req.params;
         const { factura } = req.body;
-        console.log(factura, id);
         const facturasHoy = await Factura_1.Factura.findOne({
             where: {
                 IdFactura: factura.IdFactura

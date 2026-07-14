@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getReporteSemanalKardex = exports.getReporteSemanalComisiones = exports.getReporteSemanalFinanciero = exports.getReporteSemanalGastosGenerales = exports.getReporteSemanalCompras = exports.getReporteSemanalTransferencias = exports.getReporteSemanalProduccion = exports.getReporteSemanalPedidos = exports.getReporteSemanalVentas = void 0;
+exports.getReporteSemanalGeneral = exports.getReporteSemanalKardex = exports.getReporteSemanalComisiones = exports.getReporteSemanalFinanciero = exports.getReporteSemanalGastosGenerales = exports.getReporteSemanalCompras = exports.getReporteSemanalTransferencias = exports.getReporteSemanalProduccion = exports.getReporteSemanalPedidos = exports.getReporteSemanalVentas = void 0;
 const Venta_1 = require("../../entities/Venta");
 const Pedido_1 = require("../../entities/Pedido");
 const Produccion_1 = require("../../entities/Produccion");
@@ -362,90 +362,85 @@ const getReporteSemanalKardex = async (req, res) => {
     }
 };
 exports.getReporteSemanalKardex = getReporteSemanalKardex;
-
 const getReporteSemanalGeneral = async (req, res) => {
     try {
         const { fechadesde, fechahasta, idsucursal } = req.query;
         if (!fechadesde || !fechahasta)
             return res.status(400).json({ message: "Fechas obligatorias." });
-
         const sucId = (idsucursal && idsucursal !== 'TODOS') ? idsucursal : null;
         const params = [fechadesde, fechahasta, sucId];
         const sucCondVenta = sucId ? ` AND v.idsucursal = $3` : ` AND ($3::varchar IS NULL OR v.idsucursal = $3)`;
         const sucCondGasto = sucId ? ` AND g.idsucursal = $3` : ` AND ($3::varchar IS NULL OR g.idsucursal = $3)`;
         const sucCondRev = sucId ? ` AND rc.idsucursal = $3` : ` AND ($3::varchar IS NULL OR rc.idsucursal = $3)`;
-
         const [ventasData, revendedoresData, gastosData, gastosGeneralesData, comprasData] = await Promise.all([
-            AppDataSource.query(`
-                SELECT DATE_TRUNC('week', v.fechaventa)::date as semana,
-                       COALESCE(SUM(v.preciototal), 0) as total_ventas,
-                       COUNT(v.idventa) as cant_ventas
-                FROM venta v
-                WHERE v.fechaventa BETWEEN $1 AND $2 AND v.estado = 1 ${sucCondVenta}
-                GROUP BY DATE_TRUNC('week', v.fechaventa)
-                ORDER BY semana ASC
-            `, params),
-            AppDataSource.query(`
-                SELECT DATE_TRUNC('week', rc.fecha)::date as semana,
-                       COALESCE(SUM(
-                         ((rd.cantidadentregada - rd.cantidaddevuelta - COALESCE(pa.total_cantidad_ajustada, 0)) * rd.precioventa) +
-                         COALESCE(pa.total_venta_ajustada, 0)
-                       ), 0) as venta_bruta,
-                       COALESCE(SUM(
-                         GREATEST(0, (rd.cantidadentregada - rd.cantidaddevuelta) - COALESCE(rd.cantidadsincomision, 0)) * rd.comisionunitaria
-                       ), 0) as comisiones
-                FROM revendedorcontroldetalle rd
-                JOIN revendedorcontrol rc ON rd.idrevendedorcontrol = rc.idrevendedorcontrol
-                LEFT JOIN (
-                    SELECT p.idrevendedorcontroldetalle,
-                           SUM(p.cantidad) as total_cantidad_ajustada,
-                           SUM(p.cantidad * p.precioventa) as total_venta_ajustada
-                    FROM revendedorcontrolprecio p
-                    GROUP BY p.idrevendedorcontroldetalle
-                ) pa ON pa.idrevendedorcontroldetalle = rd.idrevendedorcontroldetalle
-                WHERE rc.estado = 1 AND rc.fecha BETWEEN $1 AND $2 ${sucCondRev}
-                GROUP BY DATE_TRUNC('week', rc.fecha)
-                ORDER BY semana ASC
-            `, params),
-            AppDataSource.query(`
-                SELECT DATE_TRUNC('week', g.fecha)::date as semana,
-                       COALESCE(SUM(g.monto), 0) as total_gastos
-                FROM gasto g
-                WHERE g.fecha BETWEEN $1 AND $2 AND g.estado = 1 ${sucCondGasto}
-                GROUP BY DATE_TRUNC('week', g.fecha)
-                ORDER BY semana ASC
-            `, params),
-            AppDataSource.query(`
-                SELECT DATE_TRUNC('week', gg.fecha)::date as semana,
-                       COALESCE(SUM(gg.costo), 0) as total_gastos_generales,
-                       COUNT(gg.idgastogeneral) as cantidad
-                FROM gasto_general gg
-                WHERE gg.estado = 1 AND gg.fecha BETWEEN $1 AND $2
-                GROUP BY DATE_TRUNC('week', gg.fecha)
-                ORDER BY semana ASC
-            `, [fechadesde, fechahasta]),
-            AppDataSource.query(`
-                SELECT DATE_TRUNC('week', c.fechacompra)::date as semana,
-                       COALESCE(SUM(c.preciototal), 0) as total_compras,
-                       COUNT(c.idcompra) as cant_compras
-                FROM compra c
-                WHERE c.fechacompra BETWEEN $1 AND $2 AND c.estado = 1
-                  AND ($3::varchar IS NULL OR EXISTS (SELECT 1 FROM sucursal WHERE idsucursal = $3 AND central = 1))
-                GROUP BY DATE_TRUNC('week', c.fechacompra)
-                ORDER BY semana ASC
-            `, params)
+            db_1.AppDataSource.query(`
+        SELECT DATE_TRUNC('week', v.fechaventa)::date as semana,
+               COALESCE(SUM(v.preciototal), 0) as total_ventas,
+               COUNT(v.idventa) as cant_ventas
+        FROM venta v
+        WHERE v.fechaventa BETWEEN $1 AND $2 AND v.estado = 1 ${sucCondVenta}
+        GROUP BY DATE_TRUNC('week', v.fechaventa)
+        ORDER BY semana ASC
+      `, params),
+            db_1.AppDataSource.query(`
+        SELECT DATE_TRUNC('week', rc.fecha)::date as semana,
+               COALESCE(SUM(
+                 ((rd.cantidadentregada - rd.cantidaddevuelta - COALESCE(pa.total_cantidad_ajustada, 0)) * rd.precioventa) +
+                 COALESCE(pa.total_venta_ajustada, 0)
+               ), 0) as venta_bruta,
+               COALESCE(SUM(
+                 GREATEST(0, (rd.cantidadentregada - rd.cantidaddevuelta) - COALESCE(rd.cantidadsincomision, 0)) * rd.comisionunitaria
+               ), 0) as comisiones
+        FROM revendedorcontroldetalle rd
+        JOIN revendedorcontrol rc ON rd.idrevendedorcontrol = rc.idrevendedorcontrol
+        LEFT JOIN (
+          SELECT p.idrevendedorcontroldetalle,
+                 SUM(p.cantidad) as total_cantidad_ajustada,
+                 SUM(p.cantidad * p.precioventa) as total_venta_ajustada
+          FROM revendedorcontrolprecio p
+          GROUP BY p.idrevendedorcontroldetalle
+        ) pa ON pa.idrevendedorcontroldetalle = rd.idrevendedorcontroldetalle
+        WHERE rc.estado = 1 AND rc.fecha BETWEEN $1 AND $2 ${sucCondRev}
+        GROUP BY DATE_TRUNC('week', rc.fecha)
+        ORDER BY semana ASC
+      `, params),
+            db_1.AppDataSource.query(`
+        SELECT DATE_TRUNC('week', g.fecha)::date as semana,
+               COALESCE(SUM(g.monto), 0) as total_gastos
+        FROM gasto g
+        WHERE g.fecha BETWEEN $1 AND $2 AND g.estado = 1 ${sucCondGasto}
+        GROUP BY DATE_TRUNC('week', g.fecha)
+        ORDER BY semana ASC
+      `, params),
+            db_1.AppDataSource.query(`
+        SELECT DATE_TRUNC('week', gg.fecha)::date as semana,
+               COALESCE(SUM(gg.costo), 0) as total_gastos_generales,
+               COUNT(gg.idgastogeneral) as cantidad
+        FROM gasto_general gg
+        WHERE gg.estado = 1 AND gg.fecha BETWEEN $1 AND $2
+        GROUP BY DATE_TRUNC('week', gg.fecha)
+        ORDER BY semana ASC
+      `, [fechadesde, fechahasta]),
+            db_1.AppDataSource.query(`
+        SELECT DATE_TRUNC('week', c.fechacompra)::date as semana,
+               COALESCE(SUM(c.preciototal), 0) as total_compras,
+               COUNT(c.idcompra) as cant_compras
+        FROM compra c
+        WHERE c.fechacompra BETWEEN $1 AND $2 AND c.estado = 1
+          AND ($3::varchar IS NULL OR EXISTS (SELECT 1 FROM sucursal WHERE idsucursal = $3 AND central = 1))
+        GROUP BY DATE_TRUNC('week', c.fechacompra)
+        ORDER BY semana ASC
+      `, params)
         ]);
-
+        // Build week map from all distinct weeks
         const weekMap = {};
         const toDateStr = (d) => d instanceof Date ? d.toISOString().slice(0, 10) : String(d).split('T')[0];
-
         ventasData.forEach(r => {
             const s = toDateStr(r.semana);
             weekMap[s] = weekMap[s] || { semana: s, semanaLabel: WEEK_LABEL(s), ventas: { total: 0, cantidad: 0 }, revendedores: { venta_bruta: 0, comisiones: 0, neto: 0 }, gastos: 0, gastosGenerales: { total: 0, cantidad: 0 }, compras: { total: 0, cantidad: 0 } };
             weekMap[s].ventas.total += Number(r.total_ventas);
             weekMap[s].ventas.cantidad += Number(r.cant_ventas);
         });
-
         revendedoresData.forEach(r => {
             const s = toDateStr(r.semana);
             weekMap[s] = weekMap[s] || { semana: s, semanaLabel: WEEK_LABEL(s), ventas: { total: 0, cantidad: 0 }, revendedores: { venta_bruta: 0, comisiones: 0, neto: 0 }, gastos: 0, gastosGenerales: { total: 0, cantidad: 0 }, compras: { total: 0, cantidad: 0 } };
@@ -453,28 +448,24 @@ const getReporteSemanalGeneral = async (req, res) => {
             weekMap[s].revendedores.comisiones += Number(r.comisiones);
             weekMap[s].revendedores.neto = weekMap[s].revendedores.venta_bruta - weekMap[s].revendedores.comisiones;
         });
-
         gastosData.forEach(r => {
             const s = toDateStr(r.semana);
             weekMap[s] = weekMap[s] || { semana: s, semanaLabel: WEEK_LABEL(s), ventas: { total: 0, cantidad: 0 }, revendedores: { venta_bruta: 0, comisiones: 0, neto: 0 }, gastos: 0, gastosGenerales: { total: 0, cantidad: 0 }, compras: { total: 0, cantidad: 0 } };
             weekMap[s].gastos += Number(r.total_gastos);
         });
-
         gastosGeneralesData.forEach(r => {
             const s = toDateStr(r.semana);
             weekMap[s] = weekMap[s] || { semana: s, semanaLabel: WEEK_LABEL(s), ventas: { total: 0, cantidad: 0 }, revendedores: { venta_bruta: 0, comisiones: 0, neto: 0 }, gastos: 0, gastosGenerales: { total: 0, cantidad: 0 }, compras: { total: 0, cantidad: 0 } };
             weekMap[s].gastosGenerales.total += Number(r.total_gastos_generales);
             weekMap[s].gastosGenerales.cantidad += Number(r.cantidad);
         });
-
         comprasData.forEach(r => {
             const s = toDateStr(r.semana);
             weekMap[s] = weekMap[s] || { semana: s, semanaLabel: WEEK_LABEL(s), ventas: { total: 0, cantidad: 0 }, revendedores: { venta_bruta: 0, comisiones: 0, neto: 0 }, gastos: 0, gastosGenerales: { total: 0, cantidad: 0 }, compras: { total: 0, cantidad: 0 } };
             weekMap[s].compras.total += Number(r.total_compras);
             weekMap[s].compras.cantidad += Number(r.cant_compras);
         });
-
-        const result = Object.values(weekMap).sort((a, b) => a.semana.localeCompare(b.semana)).map(w => {
+        const result = Object.values(weekMap).sort((a, b) => a.semana.localeCompare(b.semana)).map((w) => {
             const ingresoTotal = w.ventas.total + w.revendedores.neto;
             const egresoTotal = w.compras.total + w.gastos + w.gastosGenerales.total;
             return {
@@ -500,9 +491,9 @@ const getReporteSemanalGeneral = async (req, res) => {
                 }
             };
         });
-
         return res.json({ result, metadatos: { fechadesde, fechahasta, idsucursal: idsucursal || "TODAS" } });
-    } catch (error) {
+    }
+    catch (error) {
         console.error("Error en reporte semanal general:", error);
         return res.status(500).json({ message: "Error interno" });
     }

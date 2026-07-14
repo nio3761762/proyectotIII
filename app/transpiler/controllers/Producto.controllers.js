@@ -52,7 +52,6 @@ const updateProducto = async (req, res) => {
         const producto = await Producto_1.Producto.findOne({ where: { IdProducto: id }, relations: ["Productomedida"] });
         if (!producto)
             return res.status(404).json({ message: "Producto no encontrado" });
-        console.log(RegistroProducto);
         if (RegistroProducto.Nombre)
             producto.Nombre = RegistroProducto.Nombre;
         if (RegistroProducto.IdSubCategoria)

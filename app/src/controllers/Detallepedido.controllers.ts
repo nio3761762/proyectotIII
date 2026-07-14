@@ -22,7 +22,7 @@ export const deleteDetallepedidoAndRestoreStock = async ({ Iddetalle, IdSucursal
     if (!detalleToDelete) {
         throw new HttpError(404, `El detalle de venta con ID ${Iddetalle} no existe.`);
     }
-
+   
     await detalleToDelete.remove(); 
 };
 

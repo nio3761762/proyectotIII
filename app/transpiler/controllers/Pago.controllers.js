@@ -53,7 +53,6 @@ const verifyPago = async ({ PagoId }) => {
 };
 exports.verifyPago = verifyPago;
 const createPago = async (queryRunner, venta, Monto, Cambio, IdMetodoPago, pedido) => {
-    console.log(venta);
     const nuevoId = await (0, idGenerator_1.generarIdSecuencial)('PA');
     const nuevoPago = new Pago_1.Pago();
     nuevoPago.IdPago = nuevoId;

@@ -13,6 +13,7 @@ yarn-error.log*
 # Archivos de compilación
 dist/
 build/
+transpiler/
 
 # Editor
 .vscode/

@@ -64,7 +64,6 @@ const registrarPedido = async (req, res) => {
     await queryRunner.startTransaction();
     try {
         const { pedidos, detalles } = req.body;
-        console.log(detalles, 'lista de productos');
         if (!pedidos.IdUsuario || !pedidos.IdSucursal) {
             throw new error_handler_1.HttpError(400, "Usuario y Sucursal son requeridos para la pedido.");
         }
@@ -232,7 +231,6 @@ exports.enviarPedido = enviarPedido;
 const getPedidos = async (req, res) => {
     try {
         const { estado, tipopedido, idsucursal, producto, promocion, fecha, page = 1, limit = 10, search = '' } = req.query;
-        console.log(estado, tipopedido, idsucursal, producto, promocion, fecha, page, limit, search);
         const currentPage = Number(page);
         const currentLimit = Number(limit);
         const offset = (currentPage - 1) * currentLimit;

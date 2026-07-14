@@ -80,7 +80,6 @@ const updateRolMenu = async (req, res) => {
                 relacion.Permitido = 0;
                 relacion.FechaRegistro = new Date();
                 await relacion.save();
-                console.log(`Desactivado: Menu ${menuId}, Permiso ${permisoId}`);
             }
         }
         // Paso 2: Activar / Crear nuevas relaciones
@@ -93,7 +92,6 @@ const updateRolMenu = async (req, res) => {
                 const relacionExistente = relacionesActuales.find((r) => r.menu.IdMenu === menuId &&
                     r.Permiso.IdPermiso === permisoId);
                 if (relacionExistente) {
-                    console.log(relacionExistente + "   ----Aqui");
                     relacionExistente.Permitido = 1;
                     relacionExistente.FechaRegistro = new Date();
                     await relacionExistente.save();

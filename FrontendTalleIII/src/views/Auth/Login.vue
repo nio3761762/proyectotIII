@@ -171,7 +171,7 @@
           </button>
 
           <!-- Forgot Password Link -->
-          <div class="text-center pt-4">
+          <div class="text-center pt-4 invisible">
             <a
               href="/recuperar"
               class="text-sm text-gray-600 hover:text-orange-600 transition-colors duration-300 flex items-center justify-center gap-2 group"

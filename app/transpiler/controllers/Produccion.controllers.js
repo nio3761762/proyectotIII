@@ -648,9 +648,8 @@ exports.anularProduccion = anularProduccion;
 const consumirInsumoFIFO = async (queryRunner, IdInsumo, Cantidad, IdSucursal, IdReferencia, tipoMovimiento = "SALIDA_PRODUCCION") => {
     let restante = Number(Cantidad);
     let costoTotal = 0;
-
-    if (!IdInsumo) return 0;
-
+    if (!IdInsumo)
+        return 0;
     // Sincronización: Si es Agua Potable, usamos el costo promedio de las facturas de la Sucursal
     let costoOverride = null;
     if (IdInsumo === "06172026INS-1") {

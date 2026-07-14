@@ -20,7 +20,6 @@ const cerrarPromocionesVencidas = async (req, res) => {
                     promo.Estado = 0;
                     promo.Fechaactualizacion = ahora;
                     await promo.save();
-                    console.log(`❌ Promoción ${promo.Nombre} desactivada (vencida)`);
                 }
             }
         }
@@ -28,7 +27,6 @@ const cerrarPromocionesVencidas = async (req, res) => {
             return res.json({ message: "Promociones vencidas cerradas correctamente" });
         }
         else {
-            console.log("✔ Promociones vencidas cerradas (llamado por cron)");
         }
     }
     catch (error) {
@@ -53,7 +51,6 @@ const activarPromociones = async (req, res) => {
                     promo.Estado = 1;
                     promo.Fechaactualizacion = ahora;
                     await promo.save();
-                    console.log(`✅ Promoción ${promo.Nombre} activada`);
                 }
             }
         }
@@ -61,7 +58,6 @@ const activarPromociones = async (req, res) => {
             return res.json({ message: "✔ Promociones activadas correctamente" });
         }
         else {
-            console.log("✔ Promociones activadas automáticamente (cron)");
         }
     }
     catch (error) {
@@ -86,14 +82,12 @@ const actualizarPromociones = async () => {
                 promo.Estado = 1;
                 promo.Fechaactualizacion = ahora;
                 await promo.save();
-                console.log(`✅ Promoción ${promo.Nombre} activada`);
             }
             // Desactivar si ya pasó el rango
             if (ahora > fechaFin && promo.Estado !== 0) {
                 promo.Estado = 0;
                 promo.Fechaactualizacion = ahora;
                 await promo.save();
-                console.log(`❌ Promoción ${promo.Nombre} desactivada`);
             }
         }
     }

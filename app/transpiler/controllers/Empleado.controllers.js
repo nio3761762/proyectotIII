@@ -117,12 +117,10 @@ const CreateEmpleado = async (req, res) => {
     try {
         const { Personas } = req.body;
         const nuevoId = await (0, idGenerator_1.generarIdSecuencial)('EMPL');
-        console.log(Personas);
         const persona = new Empleado_1.Empleado();
         persona.IdEmpleado = nuevoId;
         persona.Persona = await (0, Persona_controllers_1.verifyPersona)({ PersonaId: Personas.IdPersona });
         persona.FechaIngreso = Personas.FechaIngreso;
-        console.log(Personas);
         await persona.save();
         if (Personas.Cargos && Personas.Cargos.length) {
             for (const cargo of Personas.Cargos) {
@@ -148,7 +146,6 @@ const UpdateEmpleado = async (req, res) => {
     try {
         const { id } = req.params;
         const { Personas } = req.body;
-        console.log(Personas);
         const existPersona = await Empleado_1.Empleado.findOneBy({
             IdEmpleado: id,
         });

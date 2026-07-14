@@ -1,8 +1,11 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AppDataSource = void 0;
-const dotenv_1 = require("dotenv");
-dotenv_1.config();
+const dotenv_1 = __importDefault(require("dotenv"));
+dotenv_1.default.config();
 const typeorm_1 = require("typeorm");
 const Usuario_1 = require("./entities/Usuario");
 const Rol_1 = require("./entities/Rol");
@@ -79,13 +82,14 @@ const Productomedidaprecio_1 = require("./entities/Productomedidaprecio");
 const RevendedorControl_1 = require("./entities/RevendedorControl ");
 const RevendedorControlDetalle_1 = require("./entities/RevendedorControlDetalle ");
 const RevendedorControlPrecio_1 = require("./entities/RevendedorControlPrecio");
+const GastoGeneral_1 = require("./entities/GastoGeneral");
 exports.AppDataSource = new typeorm_1.DataSource({
     type: "postgres",
-    host: process.env.DB_HOST || "localhost",
-    port: Number(process.env.DB_PORT) || 5432,
-    username: process.env.DB_USERNAME || "postgres",
-    password: process.env.DB_PASSWORD || "12345678",
-    database: process.env.DB_DATABASE || "TallerIII",
+    host: process.env.DB_HOST,
+    port: Number(process.env.DB_PORT),
+    username: process.env.DB_USERNAME,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_DATABASE,
     logging: true,
     entities: [
         Rol_1.Rol,
@@ -162,7 +166,8 @@ exports.AppDataSource = new typeorm_1.DataSource({
         Productomedidaprecio_1.Productomedidaprecio,
         RevendedorControlDetalle_1.Revendedorcontroldetalle,
         RevendedorControl_1.Revendedorcontrol,
-        RevendedorControlPrecio_1.Revendedorcontrolprecio
+        RevendedorControlPrecio_1.Revendedorcontrolprecio,
+        GastoGeneral_1.GastoGeneral
     ],
     synchronize: true
 });

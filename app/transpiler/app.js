@@ -103,11 +103,9 @@ app.use(Inventario_routes_1.default);
 app.use(Transferencia_routes_1.default);
 app.use(RevendedorControl_routes_1.default);
 node_cron_1.default.schedule("* * * * *", async () => {
-    console.log("⏰ Verificando promociones...");
     try {
         // Llamamos las funciones directamente, sin req ni res
         await (0, Promocion_controllers_1.actualizarPromociones)();
-        console.log("✔ Promociones procesadas automáticamente");
     }
     catch (error) {
         console.error("❌ Error procesando promociones:", error);
