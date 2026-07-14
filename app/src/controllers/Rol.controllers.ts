@@ -1,34 +1,26 @@
 import { Request, Response } from "express";
 import { Rol } from "../entities/Rol"; // Asumo que la entidad Rol está aquí
-import { verifyEstado } from "./Estado.controllers";
 import { Menupermiso } from "../entities/MenuPermiso";
+import { AppDataSource } from "../db";
+import { generarIdSecuencial } from "../utils/idGenerator";
 // Crear un nuevo rol
 export const createrole = async ({  Nombre }: {  Nombre: string }) => {
-
-        
         // Verificar si el rol ya existe
         const existingRole = await Rol.findOne({ where: { Nombre } });
         if (existingRole) {
             throw new Error( "El rol ya existe");
         }
-   const result = await Rol.createQueryBuilder("rol")
-    .select("MAX(CAST(SUBSTRING(rol.IdRol FROM '[0-9]+') AS INTEGER))", "ultimoNumero")
-    .getRawOne();
 
-  const nuevoNumero = (result?.ultimoNumero || 0);
-  const nuevoId = `ROL-${nuevoNumero}`;
-        const role = new Rol();
+       const nuevoId = await generarIdSecuencial('Rol');
+   
+       const role = new Rol();
         role.IdRol=nuevoId;
         role.Nombre = Nombre;
         role.FechaRegistro=new Date();
-        role.Estado=await verifyEstado({ EstadoId: 1 });
         await role.save();
       
-         const RolRelation = await Rol.findOne({
-      where: { IdRol: nuevoId },
-      relations: ["Estado"]
-    });
-        return RolRelation;
+   
+        return role;
    
 };
 
@@ -46,11 +38,7 @@ export const updaterole = async ({  RolId,Nombre }: {  RolId:string , Nombre: st
         existingRole.FechaActualizacion=new Date();
         await existingRole.save();
       
-         const RolRelation = await Rol.findOne({
-      where: { IdRol: RolId },
-      relations: ["Estado"]
-    });
-        return RolRelation;
+        return existingRole;
    
 };
 
@@ -65,17 +53,15 @@ export const createRole = async (req: Request, res: Response) => {
             return res.status(400).json({ message: "El rol ya existe" });
         }
        
-let estado;
+
      try {
-              estado   = await verifyEstado({ EstadoId: 1 });
+             
             } catch (error) {
                 if (error instanceof Error)
                 return res.status(400).json({ message: error.message });
             }
         // Verificar si ya existe una sucursal con mismo nombre
-        if (!estado) {
-      return res.status(500).json({ message: "No se pudo encontrar el estado" });
-    }
+      
      const ultimorol = await Rol.createQueryBuilder("rol")
         .select("MAX(rol.IdRol)", "ultimoId")
         .getRawOne();
@@ -85,12 +71,10 @@ let estado;
         role.IdRol=nuevoId;
         role.Nombre = Nombre;
         role.FechaRegistro=new Date();
-        role.Estado=estado;
         await role.save();
       
          const RolRelation = await Rol.findOne({
-      where: { IdRol: nuevoId },
-      relations: ["Estado"]
+      where: { IdRol: nuevoId }
     });
         return res.status(201).json(RolRelation);
     } catch (error) {
@@ -128,24 +112,123 @@ export const getPermisosPorMenu = async (req: Request, res: Response) => {
     }
   }
 };
+export const filRoles = async (req: Request, res: Response) => {
+  try {
+    const result = await AppDataSource.query(`
+      SELECT COALESCE(
+        json_agg(
+          json_build_object(
+            'idrol', b.IdRol,
+            'nombre', b.Nombre
+          )
+        ),
+        '[]'::json
+      ) AS roles
+      FROM Rol b;
+    `);
 
+    return res.json(result[0].roles);
+
+  } catch (error) {
+    if (error instanceof Error) {
+      return res.status(500).json({ message: error.message });
+    }
+  }
+};
 // Obtener todos los roles
 export const getRoles = async (req: Request, res: Response) => {
-    try {
-        const roles = await Rol.createQueryBuilder("rol")
-            .leftJoinAndSelect("rol.Estado", "estado")
-            .leftJoinAndSelect("rol.rolMenus", "rolMenus", "rolMenus.Permitido = :permitido", { permitido: 1 })
-            .leftJoinAndSelect("rolMenus.menu", "menu")
-            .leftJoinAndSelect("menu.Icono", "icono")
-            .leftJoinAndSelect("rolMenus.Permiso", "permiso")
-            .getMany();
+  try {
+    const { search, estado, page = 1, limit = 8 } = req.query;
 
-        return res.json(roles);
-    } catch (error) {
-        if (error instanceof Error) {
-            return res.status(500).json({ message: error.message });
-        }
+    const offset = (Number(page) - 1) * Number(limit);
+
+    const searchParam =
+      typeof search === "string" && search.trim() !== ""
+        ? search.trim()
+        : null;
+
+    const estadoParam =
+      estado !== undefined && estado !== ""
+        ? Number(estado)
+        : null;
+
+    const result = await AppDataSource.query(
+      `
+      SELECT 
+        r.idrol,
+        r.nombre,
+        r.fecharegistro,
+        r.fechaactualizacion,
+        r.estado,
+        COUNT(*) OVER() AS total,
+        COALESCE(
+          json_agg(
+            json_build_object(
+              'IdRolMenu', rm.idrolmenu,
+              'FechaRegistro', rm.fecharegistro,
+              'Permitido', rm.permitido,
+              'menu', json_build_object(
+                'IdMenu', m.idmenu,
+                'Nombre', m.nombre,
+                'Visible', m.visible,
+                'Icono', json_build_object(
+                  'IdIcono', i.idicono,
+                  'Icono', i.icono
+                )
+              ),
+              'Permiso', json_build_object(
+                'IdPermiso', p.idpermiso,
+                'Nombre', p.nombre
+              )
+            )
+          ) FILTER (WHERE rm.idrolmenu IS NOT NULL),
+          '[]'
+        ) AS "rolMenus"
+      FROM rol r
+      LEFT JOIN rolmenu rm 
+        ON rm.idrol = r.idrol AND rm.permitido = 1
+      LEFT JOIN menu m 
+        ON m.idmenu = rm.idmenu
+      LEFT JOIN icono i 
+        ON i.idicono = m.idicono
+      LEFT JOIN permiso p 
+        ON p.idpermiso = rm.idpermiso
+      WHERE 
+        ($1::text IS NULL OR r.nombre ILIKE '%' || $1::text || '%')
+      AND ($2::int IS NULL OR r.estado = $2)
+      GROUP BY r.idrol
+      ORDER BY r.idrol
+      LIMIT $3 OFFSET $4;
+      `,
+      [
+        searchParam,
+        estadoParam,
+        Number(limit),
+        offset
+      ]
+    );
+
+    // 🔥 sin resultados
+    if (result.length === 0) {
+      return res.json({
+        total: 0,
+        page: Number(page),
+        limit: Number(limit),
+        data: []
+      });
     }
+
+    return res.json({
+      total: result[0].total,
+      page: Number(page),
+      limit: Number(limit),
+      data: result
+    });
+
+  } catch (error) {
+    console.error("Error real:", error);
+    return res.status(500).json({ message: "Error interno del servidor" });
+  }
 };
 
 // Obtener un rol por ID
@@ -178,14 +261,12 @@ export const updateRole = async (req: Request, res: Response) => {
         if (!role) {
             return res.status(404).json({ message: "Role not found" });
         }
-        role.IdRol=id 
-        role.Nombre = Nombre || role.Nombre;
+       if(Nombre) role.Nombre = Nombre;
       role.FechaRegistro=role.FechaRegistro;  
       role.FechaActualizacion=new Date() ;
         await role.save();
       const RolRelation = await Rol.findOne({
       where: { IdRol: id },
-      relations: ["Estado"]
     });
         return res.json(RolRelation);
     } catch (error) {
@@ -200,29 +281,25 @@ export const deleteRole = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
-    const rol = await Rol.findOne({
-      where: { IdRol: id },
-      relations: ['Estado']
+    const result = await AppDataSource.query(
+  `UPDATE rol 
+   SET estado = CASE WHEN estado = 1 THEN 0 ELSE 1 END
+   WHERE IdRol = $1
+   RETURNING estado AS estado`,
+  [id]
+);
+
+    // ✅ aquí está el cambio
+    if (result.length === 0) {
+      return res.status(404).json({ message: "Rol no encontrado" });
+    }
+const nuevoEstado = Number(result[0][0].estado);
+    const mensajeAccion = nuevoEstado === 1 ? "habilitaron" : "eliminaron";
+
+    return res.json({
+      message: `Se ${mensajeAccion} los datos del rol correctamente`,
     });
 
-    if (!rol) {
-      return res.status(404).json({ message: "Usuario no encontrado" });
-    }
-    
-    const esActivo = rol.Estado?.IdEstado === 1;
-    const nuevoEstadoId = esActivo ? 2 : 1; 
-    const mensajeAccion = esActivo ? 'eliminaron' : 'habilitaron';
-
-    const nuevoEstado = await verifyEstado({ EstadoId: nuevoEstadoId });
-
-    if (!nuevoEstado) {
-      return res.status(500).json({ message: "No se pudo obtener el estado requerido." });
-    }
-
-    rol.Estado = nuevoEstado;
-    await rol.save();
-
-    return res.json({ message: `Se ${mensajeAccion} los datos del rol correctamente` });
 
   } catch (error) {
     console.error("Error al cambiar el estado del usuario:", error);
@@ -243,3 +320,54 @@ export const verifyRol = async ({ RolId }: { RolId: string }) => {
 };
 
 
+export const getobtenerMenus = async (req: Request, res: Response) => {
+  try {
+   const { id } = req.params;
+    const result = await AppDataSource.query(`
+      SELECT COALESCE(
+        json_agg(
+          json_build_object(
+            'menu', json_build_object(
+              'IdMenu', m.idmenu,
+              'Nombre', m.nombre,
+              'Visible', m.visible,
+              'Enlace', json_build_object(
+                'IdEnlace', e.idenlace,
+                'Enlace', e.enlace
+              )
+            ),
+            'permisos', (
+              SELECT COALESCE(json_agg(
+                json_build_object(
+                  'IdPermiso', p.idpermiso,
+                  'Nombre', p.nombre
+                )
+              ), '[]'::json)
+              FROM rolmenu rm2
+              INNER JOIN permiso p ON rm2.idpermiso = p.idpermiso
+              WHERE rm2.idrol = $1 
+                AND rm2.idmenu = m.idmenu 
+                AND rm2.permitido = 1
+            )
+          )
+        ),
+        '[]'::json
+      ) AS "Menus"
+      FROM (
+        SELECT DISTINCT idmenu
+        FROM rolmenu
+        WHERE idrol = $1 AND permitido = 1
+      ) rm
+      INNER JOIN menu m ON rm.idmenu = m.idmenu
+      LEFT JOIN enlace e ON m.idenlace = e.idenlace;
+    `, [id]);
+
+    return res.json(result[0].Menus
+    );
+
+  } catch (error) {
+    if (error instanceof Error) {
+      return res.status(500).json({ message: error.message });
+    }
+  }
+}

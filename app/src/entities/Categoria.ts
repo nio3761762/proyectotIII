@@ -1,7 +1,5 @@
 import { BaseEntity, Check, OneToMany, Column, Entity, PrimaryColumn, OneToOne, JoinColumn, ManyToOne } from "typeorm";
 import { Subcategoria } from "./SubCategoria";
-import { Estado } from "./Estado";
-import { Imagen } from "./Imagen";
 
 @Entity()
 export class Categoria extends BaseEntity {
@@ -20,14 +18,11 @@ export class Categoria extends BaseEntity {
   @OneToMany(() => Subcategoria, (subcategoria) => subcategoria.Categoria)
   Subcategoria: Subcategoria[];
 
-  @ManyToOne(() => Estado, (estado) => estado.Categoria)
-  @JoinColumn({ name: "idestado" })
-  Estado: Estado;
+  @Column({ name: "imagen", type: "varchar", length: 255, nullable: true })
+  Imagen: string;  
+  
+  @Column({ name: "estado", type: "integer",default: 1}) 
+  Estado: number; 
 
-  @ManyToOne(() => Imagen, (imagen) => imagen.Categoria, {nullable: true})
-  @JoinColumn({ name: "idimagen" })
-  Imagen: Imagen;
-  // estado
-  // foto
 
 }

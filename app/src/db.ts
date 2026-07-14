@@ -1,12 +1,14 @@
+import dotenv from "dotenv";
+dotenv.config();
 import { DataSource } from "typeorm";
 import { Usuario } from './entities/Usuario'
 import { Rol } from './entities/Rol'
 import { Rolmenu } from "./entities/RolMenu";
 import { Menu } from "./entities/Menu";
 import { Administrardatos } from "./entities/AdmDatos";
-import { Tipodocumento } from "./entities/TipoDocumento";
 import { Complemento } from "./entities/Complemento";
 import { Tipoproveedor } from "./entities/TipoProveedor";
+import { Insumo } from "./entities/Insumo";
 import { Proveedor } from "./entities/Proveedor";
 import { Persona } from "./entities/Persona";
 import { Celular } from "./entities/Celular";
@@ -16,12 +18,8 @@ import { Ciudad } from "./entities/Ciudad";
 import { Barrio } from "./entities/Barrio";
 import { Direccion } from "./entities/DIreccion";
 import { Sucursal } from "./entities/Sucursal";
-import { Estado } from "./entities/Estado";
 import { Enlace } from "./entities/Enlace";
 import { Icono } from "./entities/Icono";
-import { Imagen } from "./entities/Imagen";
-import { Genero } from "./entities/Genero";
-import { Email } from "./entities/Email";
 import { Salario } from "./entities/Salario";
 import { Distritos } from "./entities/Distritos";
 import { Rolusuario } from "./entities/RolUsuario";
@@ -33,17 +31,12 @@ import { Producto } from "./entities/Producto";
 import { Comision } from "./entities/Comision";
 import { Promocion } from "./entities/Promocion";
 import { Unidadmedida } from "./entities/UnidadMedida";
-import { Precio } from "./entities/Precio";
 import { Categoria } from "./entities/Categoria";
 import { Subcategoria } from "./entities/SubCategoria";
 import { Promocionproducto } from "./entities/PromocionProducto";
-import { Tipoproducto } from "./entities/TipoProducto";
 import { Tipopromocion } from "./entities/Tipopromocion";
 import { Marca } from "./entities/Marca";
 import { Ingrediente } from "./entities/Ingrediente";
-import { Productosucursal } from "./entities/ProductoSucursal";
-import { Usuariosucursal } from "./entities/UsuarioSucursal";
-import { Presentacionproducto } from "./entities/Presentacionproducto";
 import { Productomedida } from "./entities/ProductoMedida";
 import { Rango } from "./entities/Rango";
 import { Factura } from "./entities/Factura";
@@ -53,48 +46,57 @@ import { Metodopago } from "./entities/MetodoPago";
 import { Pago } from "./entities/Pago";
 import { Presentacion } from "./entities/Presentacion";
 import { ContadorSecuencias } from "./entities/ContadorSecuencias";
-import { Tipoentrega } from "./entities/TipoEntrega";
 import { Tipopedido } from "./entities/TipoPedido";
-import { Entrega } from "./entities/Entrega";
 import { Pedido } from "./entities/Pedido";
 import { Categoriamedida } from "./entities/CategoriaMedida";
 import { Compra } from "./entities/Compra";
 import { Comprobante } from "./entities/Comprobante";
 import { Detallecompra } from "./entities/DetalleCompra";
-import { Distribucion } from "./entities/Distribucion";
-import { Repartidor } from "./entities/Repartidor";
-import { TrackingLink } from "./entities/TrackingLink";
-import { SeguimientoEntrega } from "./entities/SeguimientoRepartidor";
-import { EmpresaReparto } from "./entities/EmpresaReparto";
-import { TipoLicencia } from "./entities/TipoLicencia";
 import { Detallepedido } from "./entities/DetallePedido";
-import { Detalledistribucion } from "./entities/Detalledistribucion";
-import { Productostock } from "./entities/ProductoStock";
+import { Produccion } from "./entities/Produccion";
+import { Insumomedida } from "./entities/InsumoMedida";
+import { Empleado } from "./entities/Empleado";
+import { Cargo } from "./entities/Cargo";
+import { EmpleadoSucursal } from "./entities/EmpleadoSucursal";
+import { EmpleadoCargo } from "./entities/EmpleadoCargo";
+import { Inventario } from "./entities/Inventario";
+import { MovimientoInventario } from "./entities/MovimientoInventario";
+import { Transferencia } from "./entities/Transferencia";
+import { DetalleTransferencia } from "./entities/DetalleTransferencia";
+import { Gasto } from "./entities/Gastos";
+import { DetalleProduccion } from "./entities/Detalleproduccuin";
+import { Horno } from "./entities/Horno";
+import { HornoEnergia } from "./entities/HornoEnergia";
+import { ProduccionEmpleado } from "./entities/ProduccionEmpleado";
+import { Receta } from "./entities/Receta";
+import { ProduccionHornoDetalle } from "./entities/Produccionhornodetalle";
+import { Hornoproducto } from "./entities/HornoProduccto";
+import { ConfiguracionEnergia } from "./entities/ConfiguracionEnergia";
+import { Productomedidaprecio } from "./entities/Productomedidaprecio";
+import { Revendedorcontrol } from "./entities/RevendedorControl ";
+import { Revendedorcontroldetalle } from "./entities/RevendedorControlDetalle ";
+import { Revendedorcontrolprecio } from "./entities/RevendedorControlPrecio";
+import { GastoGeneral } from "./entities/GastoGeneral";
 export const AppDataSource = new DataSource({
     type: "postgres",
-    host: "localhost",
-    port: 5432,
-    username: "postgres",
-    password: "12345678",
-    database: "TallerIII",
+    host: process.env.DB_HOST ,
+    port: Number(process.env.DB_PORT) ,
+    username: process.env.DB_USERNAME ,
+    password: process.env.DB_PASSWORD ,
+    database: process.env.DB_DATABASE ,
     logging: true,
     entities: [
         Rol,
-        Estado,
         Icono,
         Enlace,
         Menu,
         Rolmenu,
         Permiso,
-        Imagen,
-        Genero,
-        Email,
         Salario,
         Usuario,
         Rolusuario,
         Administrardatos,
         Horario,
-        Tipodocumento,
         Tipoproveedor,
         Proveedor,
         Documento,
@@ -110,20 +112,15 @@ export const AppDataSource = new DataSource({
         Menupermiso,
         Ingrediente,
         Producto,
-        Precio,
         Unidadmedida,
         Promocion,
         Promocionproducto,
         Marca,
-        Tipoproducto,
         Tipopromocion,
         Categoria,
         Subcategoria,
         Comision,
         Sucursal,
-        Usuariosucursal,
-        Productosucursal,
-        Presentacionproducto,
         Productomedida,
         Rango,
         Venta,
@@ -133,23 +130,38 @@ export const AppDataSource = new DataSource({
         Factura,
         ContadorSecuencias,
         Presentacion,
-        Tipoentrega,
         Tipopedido,
-        Pedido,
-        Entrega,
+        Pedido,   
         Categoriamedida,
         Compra,
         Comprobante,
         Detallecompra,
-        Repartidor,
-        Distribucion,
-        SeguimientoEntrega,
-        TrackingLink, 
-        EmpresaReparto,
-        TipoLicencia,
         Detallepedido,
-        Detalledistribucion,
-        Productostock
+        Produccion,
+        Insumo, 
+        Insumomedida,
+        Empleado,
+        EmpleadoSucursal,
+        Cargo,
+        EmpleadoCargo,
+        Inventario,
+        MovimientoInventario,
+        Transferencia,
+        DetalleTransferencia,
+        Gasto,
+        DetalleProduccion,
+        ProduccionEmpleado,
+        Horno,
+        HornoEnergia,
+        Receta,
+        ProduccionHornoDetalle,
+        Hornoproducto,
+        ConfiguracionEnergia,
+        Productomedidaprecio,
+        Revendedorcontroldetalle,
+        Revendedorcontrol,
+        Revendedorcontrolprecio,
+        GastoGeneral
     ],
     synchronize: true
 })

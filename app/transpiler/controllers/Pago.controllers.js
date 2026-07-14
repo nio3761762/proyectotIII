@@ -1,12 +1,13 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getVentas = exports.updatePago = exports.createPago = exports.verifyPago = exports.getPagosVenta = exports.getPagos = void 0;
+exports.getVentas = exports.updatePago = exports.createPagoPedido = exports.createPago = exports.verifyPago = exports.getPagosVenta = exports.getPagos = void 0;
 const Pago_1 = require("../entities/Pago");
 const error_handler_1 = require("../utils/error.handler");
 const MetodoPago_controllers_1 = require("./MetodoPago.controllers");
-const Venta_controllers_1 = require("./Venta.controllers");
 const idGenerator_1 = require("../utils/idGenerator");
 const MetodoPago_1 = require("../entities/MetodoPago");
+const Fecha_1 = require("../utils/Fecha");
+const { fecha, hora } = (0, Fecha_1.getFechaHoraBolivia)();
 const getPagos = async (req, res) => {
     try {
         const Pagos = await MetodoPago_1.Metodopago.find();
@@ -51,21 +52,36 @@ const verifyPago = async ({ PagoId }) => {
     return existPago;
 };
 exports.verifyPago = verifyPago;
-const createPago = async ({ IdVenta, Monto, Cambio, IdMetodoPago }) => {
+const createPago = async (queryRunner, venta, Monto, Cambio, IdMetodoPago, pedido) => {
+    console.log(venta);
     const nuevoId = await (0, idGenerator_1.generarIdSecuencial)('PA');
-    console.log(IdVenta);
     const nuevoPago = new Pago_1.Pago();
     nuevoPago.IdPago = nuevoId;
-    nuevoPago.FechaPago = new Date();
+    nuevoPago.FechaPago = fecha;
+    nuevoPago.HoraPago = hora;
     nuevoPago.Metodopago = await (0, MetodoPago_controllers_1.verifyMetodoPago)({ MetodoPagoId: IdMetodoPago });
-    nuevoPago.Venta = await (0, Venta_controllers_1.verifyVenta)({ VentaId: IdVenta });
-    nuevoPago.Monto = Monto,
-        nuevoPago.Cambio = Cambio,
-        await nuevoPago.save();
-    console.log("Simulación de Pago:", nuevoPago);
-    return nuevoPago; // no guarda nada todavía
+    if (venta)
+        nuevoPago.Venta = venta;
+    nuevoPago.Monto = Monto;
+    nuevoPago.Cambio = Cambio;
+    if (pedido)
+        nuevoPago.Pedido = pedido;
+    await queryRunner.manager.save(nuevoPago);
 };
 exports.createPago = createPago;
+const createPagoPedido = async (queryRunner, pedido, Monto, Cambio, IdMetodoPago) => {
+    const nuevoId = await (0, idGenerator_1.generarIdSecuencial)('PA');
+    const nuevoPago = new Pago_1.Pago();
+    nuevoPago.IdPago = nuevoId;
+    nuevoPago.FechaPago = fecha;
+    nuevoPago.HoraPago = hora;
+    nuevoPago.Metodopago = await (0, MetodoPago_controllers_1.verifyMetodoPago)({ MetodoPagoId: IdMetodoPago });
+    nuevoPago.Pedido = pedido;
+    nuevoPago.Monto = Monto;
+    nuevoPago.Cambio = Cambio;
+    await queryRunner.manager.save(nuevoPago);
+};
+exports.createPagoPedido = createPagoPedido;
 const updatePago = async ({ IdVenta, IdPago, Monto, Cambio, IdMetodoPago }) => {
     const exitPago = await (0, exports.verifyPago)({ PagoId: IdPago });
     exitPago.FechaPago = new Date();

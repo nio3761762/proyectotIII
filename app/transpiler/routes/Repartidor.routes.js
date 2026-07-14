@@ -2,7 +2,9 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const Repartidor_controllers_1 = require("../controllers/Repartidor.controllers");
+const verifyToken_1 = require("../middleware/verifyToken");
 const router = (0, express_1.Router)();
+router.use(verifyToken_1.authMiddleware);
 router.post("/repartidor", Repartidor_controllers_1.createRepartidor);
 router.get("/repartidor", Repartidor_controllers_1.getRepartidores);
 router.get("/repartidoractivo", Repartidor_controllers_1.getRepartidorActivos);

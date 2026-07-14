@@ -4,6 +4,7 @@ import { Rol } from "../entities/Rol";
 import { Menu } from "../entities/Menu";
 import { createrole, updaterole, updateRole, verifyRol } from "./Rol.controllers";
 import { verifyMenu } from "./Menu.controllers";
+import { generarIdSecuencial } from "../utils/idGenerator";
 
 
 
@@ -97,16 +98,14 @@ export const updateRolMenu = async (req: Request, res: Response) => {
     relacion.Permitido = 0;
     relacion.FechaRegistro = new Date();
     await relacion.save();
-    console.log(`Desactivado: Menu ${menuId}, Permiso ${permisoId}`);
+   
   }
 }
 
     // Paso 2: Activar / Crear nuevas relaciones
     let ultimoNumero = 0;
-    const result = await Rolmenu.createQueryBuilder("rolmenu")
-      .select("MAX(CAST(SUBSTRING(rolmenu.IdRolMenu FROM '[0-9]+') AS INTEGER))", "ultimoNumero")
-      .getRawOne();
-    ultimoNumero = result?.ultimoNumero || 0;
+    //const result = await generarIdSecuencial("rolmenu")
+    
 
     for (const [menuId, permisosArray] of Object.entries(Permiso)) {
       if (!permisosArray || permisosArray.length === 0) continue;
@@ -119,13 +118,13 @@ export const updateRolMenu = async (req: Request, res: Response) => {
         );
 
         if (relacionExistente) {
-          console.log( relacionExistente+ "   ----Aqui")
+        
           relacionExistente.Permitido = 1;
           relacionExistente.FechaRegistro = new Date();
           await relacionExistente.save();
         } else {
           ultimoNumero++;
-          const nuevoId = `IMR-${ultimoNumero}`;
+          const nuevoId = await generarIdSecuencial('IMR');
 
           const nuevaRelacion = Rolmenu.create({
             IdRolMenu: nuevoId,

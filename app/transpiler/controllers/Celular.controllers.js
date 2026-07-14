@@ -4,15 +4,14 @@ exports.getCelular = exports.verifyCelular = exports.updateCelular = exports.cre
 const Celular_1 = require("../entities/Celular");
 const Persona_controllers_1 = require("./Persona.controllers");
 const idGenerator_1 = require("../utils/idGenerator");
-const Estado_controllers_1 = require("./Estado.controllers");
 const error_handler_1 = require("../utils/error.handler");
+const db_1 = require("../db");
 const createCelular = async ({ Numero, PersonaId }) => {
     const nuevoId = await (0, idGenerator_1.generarIdSecuencial)('CEL');
     const nuevo = new Celular_1.Celular();
     nuevo.IdCelular = nuevoId;
     nuevo.Numero = Numero;
     nuevo.Persona = await (0, Persona_controllers_1.verifyPersona)({ PersonaId: PersonaId });
-    nuevo.Estado = await (0, Estado_controllers_1.verifyEstado)({ EstadoId: 1 });
     await nuevo.save();
     return nuevo;
 };
@@ -39,8 +38,11 @@ const verifyCelular = async ({ CelularId }) => {
 exports.verifyCelular = verifyCelular;
 const getCelular = async (req, res) => {
     try {
-        const complemento = await Celular_1.Celular.find({});
-        return res.json(complemento);
+        const result = await db_1.AppDataSource.query(`
+             SELECT p.numero
+             FROM celular p;
+           `);
+        return res.json(result); // ya es un array de objetos
     }
     catch (error) {
         if (error instanceof Error) {

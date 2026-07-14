@@ -1,571 +1,881 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getPedidoSucursal = exports.updatePedido = exports.PonerEnProceso = exports.PagarPedido = exports.enviarMensaje = exports.enviarPedido = exports.anularPedido = exports.verifyPedido = exports.createPedido = exports.actualizarPedido = exports.registarPedido = exports.getPedidos = exports.ObtenerPedido = void 0;
+exports.registrarPedidoRapido = exports.actualizarPedido = exports.devolverProductoPedido = exports.finalizarPedido = exports.getPedidos = exports.enviarPedido = exports.anularpedido = exports.registrarPedido = exports.verifyPedido = void 0;
+const db_1 = require("../db");
 const Pedido_1 = require("../entities/Pedido");
-const Estado_controllers_1 = require("./Estado.controllers");
-const Venta_controllers_1 = require("./Venta.controllers");
-const idGenerator_1 = require("../utils/idGenerator");
 const error_handler_1 = require("../utils/error.handler");
-const Venta_1 = require("../entities/Venta");
-const DetalleVenta_1 = require("../entities/DetalleVenta");
-const SucursalProducto_controllers_1 = require("./SucursalProducto.controllers");
-const Pago_controllers_1 = require("./Pago.controllers");
-const typeorm_1 = require("typeorm");
-const Entrega_controllers_1 = require("./Entrega,controllers");
-const TipoPedido_controllers_1 = require("./TipoPedido.controllers");
-const mailer_1 = require("../config/mailer");
+const idGenerator_1 = require("../utils/idGenerator");
 const Persona_controllers_1 = require("./Persona.controllers");
+const Usuario_controllers_1 = require("./Usuario.controllers");
+const ProductoMedida_controllers_1 = require("./ProductoMedida.controllers");
+const Promocion_controllers_1 = require("./Promocion.controllers");
+const Sucursal_controllers_1 = require("./Sucursal.controllers");
+const Fecha_1 = require("../utils/Fecha");
+const TipoPedido_controllers_1 = require("./TipoPedido.controllers");
 const Detallepedido_controllers_1 = require("./Detallepedido.controllers");
-const DetallePedido_1 = require("../entities/DetallePedido");
-const DetalleVenta_controllers_1 = require("./DetalleVenta.controllers");
-const ObtenerPedido = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const entrega = await Pedido_1.Pedido.findOne({
-            where: { IdPedido: id },
-            relations: ["Tipopedido", "Direccion", "Direccion.Barrio"]
-        });
-        return res.json(entrega);
-    }
-    catch (error) {
-        if (error instanceof Error) {
-            return res.status(500).json({ message: error.message });
-        }
-    }
-};
-exports.ObtenerPedido = ObtenerPedido;
-const getPedidos = async (req, res) => {
-    try {
-        const pedido = await Pedido_1.Pedido.find({
-            relations: [
-                "Estado",
-                "Venta",
-                "Tipopedido",
-            ]
-        });
-        return res.json(pedido);
-    }
-    catch (error) {
-        if (error instanceof Error) {
-            return res.status(500).json({ message: error.message });
-        }
-    }
-};
-exports.getPedidos = getPedidos;
-const registarPedido = async (ventasData, detallesData) => {
-    try {
-        const nuevoId = await (0, idGenerator_1.generarIdSecuencial)('PED');
-        const pedido = new Pedido_1.Pedido();
-        pedido.IdPedido = nuevoId;
-        const venta = await (0, Venta_controllers_1.createVenta)(ventasData, detallesData);
-        pedido.Venta = venta;
-        const fechaHoraActual = new Date();
-        const fechaLocal = new Date(fechaHoraActual.getTime() - fechaHoraActual.getTimezoneOffset() * 60000);
-        pedido.FechaRegistro = fechaLocal;
-        pedido.Hora = fechaHoraActual.toTimeString().slice(0, 8);
-        const tipopedido = await (0, TipoPedido_controllers_1.verifyTipoPedido)({ tipo: ventasData.IdTipoPedido });
-        pedido.Tipopedido = tipopedido;
-        pedido.Estado = (tipopedido.IdTipoPedido === 'ITP-P1') ? await (0, Estado_controllers_1.verifyEstado)({ EstadoId: 6 }) : await (0, Estado_controllers_1.verifyEstado)({ EstadoId: 9 });
-        pedido.Venta = venta;
-        await pedido.save();
-        if (detallesData) {
-            for (const producto of detallesData) {
-                await (0, Detallepedido_controllers_1.createDetallePedido)({
-                    IdPromocion: producto.IdPromocion || "",
-                    IdProducto: producto.IdProducto || "",
-                    Cantidad: producto.Cantidad,
-                    IdPaquete: producto.IdPaquete || "",
-                    IdVenta: nuevoId,
-                    Precio: producto.Precio.toFixed(2),
-                    Modo: producto.Modo
-                });
-            }
-        }
-        return pedido;
-    }
-    catch (error) {
-        throw error;
-    }
-};
-exports.registarPedido = registarPedido;
-const actualizarPedido = async (ventasData, detallesData) => {
-    try {
-        const pedido = await Pedido_1.Pedido.findOne({
-            where: { Distribuciones: { IdDistribucion: ventasData.IdDistribucion } },
-            relations: ["Venta", "Detallepedido", "Detallepedido.Producto", "Detallepedido.Paquete"]
-        });
-        if (!pedido)
-            throw new error_handler_1.HttpError(404, "Pedido no encontrado");
-        // Actualiza la venta asociada
-        //await ActualizarVenta(ventasData, detallesData);
-        const venta = await Venta_1.Venta.findOne({
-            where: { IdVenta: pedido.Venta.IdVenta }
-        });
-        if (!venta)
-            throw new error_handler_1.HttpError(404, "Venta no encontrada");
-        if (ventasData.IdCliente)
-            venta.Persona = await (0, Persona_controllers_1.verifyPersona)({ PersonaId: ventasData.IdCliente });
-        await venta.save();
-        // --- SINCRONIZAR DETALLES ---
-        await pedido.save();
-        if (Array.isArray(detallesData)) {
-            // 1. Crear un set con los IDs que llegan en la petición
-            const nuevosIdsProductos = detallesData.map(d => d.IdProducto).filter(Boolean);
-            const nuevosIdsPaquetes = detallesData.map(d => d.IdPaquete).filter(Boolean);
-            // 2. Eliminar los que ya no existen
-            for (const detalle of pedido.Detallepedido) {
-                const sigueExistiendo = (detalle.Producto && nuevosIdsProductos.includes(detalle.Producto.IdProducto)) ||
-                    (detalle.Paquete && nuevosIdsPaquetes.includes(detalle.Paquete.IdPaquete));
-                if (!sigueExistiendo) {
-                    // 👇 eliminas el detalle pedido
-                    await DetallePedido_1.Detallepedido.remove(detalle);
-                }
-            }
-            // 3. Actualizar o insertar los detalles nuevos
-            for (const producto of detallesData) {
-                const detalleExistente = pedido.Detallepedido.find(dp => (producto.IdProducto && dp.Producto?.IdProducto === producto.IdProducto) ||
-                    (producto.IdPaquete && dp.Paquete?.IdPaquete === producto.IdPaquete));
-                if (detalleExistente) {
-                    // --- ACTUALIZAR ---
-                    await (0, Detallepedido_controllers_1.updateDetallePedido)({
-                        Iddetalle: detalleExistente.IdDetallePedido,
-                        IdProducto: producto.IdProducto || "",
-                        IdPaquete: producto.IdPaquete || "",
-                        IdPromocion: producto.IdPromocion || "",
-                        Cantidad: producto.Cantidad,
-                        IdVenta: pedido.IdPedido,
-                        Precio: parseFloat(Number(producto.Precio || 0).toFixed(2)),
-                        Modo: producto.Modo,
-                    });
-                }
-                else {
-                    // --- INSERTAR NUEVO ---
-                    await (0, Detallepedido_controllers_1.createDetallePedido)({
-                        IdProducto: producto.IdProducto || "",
-                        IdPaquete: producto.IdPaquete || "",
-                        IdPromocion: producto.IdPromocion || "",
-                        Cantidad: producto.Cantidad,
-                        IdVenta: pedido.IdPedido,
-                        Precio: parseFloat(Number(producto.Precio || 0).toFixed(2)),
-                        Modo: producto.Modo,
-                    });
-                }
-            }
-        }
-        return pedido;
-    }
-    catch (error) {
-        throw error;
-    }
-};
-exports.actualizarPedido = actualizarPedido;
-const createPedido = async (req, res) => {
-    try {
-        const { reservas, detalles } = req.body;
-        const nuevoId = await (0, idGenerator_1.generarIdSecuencial)('PED');
-        const nuevoPedido = new Pedido_1.Pedido();
-        nuevoPedido.IdPedido = nuevoId;
-        console.log(reservas, detalles);
-        const venta = await (0, Venta_controllers_1.createVenta)(reservas, detalles);
-        nuevoPedido.Venta = venta;
-        const fechaHoraActual = new Date();
-        const fechaLocal = new Date(fechaHoraActual.getTime() - fechaHoraActual.getTimezoneOffset() * 60000);
-        nuevoPedido.FechaRegistro = fechaLocal;
-        nuevoPedido.Hora = fechaHoraActual.toTimeString().slice(0, 8);
-        const tipopedido = await (0, TipoPedido_controllers_1.verifyTipoPedido)({ tipo: reservas.IdTipoPedido });
-        nuevoPedido.Tipopedido = tipopedido;
-        nuevoPedido.Estado = (tipopedido.IdTipoPedido === 'ITP-P1') ? await (0, Estado_controllers_1.verifyEstado)({ EstadoId: 6 }) : await (0, Estado_controllers_1.verifyEstado)({ EstadoId: 9 });
-        nuevoPedido.Venta = venta;
-        await nuevoPedido.save();
-        await (0, Entrega_controllers_1.createEntrega)({
-            BarrioId: reservas.entrega.barrioId,
-            Direccions: reservas.entrega.direccion,
-            Referencia: reservas.entrega.referencia,
-            Ubicacion: reservas.entrega.ubicacion,
-            Costo: reservas.entrega.costoEnvio,
-            PedidoID: nuevoId,
-            IdSucursal: reservas.IdSucursal,
-            Fecha: reservas.entrega.fecha,
-            Hora: reservas.entrega.hora,
-            tipoe: reservas.IdTipoEntrega
-        });
-        if (detalles) {
-            for (const producto of detalles) {
-                await (0, Detallepedido_controllers_1.createDetallePedido)({
-                    IdPromocion: producto.IdPromocion || "",
-                    IdProducto: producto.IdProducto || "",
-                    Cantidad: producto.Cantidad,
-                    IdPaquete: producto.IdPaquete || "",
-                    IdVenta: nuevoId,
-                    Precio: producto.Precio.toFixed(2),
-                    Modo: producto.Modo
-                });
-            }
-        }
-        return res.status(201).json({ message: "El pedido se registró correctamente" });
-    }
-    catch (error) {
-        if (error instanceof Error) {
-            return res.status(500).json({ message: error.message });
-        }
-    }
-};
-exports.createPedido = createPedido;
-const verifyPedido = async ({ tipo }) => {
-    const existVenta = await Pedido_1.Pedido.findOne({ where: { IdPedido: tipo } });
+const Venta_1 = require("../entities/Venta");
+const Pago_controllers_1 = require("./Pago.controllers");
+const Pago_1 = require("../entities/Pago");
+const { fecha, hora } = (0, Fecha_1.getFechaHoraBolivia)();
+const verifyPedido = async (VentaId) => {
+    const existVenta = await Pedido_1.Pedido.findOne({ where: { IdPedido: VentaId } });
     if (!existVenta) {
-        throw new error_handler_1.HttpError(404, `El pedido con ID ${tipo} no existe.`);
+        throw new error_handler_1.HttpError(404, `El Metodo Venta con ID ${VentaId} no existe.`);
     }
     return existVenta;
 };
 exports.verifyPedido = verifyPedido;
-const anularPedido = async (req, res) => {
+const registrarPedido = async (req, res) => {
+    const queryRunner = db_1.AppDataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
     try {
-        const { id } = req.params;
-        const pedido = await Pedido_1.Pedido.findOne({
-            where: { IdPedido: id },
-            relations: [
-                "Estado",
-                "Venta",
-                "Tipopedido",
-            ]
+        const { pedidos, detalles } = req.body;
+        console.log(detalles, 'lista de productos');
+        if (!pedidos.IdUsuario || !pedidos.IdSucursal) {
+            throw new error_handler_1.HttpError(400, "Usuario y Sucursal son requeridos para la pedido.");
+        }
+        const nuevoIdVenta = await (0, idGenerator_1.generarIdSecuencial)('PED');
+        const pedido = new Pedido_1.Pedido();
+        pedido.IdPedido = nuevoIdVenta;
+        if (pedidos.IdPersona) {
+            pedido.Persona = await (0, Persona_controllers_1.verifyPersona)({ PersonaId: pedidos.IdPersona });
+        }
+        pedido.Usuario = await (0, Usuario_controllers_1.verifyUsuario)({ UsuarioId: pedidos.IdUsuario });
+        pedido.Sucursal = await (0, Sucursal_controllers_1.verifySucursal)({ SucursalId: pedidos.IdSucursal });
+        pedido.Total = Number(pedidos.Tota);
+        if (pedidos.Adelanto > 0)
+            pedido.Adelanto = Number(pedidos.Adelanto);
+        pedido.FechaRegistro = pedidos.FechaRegistro || fecha;
+        pedido.Hora = pedidos.Hora || hora;
+        pedido.Tipopedido = await (0, TipoPedido_controllers_1.verifyTipoPedido)(pedidos.IdTipo);
+        if (pedidos.Direccion)
+            pedido.DireccionEntrega = pedidos.Direccion;
+        if (pedidos.Referencia)
+            pedido.ReferenciaEntrega = pedidos.Referencia;
+        if (pedidos.Link)
+            pedido.LinkUbicacion = pedidos.Link;
+        if (pedidos.Modo)
+            pedido.Detalle = pedidos.Modo;
+        await queryRunner.manager.save(pedido);
+        // Registrar Adelanto si existe
+        if (pedido.Adelanto > 0) {
+            await (0, Pago_controllers_1.createPagoPedido)(queryRunner, pedido, pedido.Adelanto, 0, // Sin cambio para adelantos habitualmente
+            pedidos.IdMetodoPagoAdelanto || 1 // Por defecto Efectivo si no se envía
+            );
+        }
+        if (detalles) {
+            if (detalles.Producto?.length > 0) {
+                for (const prod of detalles.Producto) {
+                    let promocion = null;
+                    if (prod.idPromocion) {
+                        promocion = await (0, Promocion_controllers_1.verifyPromocion)({ PromocionId: prod.idPromocion });
+                        // Verificar límite de uso si existe
+                        if (promocion.LimiteUso > 0) {
+                            if (promocion.LimiteUso < prod.Cantidad) {
+                                throw new error_handler_1.HttpError(400, `La promoción "${promocion.Nombre}" ha agotado su límite de uso o no tiene suficiente disponible.`);
+                            }
+                            promocion.LimiteUso -= prod.Cantidad;
+                            if (promocion.LimiteUso == 0)
+                                promocion.Estado = 0;
+                            await queryRunner.manager.save(promocion);
+                        }
+                    }
+                    let presentacion = null;
+                    if (prod.idPaquete) {
+                        presentacion = await (0, ProductoMedida_controllers_1.verifyProductoMedida)({ PaqueteId: prod.idPaquete });
+                    }
+                    await (0, Detallepedido_controllers_1.createDetallePedido)(queryRunner, promocion, prod.Cantidad, presentacion, pedido, prod.Precio);
+                }
+            }
+        }
+        await queryRunner.commitTransaction();
+        return res.status(201).json({
+            message: "La pedido se registró correctamente",
+            idVenta: nuevoIdVenta
         });
-        if (!pedido) {
-            return res.status(404).json({ message: "Pedido no encontrado" });
-        }
-        // if(pedido.Estado.IdEstado === )
-        if (pedido.Estado.IdEstado === 8) {
-            const detalleventa = await DetalleVenta_1.Detalleventa.find({
-                where: { Venta: { IdVenta: pedido.Venta.IdVenta } },
-                relations: [
-                    "Venta",
-                    "Producto",
-                    "Paquete",
-                    "Promocion"
-                ]
-            });
-            const venta = await Venta_1.Venta.findOne({
-                where: { IdVenta: pedido.Venta.IdVenta },
-                relations: [
-                    "Persona",
-                    "Sucursal",
-                ]
-            });
-            console.log(detalleventa);
-            if (!detalleventa) {
-                return res.status(404).json({ message: "Los detalles de la venta no encontrados" });
-            }
-            if (!venta) {
-                return res.status(404).json({ message: "Venta no encontrado" });
-            }
-            if (!venta) {
-                throw new error_handler_1.HttpError(404, "Venta no encontrada");
-            }
-            for (const detalle of detalleventa) {
-                if (detalle.Producto && detalle.Producto.IdProducto) {
-                    await (0, SucursalProducto_controllers_1.IncrementProducto)({
-                        SucursalId: venta.Sucursal.IdSucursal,
-                        ProductoId: detalle.Producto.IdProducto,
-                        Cantidad: detalle.Cantidad
-                    });
-                }
-                if (detalle.Paquete && detalle.Paquete.IdPaquete) {
-                    await (0, SucursalProducto_controllers_1.IncrementPaquete)({
-                        SucursalId: venta.Sucursal.IdSucursal,
-                        PaqueteId: detalle.Paquete.IdPaquete,
-                        Cantidad: detalle.Cantidad
-                    });
-                }
-                if (detalle.Promocion && detalle.Promocion.IdPromocion) {
-                    await (0, SucursalProducto_controllers_1.IncrementPromocion)({
-                        SucursalId: venta.Sucursal.IdSucursal,
-                        PromocionId: detalle.Promocion.IdPromocion,
-                        Cantidad: detalle.Cantidad
-                    });
-                }
-            }
-        }
-        pedido.Estado = await (0, Estado_controllers_1.verifyEstado)({ EstadoId: 5 });
-        await pedido.save();
-        res.status(200).json({ message: "Pedido anulado correctamente y stock restaurado." });
     }
     catch (error) {
-        if (error instanceof Error) {
-            res.status(500).json({ message: error.message });
-        }
-    }
-};
-exports.anularPedido = anularPedido;
-const enviarPedido = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { data } = req.body;
-        const pedido = await Pedido_1.Pedido.findOne({
-            where: { IdPedido: id },
-            relations: [
-                "Estado",
-                "Venta",
-                "Tipopedido",
-            ]
-        });
-        if (!pedido) {
-            return res.status(404).json({ message: "Pedido no encontrado" });
-        }
-        const detallepedido = await DetallePedido_1.Detallepedido.find({
-            where: { Pedido: { IdPedido: id } },
-            relations: [
-                "Pediod",
-                "Producto",
-                "Paquete",
-                "Promocion"
-            ]
-        });
-        const venta = await Venta_1.Venta.findOne({
-            where: { IdVenta: pedido.Venta.IdVenta },
-            relations: [
-                "Persona",
-                "Sucursal",
-            ]
-        });
-        if (!detallepedido) {
-            return res.status(404).json({ message: "Los detalles de la venta no encontrados" });
-        }
-        if (!venta) {
-            return res.status(404).json({ message: "Venta no encontrado" });
-        }
-        console.log(venta);
-        const estado = await (0, Estado_controllers_1.verifyEstado)({ EstadoId: data.IdEstado });
-        if (!estado)
-            return res.status(404).json({ message: "Pedido no encontrado" });
-        if (estado.Nombre === 'En preparación')
-            pedido.Estado = estado;
-        //            await enviarMensaje({ idPersona: venta.Persona.IdPersona, Mensaje: data.mensajeCorreo })
-        if (estado.Nombre === 'Listo')
-            pedido.Estado = estado;
-        //          await enviarMensaje({ idPersona: venta.Persona.IdPersona, Mensaje: data.mensajeCorreo })
-        if (estado.Nombre === 'Enviado') {
-            pedido.Estado = estado;
-            //await enviarMensaje({ idPersona: venta.Persona.IdPersona, Mensaje: data.mensajeCorreo })
-            for (const detalle of detallepedido) {
-                await (0, DetalleVenta_controllers_1.createDetalleventa)({
-                    IdPromocion: detalle.Paquete.IdPaquete,
-                    IdProducto: detalle.Producto.IdProducto || "",
-                    Cantidad: detalle.Cantidad,
-                    IdPaquete: detalle.Paquete.IdPaquete || "",
-                    IdVenta: venta.IdVenta,
-                    Precio: detalle.Precio,
-                    IdSucursal: venta.Sucursal?.IdSucursal,
-                    Modo: detalle.Modo
-                });
-                if (detalle.Producto && detalle.Producto.IdProducto) {
-                    await (0, SucursalProducto_controllers_1.DecrementProducto)({ ProductoId: detalle.Producto.IdProducto, SucursalId: venta.Sucursal?.IdSucursal, Cantidad: detalle.Cantidad });
-                }
-                if (detalle.Paquete && detalle.Paquete.IdPaquete) {
-                    await (0, SucursalProducto_controllers_1.DecrementPaquete)({ SucursalId: venta.Sucursal?.IdSucursal, Cantidad: detalle.Cantidad, PaqueteId: detalle.Paquete.IdPaquete });
-                }
-                if (detalle.Promocion && detalle.Promocion.IdPromocion) {
-                    await (0, SucursalProducto_controllers_1.DecrementPromocion)({ SucursalId: venta.Sucursal?.IdSucursal, Cantidad: detalle.Cantidad, PromocionId: detalle.Promocion.IdPromocion });
-                }
-            }
-        }
-        //    pedido.Estado = estado;
-        await pedido.save();
-        res.status(200).json({ message: "Correo enviado para que el cliente sigua su pedido." });
-    }
-    catch (error) {
-        if (error instanceof Error) {
-            res.status(500).json({ message: error.message });
-        }
-    }
-};
-exports.enviarPedido = enviarPedido;
-const enviarMensaje = async ({ idPersona, Mensaje }) => {
-    const persona = await (0, Persona_controllers_1.verifyPersona)({ PersonaId: idPersona });
-    await mailer_1.transporter.sendMail({
-        from: '"Recuperación de contraseña" <antoniofernandezt134@gmail.com>',
-        to: persona.Email.Email,
-        subject: 'Tu PIN de recuperación de contraseña',
-        html: `
-        <p>Hola,</p>
-        <p>Has solicitado restablecer tu contraseña.</p>
-        <p>Usa el siguiente PIN para continuar:</p>
-        <h2 style="text-align: center; font-size: 24px; margin: 20px 0;">${Mensaje}</h2>
-        <p>Este PIN es válido por 1 hora.</p>
-        <p>Si no fuiste tú quien lo solicitó, puedes ignorar este mensaje.</p>
-      `,
-    });
-};
-exports.enviarMensaje = enviarMensaje;
-const PagarPedido = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { Registrar } = req.body;
-        const pedido = await Pedido_1.Pedido.findOne({
-            where: { IdPedido: id },
-            relations: [
-                "Estado",
-                "Venta",
-                "Tipopedido",
-            ]
-        });
-        if (!pedido) {
-            return res.status(404).json({ message: "Pedido no encontrado" });
-        }
-        // if(pedido.Estado.IdEstado === )
-        const venta = await Venta_1.Venta.findOne({
-            where: { IdVenta: pedido.Venta.IdVenta },
-            relations: ["Pago", "Estado"]
-        });
-        if (!venta) {
-            return res.status(404).json({ message: "Venta no encontrada" });
-        }
-        pedido.Estado = await (0, Estado_controllers_1.verifyEstado)({ EstadoId: 11 });
-        venta.Estado = await (0, Estado_controllers_1.verifyEstado)({ EstadoId: 3 });
-        await venta.save();
-        await pedido.save();
-        await (0, Pago_controllers_1.createPago)({ IdVenta: venta.IdVenta, Monto: Registrar.Monto, Cambio: Registrar.Cambio, IdMetodoPago: Registrar.MetodoPago });
-        //  
-        res.status(200).json({ message: "Se completo el pago de la venta ." });
-    }
-    catch (error) {
-        if (error instanceof Error) {
-            res.status(500).json({ message: error.message });
-        }
-    }
-};
-exports.PagarPedido = PagarPedido;
-const PonerEnProceso = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const pedido = await Pedido_1.Pedido.findOne({
-            where: { IdPedido: id },
-            relations: [
-                "Estado",
-                "Envio",
-                "Venta",
-                "Tipopedido",
-                "Reserva"
-            ]
-        });
-        if (!pedido) {
-            throw new error_handler_1.HttpError(404, "Pedido no encontrada");
-        }
-        pedido.Estado = await (0, Estado_controllers_1.verifyEstado)({ EstadoId: 7 });
-        await pedido.save();
-        res.status(200).json({ message: "Venta anulada correctamente y stock restaurado." });
-    }
-    catch (error) {
-        if (error instanceof Error) {
-            res.status(500).json({ message: error.message });
-        }
-    }
-};
-exports.PonerEnProceso = PonerEnProceso;
-const updatePedido = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { reservas, detalles } = req.body;
-        const pedidoToUpdate = await Pedido_1.Pedido.findOne({
-            where: { IdPedido: id }
-        });
-        if (!pedidoToUpdate)
-            return res.status(404).json({ message: "Pedido no encontrado" });
-        const venta = await (0, Venta_controllers_1.ActualizarVenta)(reservas, detalles);
-        pedidoToUpdate.Venta = venta;
-        const fechaHoraActual = new Date();
-        pedidoToUpdate.FechaRegistro = fechaHoraActual;
-        pedidoToUpdate.Hora = fechaHoraActual.toTimeString().slice(0, 8);
-        pedidoToUpdate.Tipopedido = await (0, TipoPedido_controllers_1.verifyTipoPedido)({ tipo: reservas.IdTipoPedido });
-        await pedidoToUpdate.save();
-        await (0, Entrega_controllers_1.updateEntrega)({
-            BarrioId: reservas.entrega.barrioId,
-            Direccions: reservas.entrega.direccion,
-            Referencia: reservas.entrega.referencia,
-            Ubicacion: reservas.entrega.ubicacion,
-            Costo: reservas.entrega.costoEnvio,
-            PedidoID: reservas.IdPedido,
-            EntregaId: reservas.Envio,
-            DireccionId: reservas.DireccionId,
-            IdSucursal: reservas.IdSucursal,
-            Fecha: reservas.entrega.fecha,
-            Hora: reservas.entrega.hora,
-            tipoe: reservas.tipoEntrega
-        });
-        // Obtener los detalles existentes
-        const existingDetalles = await DetallePedido_1.Detallepedido.find({
-            where: { Pedido: { IdPedido: id } },
-        });
-        // Recolectar IDs de los detalles entrantes
-        const incomingDetalleIds = new Set();
-        detalles.forEach((d) => {
-            if (d.IdDetallePedido)
-                incomingDetalleIds.add(d.IdDetallePedido);
-        });
-        // Eliminar detalles que ya no existen
-        for (const existingDetalle of existingDetalles) {
-            if (!incomingDetalleIds.has(existingDetalle.IdDetallePedido)) {
-                await (0, Detallepedido_controllers_1.deleteDetallepedidoAndRestoreStock)({
-                    Iddetalle: existingDetalle.IdDetallePedido,
-                    IdSucursal: reservas.IdSucursal,
-                });
-            }
-        }
-        // Actualizar o insertar cada detalle
-        for (const detalle of detalles) {
-            await (0, Detallepedido_controllers_1.updateDetallePedido)({
-                Iddetalle: detalle.IdDetallePedido,
-                IdProducto: detalle.IdProducto || "",
-                IdPaquete: detalle.IdPaquete || "",
-                IdPromocion: detalle.IdPromocion || "",
-                Cantidad: detalle.Cantidad,
-                IdVenta: id,
-                Precio: detalle.Precio.toFixed(2),
-                Modo: detalle.Modo,
-            });
-        }
-        return res.status(200).json({ message: "El pedido se actualizó correctamente" });
-    }
-    catch (error) {
+        await queryRunner.rollbackTransaction();
         if (error instanceof error_handler_1.HttpError) {
             return res.status(error.statusCode).json({ message: error.message });
         }
-        if (error instanceof Error) {
-            return res.status(500).json({ message: error.message });
-        }
+        return res.status(500).json({
+            message: "Error al registrar la pedido",
+            error: error instanceof Error ? error.message : "Error desconocido"
+        });
+    }
+    finally {
+        await queryRunner.release();
     }
 };
-exports.updatePedido = updatePedido;
-const getPedidoSucursal = async (req, res) => {
+exports.registrarPedido = registrarPedido;
+const anularpedido = async (req, res) => {
     try {
-        const { id, fecha, pago } = req.params;
-        console.log("Fecha recibida:", fecha);
-        const fechaStr = fecha.split('T')[0] || fecha; // por si llega con hora
-        const inicioDia = new Date(`${fechaStr}T00:00:00`);
-        const finDia = new Date(`${fechaStr}T23:59:59.999`);
-        let ventas = await Pedido_1.Pedido.find({
-            where: { FechaRegistro: (0, typeorm_1.Between)(inicioDia, finDia) },
-            relations: [
-                "Estado",
-                "Tipopedido",
-                "Venta",
-                "Venta.Pago",
-                "Venta.Pago.Metodopago",
-                "Venta.Persona",
-                "Venta.Sucursal",
-                "Detallepedido",
-                "Detallepedido.Producto",
-                "Detallepedido.Paquete",
-                "Detallepedido.Promocion",
-            ]
+        const { id } = req.params;
+        const result = await db_1.AppDataSource.query(`UPDATE pedido 
+      SET estado = 0 
+      WHERE IdPedido = $1
+      RETURNING estado AS estado`, [id]);
+        // ✅ aquí está el cambio
+        if (result.length === 0) {
+            return res.status(404).json({ message: "Pedido no encontrado" });
+        }
+        const nuevoEstado = Number(result[0][0].estado);
+        const mensajeAccion = nuevoEstado === 1 ? "habilitaron" : "eliminaron";
+        return res.json({
+            message: `Se ${mensajeAccion} los datos del pedido correctamente`,
         });
-        const ventasFiltradas = ventas.filter(v => (id === "TODOS" || v.Venta?.Sucursal.IdSucursal === id) &&
-            (Number(pago) == 0 || v.Venta?.Pago?.some(p => p.Metodopago?.IdMetodoPago == Number(pago))));
-        return res.json(ventasFiltradas);
     }
     catch (error) {
+        console.error("Error al cambiar el estado del Sucursal:", error);
         if (error instanceof Error) {
             return res.status(500).json({ message: error.message });
         }
     }
 };
-exports.getPedidoSucursal = getPedidoSucursal;
+exports.anularpedido = anularpedido;
+const enviarPedido = async (req, res) => {
+    const queryRunner = db_1.AppDataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+    try {
+        const { id } = req.params;
+        const pedido = await queryRunner.manager.findOne(Pedido_1.Pedido, {
+            where: { IdPedido: id },
+            relations: [
+                "Detallepedido",
+                "Detallepedido.Productomedida",
+                "Detallepedido.Productomedida.Producto",
+                "Detallepedido.Promocion",
+                "Detallepedido.Promocion.Promocionproducto",
+                "Sucursal",
+                "Usuario",
+                "Persona"
+            ]
+        });
+        if (!pedido) {
+            throw new error_handler_1.HttpError(404, "Pedido no encontrado");
+        }
+        if (pedido.Estado !== 1) {
+            throw new error_handler_1.HttpError(400, "Solo se pueden enviar pedidos que estén en estado Pendiente (Estado 1)");
+        }
+        // 1. Procesar Detalles y Decrementar Stock
+        if (pedido.Detallepedido && pedido.Detallepedido.length > 0) {
+            for (const det of pedido.Detallepedido) {
+                const { DecrementProducto, DecrementPromocion } = await Promise.resolve().then(() => __importStar(require("./Inventario.controllers")));
+                if (det.Productomedida) {
+                    await DecrementProducto(queryRunner, det.Productomedida, pedido.Sucursal.IdSucursal, det.Cantidad, id);
+                }
+                else if (det.Promocion) {
+                    await DecrementPromocion(queryRunner, pedido.Sucursal.IdSucursal, det.Cantidad, det.Promocion, id);
+                }
+            }
+        }
+        // 2. Actualizar estado del pedido a 'Enviado'
+        pedido.Estado = 2;
+        await queryRunner.manager.save(pedido);
+        await queryRunner.commitTransaction();
+        return res.status(200).json({
+            message: "Pedido marcado como ENVIADO y stock decrementado correctamente",
+            id: id
+        });
+    }
+    catch (error) {
+        await queryRunner.rollbackTransaction();
+        if (error instanceof error_handler_1.HttpError) {
+            return res.status(error.statusCode).json({ message: error.message });
+        }
+        return res.status(500).json({
+            message: "Error al enviar el pedido",
+            error: error instanceof Error ? error.message : "Error desconocido"
+        });
+    }
+    finally {
+        await queryRunner.release();
+    }
+};
+exports.enviarPedido = enviarPedido;
+const getPedidos = async (req, res) => {
+    try {
+        const { estado, tipopedido, idsucursal, producto, promocion, fecha, page = 1, limit = 10, search = '' } = req.query;
+        console.log(estado, tipopedido, idsucursal, producto, promocion, fecha, page, limit, search);
+        const currentPage = Number(page);
+        const currentLimit = Number(limit);
+        const offset = (currentPage - 1) * currentLimit;
+        const query = `
+      WITH filtered_pedidos AS (
+        SELECT p.*
+        FROM pedido p
+        WHERE
+          ($1::int IS NULL OR p.estado = $1)
+          AND ($2::text IS NULL OR p.idtipopedido = $2)
+          AND (
+            $3::text IS NULL OR $3::text = 'TODOS'
+            OR p.idsucursal = $3
+          )
+          AND (
+            $4::varchar IS NULL
+            OR EXISTS (
+              SELECT 1 FROM detallepedido dp 
+              WHERE dp.idpedido = p.idpedido 
+              AND (dp.idproducto = $4 OR EXISTS (
+                SELECT 1 FROM productomedida pm WHERE pm.idproductomedida = dp.idproductomedida AND pm.idproducto = $4
+              ))
+            )
+          )
+          AND (
+            $5::varchar IS NULL
+            OR EXISTS (
+              SELECT 1 FROM detallepedido dp 
+              WHERE dp.idpedido = p.idpedido AND dp.idpromocion = $5
+            )
+          )
+          AND (
+            $8::text = '' OR p.idpedido ILIKE $8 
+            OR EXISTS (
+              SELECT 1 FROM persona per WHERE per.idpersona = p.idpersona 
+              AND (per.nombre ILIKE $8 OR per.apellidopaterno ILIKE $8 OR per.apellidomaterno ILIKE $8)
+            )
+          )
+          AND ($9::date IS NULL OR p.fecharegistro = $9)
+      )
+      SELECT 
+        p.idpedido,
+        p.fecharegistro,
+        p.hora,
+        p.detalle,
+        p.total,
+        p.adelanto,
+        p.devolucion,
+        p.direccionentrega,
+        p.referenciaentrega,
+        p.linkubicacion,
+        p.estado,
+        COUNT(*) OVER() AS total_count,
+
+        -- SUCURSAL
+        json_build_object(
+          'IdSucursal', s.idsucursal,
+          'Nombre', s.nombre
+        ) AS "Sucursal",
+
+        -- PERSONA
+        CASE 
+          WHEN per.idpersona IS NOT NULL THEN
+            json_build_object(
+              'IdPersona', per.idpersona,
+              'Nombre', per.nombre,
+              'Imagen', per.imagen,
+              'ApellidoPaterno', per.apellidopaterno,
+              'ApellidoMaterno', per.apellidomaterno
+            )
+          ELSE NULL
+        END AS "Persona",
+
+        -- USUARIO
+        json_build_object(
+          'IdUsuario', u.idusuario,
+          'Username', u.Username
+        ) AS "Usuario",
+
+        -- TIPO PEDIDO
+        json_build_object(
+          'IdTipoPedido', tp.idtipopedido,
+          'Nombre', tp.nombre
+        ) AS "Tipopedido",
+
+        -- VENTA Y FACTURA (SI EXISTEN)
+        CASE 
+          WHEN v.idventa IS NOT NULL THEN
+            json_build_object(
+              'IdVenta', v.idventa,
+              'FechaVenta', v.fechaventa,
+              'HoraVenta', v.horaventa,
+              'PrecioTotal', v.preciototal,
+              'Factura', CASE 
+                WHEN f.idfactura IS NOT NULL THEN
+                  json_build_object(
+                    'IdFactura', f.idfactura,
+                    'NroFactura', f.nrofactura,
+                    'Aprobado', f.aprobado,
+                    'NombreFacturacion', f.nombrefacturacion,
+                    'NitCiFacturacion', f.nitcifacturacion,
+                    'Enlace', e.enlace
+                  )
+                ELSE NULL
+              END
+            )
+          ELSE NULL
+        END AS "Venta",
+
+        --  PAGOS (ADELANTOS Y PAGOS FINALES)
+        COALESCE(
+          json_agg(
+            DISTINCT jsonb_build_object(
+              'IdPago', pg.idpago,
+              'Monto', pg.monto,
+              'Cambio', pg.cambio,
+              'FechaPago', pg.fechapago,
+              'Metodopago', json_build_object(
+                'IdMetodoPago', mp.idmetodopago,
+                'Nombre', mp.nombre
+              )
+            )
+          ) FILTER (WHERE pg.idpago IS NOT NULL),
+          '[]'
+        ) AS "Pagos",
+
+        -- DETALLE PEDIDO
+        COALESCE(
+          json_agg(
+            DISTINCT jsonb_build_object(
+              'IdDetallePedido', dp.iddetallepedido,
+              'Cantidad', dp.cantidad,
+              'CantidadDevuelta', dp.cantidad_devuelta,
+              'Precio', dp.precio,
+              'Subtotal', dp.subtotal,
+
+              'Producto', CASE
+                WHEN prod.idproducto IS NOT NULL THEN
+                  json_build_object(
+                    'IdProducto', prod.idproducto,
+                    'Nombre', prod.nombre,
+                    'Imagen', prod.imagen
+                  )
+                ELSE NULL
+              END,
+
+              'Productomedida', CASE
+                WHEN pm.idproductomedida IS NOT NULL THEN
+                  json_build_object(
+                    'IdProductoMedida', pm.idproductomedida,
+                    'Cantidad', pm.cantidad,
+                    'PrecioVenta', pm.precioventa,
+                    'Presentacion', json_build_object(
+                      'IdPresentacion', pres.idpresentacion,
+                      'Nombre', pres.nombre
+                    ),
+                    'Producto', json_build_object(
+                      'IdProducto', prod_pm.idproducto,
+                      'Nombre', prod_pm.nombre,
+                      'Imagen', prod_pm.imagen
+                    )
+                  )
+                ELSE NULL
+              END,
+
+              'Promocion', CASE
+                WHEN prom.idpromocion IS NOT NULL THEN
+                  json_build_object(
+                    'IdPromocion', prom.idpromocion,
+                    'Nombre', prom.nombre,
+                    'PrecioPromocion', prom.preciopromocion,
+                    'Imagen', prom.imagen,
+                    'Productos', (
+                      SELECT json_agg(
+                        json_build_object(
+                          'IdPromocionProducto', pp.idpromocionproducto,
+                          'Cantidad', pp.cantidad,
+                          'Producto', json_build_object(
+                            'Nombre', COALESCE(p_pp.nombre, p_ppm.nombre)
+                          )
+                        )
+                      )
+                      FROM promocionproducto pp
+                      LEFT JOIN producto p_pp ON p_pp.idproducto = pp.idproducto
+                      LEFT JOIN productomedida ppm ON ppm.idproductomedida = pp.idproductomedida
+                      LEFT JOIN producto p_ppm ON p_ppm.idproducto = ppm.idproducto
+                      WHERE pp.idpromocion = prom.idpromocion
+                    )
+                  )
+                ELSE NULL
+              END
+            )
+          ) FILTER (WHERE dp.iddetallepedido IS NOT NULL),
+          '[]'
+        ) AS "Detallepedido"
+
+      FROM filtered_pedidos p
+      LEFT JOIN sucursal s ON s.idsucursal = p.idsucursal
+      LEFT JOIN persona per ON per.idpersona = p.idpersona
+      LEFT JOIN usuario u ON u.idusuario = p.idusuario
+      LEFT JOIN tipopedido tp ON tp.idtipopedido = p.idtipopedido
+      LEFT JOIN detallepedido dp ON dp.idpedido = p.idpedido
+      LEFT JOIN producto prod ON prod.idproducto = dp.idproducto
+      LEFT JOIN productomedida pm ON pm.idproductomedida = dp.idproductomedida
+      LEFT JOIN presentacion pres ON pres.idpresentacion = pm.idpresentacion
+      LEFT JOIN producto prod_pm ON prod_pm.idproducto = pm.idproducto
+      LEFT JOIN promocion prom ON prom.idpromocion = dp.idpromocion
+      LEFT JOIN venta v ON v.idpedido = p.idpedido
+      LEFT JOIN factura f ON f.idventa = v.idventa
+      LEFT JOIN enlace e ON e.idenlace = f.idenlace
+      LEFT JOIN pago pg ON pg.idpedido = p.idpedido
+      LEFT JOIN metodopago mp ON mp.idmetodopago = pg.idmetodopago
+
+      GROUP BY 
+        p.idpedido, p.fecharegistro, p.hora, p.detalle, p.total, p.adelanto, p.devolucion,
+        p.direccionentrega, p.referenciaentrega, p.linkubicacion, p.estado,
+        s.idsucursal, s.nombre, per.idpersona, u.idusuario, tp.idtipopedido,
+        v.idventa, v.fechaventa, v.horaventa, v.preciototal, 
+        f.idfactura, f.nrofactura, f.aprobado, f.nombrefacturacion, f.nitcifacturacion, e.enlace
+
+      ORDER BY p.fecharegistro DESC, p.hora DESC
+      LIMIT $6 OFFSET $7;
+    `;
+        const result = await db_1.AppDataSource.query(query, [
+            estado || null,
+            tipopedido || null,
+            idsucursal || "TODOS",
+            producto || null,
+            promocion || null,
+            currentLimit,
+            offset,
+            search ? `%${search}%` : '',
+            fecha || null
+        ]);
+        return res.json({
+            total: result.length > 0 ? Number(result[0].total_count) : 0,
+            page: currentPage,
+            limit: currentLimit,
+            data: result.map(({ total_count, ...rest }) => rest),
+        });
+    }
+    catch (error) {
+        console.error("Error en getPedidos:", error);
+        return res.status(500).json({
+            message: "Error al obtener los pedidos",
+            error: error instanceof Error ? error.message : "Error desconocido"
+        });
+    }
+};
+exports.getPedidos = getPedidos;
+const finalizarPedido = async (req, res) => {
+    const queryRunner = db_1.AppDataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+    try {
+        const { id } = req.params;
+        const { pagoFinal } = req.body; // { Monto, Cambio, IdMetodoPago }
+        const pedido = await queryRunner.manager.findOne(Pedido_1.Pedido, {
+            where: { IdPedido: id },
+            relations: [
+                "Detallepedido",
+                "Detallepedido.Productomedida",
+                "Detallepedido.Producto",
+                "Detallepedido.Promocion",
+                "Sucursal",
+                "Usuario",
+                "Persona"
+            ]
+        });
+        if (!pedido) {
+            throw new error_handler_1.HttpError(404, "Pedido no encontrado");
+        }
+        if (pedido.Estado !== 2) {
+            throw new error_handler_1.HttpError(400, "Solo se pueden finalizar pedidos que hayan sido enviados (Estado 2)");
+        }
+        // 1. Crear Venta Oficial
+        const nuevoIdVenta = await (0, idGenerator_1.generarIdSecuencial)('V');
+        const venta = new Venta_1.Venta();
+        venta.IdVenta = nuevoIdVenta;
+        venta.FechaVenta = fecha;
+        venta.HoraVenta = hora;
+        venta.PrecioTotal = Number(pedido.Total);
+        venta.Usuario = pedido.Usuario;
+        venta.Persona = pedido.Persona;
+        venta.Sucursal = pedido.Sucursal;
+        venta.Pedido = pedido;
+        await queryRunner.manager.save(venta);
+        // 2. Vincular adelantos previos a la nueva Venta
+        await queryRunner.manager.update(Pago_1.Pago, { Pedido: { IdPedido: id }, Venta: null }, { Venta: venta });
+        // 3. Crear Pago final (el saldo que paga al recibir)
+        if (pagoFinal && pagoFinal.Monto > 0) {
+            await (0, Pago_controllers_1.createPago)(queryRunner, venta, pagoFinal.Monto, (pedido.Total - pagoFinal.Monto) || 0, pagoFinal.IdMetodoPago || 1, pedido);
+        }
+        // 4. Crear DetalleVenta (ya no descuenta stock porque se hizo en enviarPedido)
+        if (pedido.Detallepedido && pedido.Detallepedido.length > 0) {
+            for (const det of pedido.Detallepedido) {
+                const { Detalleventa } = await Promise.resolve().then(() => __importStar(require("../entities/DetalleVenta")));
+                const dv = new Detalleventa();
+                dv.IdDetalleVenta = await (0, idGenerator_1.generarIdSecuencial)('DV');
+                dv.Venta = venta;
+                dv.Producto = det.Producto;
+                dv.Productomedida = det.Productomedida;
+                dv.Promocion = det.Promocion;
+                dv.Cantidad = det.Cantidad;
+                dv.Precio = det.Precio;
+                await queryRunner.manager.save(dv);
+            }
+        }
+        // 5. Finalizar Pedido
+        pedido.Estado = 3;
+        await queryRunner.manager.save(pedido);
+        await queryRunner.commitTransaction();
+        return res.status(200).json({
+            message: "Pedido finalizado y venta registrada correctamente",
+            idVenta: nuevoIdVenta
+        });
+    }
+    catch (error) {
+        await queryRunner.rollbackTransaction();
+        if (error instanceof error_handler_1.HttpError) {
+            return res.status(error.statusCode).json({ message: error.message });
+        }
+        return res.status(500).json({
+            message: "Error al finalizar el pedido",
+            error: error instanceof Error ? error.message : "Error desconocido"
+        });
+    }
+    finally {
+        await queryRunner.release();
+    }
+};
+exports.finalizarPedido = finalizarPedido;
+const devolverProductoPedido = async (req, res) => {
+    const queryRunner = db_1.AppDataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+    try {
+        const { id } = req.params;
+        const { idDetallePedido, cantidadDevolver, descripcion } = req.body;
+        // 1. Validar pedido y su estado
+        const pedido = await queryRunner.manager.findOne(Pedido_1.Pedido, {
+            where: { IdPedido: id },
+            relations: ["Venta", "Sucursal"]
+        });
+        if (!pedido)
+            throw new error_handler_1.HttpError(404, "Pedido no encontrado");
+        if (pedido.Estado === 3)
+            throw new error_handler_1.HttpError(400, "El pedido ya está finalizado, no se admiten devoluciones.");
+        const { Detallepedido } = await Promise.resolve().then(() => __importStar(require("../entities/DetallePedido")));
+        const detalle = await queryRunner.manager.findOne(Detallepedido, {
+            where: { IdDetallePedido: idDetallePedido, Pedido: { IdPedido: id } },
+            relations: ["Productomedida",
+                "Productomedida.Producto",
+                "Promocion",
+                "Promocion.Promocionproducto",
+                "Promocion.Promocionproducto.Productomedida"]
+        });
+        if (!detalle)
+            throw new error_handler_1.HttpError(404, "Detalle de pedido no encontrado");
+        if (Number(detalle.Cantidad) < cantidadDevolver) {
+            throw new error_handler_1.HttpError(400, "La cantidad a devolver supera la cantidad pedida");
+        }
+        // 2. Restaurar Stock (Solo si el pedido ya fue enviado, es decir, ya se descontó stock)
+        if (pedido.Estado === 2) {
+            const { IncrementProducto, IncrementPromocion } = await Promise.resolve().then(() => __importStar(require("./Inventario.controllers")));
+            if (detalle.Productomedida) {
+                await IncrementProducto(queryRunner, detalle.Productomedida, pedido.Sucursal.IdSucursal, cantidadDevolver, id);
+            }
+            else if (detalle.Promocion) {
+                await IncrementPromocion(queryRunner, pedido.Sucursal.IdSucursal, cantidadDevolver, detalle.Promocion, id);
+            }
+        }
+        // 3. Ajustar montos y cantidades
+        const montoADescontar = Number(detalle.Precio) * cantidadDevolver;
+        // Actualizar detalle
+        detalle.Cantidad = Number(detalle.Cantidad) - cantidadDevolver;
+        detalle.CantidadDevuelta = Number(detalle.CantidadDevuelta || 0) + cantidadDevolver;
+        detalle.Subtotal = Number(detalle.Subtotal) - montoADescontar;
+        // Nota: Ya no eliminamos el registro si la cantidad llega a 0, 
+        // para poder mantener el registro de lo que se devolvió.
+        await queryRunner.manager.save(detalle);
+        // Actualizar Cabecera Pedido
+        pedido.Total = Number(pedido.Total) - montoADescontar;
+        if (descripcion)
+            pedido.devolucion = descripcion;
+        await queryRunner.manager.save(pedido);
+        // 4. Si ya existía una venta (flujo antiguo o post-finalización), también ajustarla
+        if (pedido.Venta) {
+            const venta = pedido.Venta;
+            venta.PrecioTotal = Number(venta.PrecioTotal) - montoADescontar;
+            await queryRunner.manager.save(venta);
+            // Intentar buscar y ajustar detalleventa si existe
+            const { Detalleventa } = await Promise.resolve().then(() => __importStar(require("../entities/DetalleVenta")));
+            const dv = await queryRunner.manager.findOne(Detalleventa, {
+                where: { Venta: { IdVenta: venta.IdVenta }, Productomedida: detalle.Productomedida, Promocion: detalle.Promocion }
+            });
+            if (dv) {
+                dv.Cantidad = Number(dv.Cantidad) - cantidadDevolver;
+                if (dv.Cantidad <= 0)
+                    await queryRunner.manager.remove(dv);
+                else
+                    await queryRunner.manager.save(dv);
+            }
+        }
+        await queryRunner.commitTransaction();
+        return res.json({
+            message: "Devolución y ajuste de stock procesados correctamente",
+            nuevoTotal: pedido.Total
+        });
+    }
+    catch (error) {
+        await queryRunner.rollbackTransaction();
+        if (error instanceof error_handler_1.HttpError) {
+            return res.status(error.statusCode).json({ message: error.message });
+        }
+        return res.status(500).json({
+            message: "Error al procesar la devolución",
+            error: error instanceof Error ? error.message : "Error desconocido"
+        });
+    }
+    finally {
+        await queryRunner.release();
+    }
+};
+exports.devolverProductoPedido = devolverProductoPedido;
+const actualizarPedido = async (req, res) => {
+    const queryRunner = db_1.AppDataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+    try {
+        const { id } = req.params;
+        const { pedidos, detalles } = req.body;
+        const pedido = await queryRunner.manager.findOne(Pedido_1.Pedido, {
+            where: { IdPedido: id },
+            relations: [
+                "Sucursal",
+                "Detallepedido",
+                "Detallepedido.Productomedida",
+                "Detallepedido.Promocion",
+                "Detallepedido.Promocion.Promocionproducto",
+                "Detallepedido.Promocion.Promocionproducto.Productomedida"
+            ]
+        });
+        if (!pedido) {
+            throw new error_handler_1.HttpError(404, "Pedido no encontrado");
+        }
+        if (pedido.Estado !== 1) {
+            throw new error_handler_1.HttpError(400, "Solo se pueden actualizar pedidos en estado Pendiente");
+        }
+        // 1. Si hay nuevos detalles, eliminamos los antiguos
+        if (detalles) {
+            if (pedido.Detallepedido) {
+                for (const detalle of pedido.Detallepedido) {
+                    // Restaurar límite de uso de promoción si aplica
+                    if (detalle.Promocion && detalle.Promocion.LimiteUso != null) {
+                        detalle.Promocion.LimiteUso += detalle.Cantidad;
+                        detalle.Promocion.Estado = 1;
+                        await queryRunner.manager.save(detalle.Promocion);
+                    }
+                    await queryRunner.manager.remove(detalle);
+                }
+            }
+        }
+        // 2. Actualizar cabecera del Pedido
+        if (pedidos.IdPersona) {
+            pedido.Persona = await (0, Persona_controllers_1.verifyPersona)({ PersonaId: pedidos.IdPersona });
+        }
+        if (pedidos.IdUsuario) {
+            pedido.Usuario = await (0, Usuario_controllers_1.verifyUsuario)({ UsuarioId: pedidos.IdUsuario });
+        }
+        if (pedidos.IdSucursal) {
+            pedido.Sucursal = await (0, Sucursal_controllers_1.verifySucursal)({ SucursalId: pedidos.IdSucursal });
+        }
+        if (pedidos.IdTipo) {
+            pedido.Tipopedido = await (0, TipoPedido_controllers_1.verifyTipoPedido)(pedidos.IdTipo);
+        }
+        pedido.Total = Number(pedidos.Tota || pedido.Total);
+        if (pedidos.Adelanto !== undefined)
+            pedido.Adelanto = Number(pedidos.Adelanto);
+        if (pedidos.Direccion)
+            pedido.DireccionEntrega = pedidos.Direccion;
+        if (pedidos.Referencia)
+            pedido.ReferenciaEntrega = pedidos.Referencia;
+        if (pedidos.Link)
+            pedido.LinkUbicacion = pedidos.Link;
+        if (pedidos.Modo)
+            pedido.Detalle = pedidos.Modo;
+        await queryRunner.manager.save(pedido);
+        // 3. Manejo de Adelantos (Pagos)
+        if (pedidos.Adelanto > 0) {
+            const pagoExistente = await queryRunner.manager.findOne(Pago_1.Pago, { where: { Pedido: { IdPedido: id } } });
+            if (pagoExistente) {
+                pagoExistente.Monto = pedidos.Adelanto;
+                pagoExistente.Metodopago = await (await Promise.resolve().then(() => __importStar(require("./MetodoPago.controllers")))).verifyMetodoPago({ MetodoPagoId: pedidos.IdMetodoPagoAdelanto || 1 });
+                await queryRunner.manager.save(pagoExistente);
+            }
+            else {
+                await (0, Pago_controllers_1.createPagoPedido)(queryRunner, pedido, pedidos.Adelanto, 0, pedidos.IdMetodoPagoAdelanto || 1);
+            }
+        }
+        // 4. Procesar nuevos Detalles
+        if (detalles && detalles.Producto?.length > 0) {
+            for (const prod of detalles.Producto) {
+                let promocion = null;
+                if (prod.idPromocion) {
+                    promocion = await (0, Promocion_controllers_1.verifyPromocion)({ PromocionId: prod.idPromocion });
+                    if (promocion.LimiteUso > 0) {
+                        if (promocion.LimiteUso < prod.Cantidad) {
+                            throw new error_handler_1.HttpError(400, `La promoción "${promocion.Nombre}" ha agotado su límite de uso.`);
+                        }
+                        promocion.LimiteUso -= prod.Cantidad;
+                        if (promocion.LimiteUso === 0)
+                            promocion.Estado = 0;
+                        await queryRunner.manager.save(promocion);
+                    }
+                }
+                let presentacion = null;
+                if (prod.idPaquete) {
+                    presentacion = await (0, ProductoMedida_controllers_1.verifyProductoMedida)({ PaqueteId: prod.idPaquete });
+                }
+                await (0, Detallepedido_controllers_1.createDetallePedido)(queryRunner, promocion, prod.Cantidad, presentacion, pedido, prod.Precio);
+            }
+        }
+        await queryRunner.commitTransaction();
+        return res.status(200).json({ message: "El pedido se actualizó correctamente" });
+    }
+    catch (error) {
+        await queryRunner.rollbackTransaction();
+        if (error instanceof error_handler_1.HttpError) {
+            return res.status(error.statusCode).json({ message: error.message });
+        }
+        return res.status(500).json({
+            message: "Error al actualizar el pedido",
+            error: error instanceof Error ? error.message : "Error desconocido"
+        });
+    }
+    finally {
+        await queryRunner.release();
+    }
+};
+exports.actualizarPedido = actualizarPedido;
+const registrarPedidoRapido = async (req, res) => {
+    const queryRunner = db_1.AppDataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+    try {
+        const { pedidos, detalles, pagoFinal } = req.body;
+        // 1. Registrar el pedido normalmente (pero forzamos estado finalizado al terminar)
+        if (!pedidos.IdUsuario || !pedidos.IdSucursal) {
+            throw new error_handler_1.HttpError(400, "Usuario y Sucursal son requeridos.");
+        }
+        const nuevoIdPedido = await (0, idGenerator_1.generarIdSecuencial)('PED');
+        const pedido = new Pedido_1.Pedido();
+        pedido.IdPedido = nuevoIdPedido;
+        if (pedidos.IdPersona) {
+            pedido.Persona = await (0, Persona_controllers_1.verifyPersona)({ PersonaId: pedidos.IdPersona });
+        }
+        pedido.Usuario = await (0, Usuario_controllers_1.verifyUsuario)({ UsuarioId: pedidos.IdUsuario });
+        pedido.Sucursal = await (0, Sucursal_controllers_1.verifySucursal)({ SucursalId: pedidos.IdSucursal });
+        pedido.Total = Number(pedidos.Tota);
+        pedido.FechaRegistro = pedidos.FechaRegistro || fecha;
+        pedido.Hora = pedidos.Hora || hora;
+        pedido.Tipopedido = await (0, TipoPedido_controllers_1.verifyTipoPedido)(pedidos.IdTipo);
+        pedido.Estado = 3; // Estado 3: Entregado/Finalizado
+        await queryRunner.manager.save(pedido);
+        // 2. Procesar Detalles y Decrementar Stock inmediatamente
+        if (detalles && detalles.Producto?.length > 0) {
+            const { DecrementProducto, DecrementPromocion } = await Promise.resolve().then(() => __importStar(require("./Inventario.controllers")));
+            for (const prod of detalles.Producto) {
+                let promocion = null;
+                if (prod.idPromocion) {
+                    promocion = await (0, Promocion_controllers_1.verifyPromocion)({ PromocionId: prod.idPromocion });
+                    if (promocion.LimiteUso > 0) {
+                        promocion.LimiteUso -= prod.Cantidad;
+                        if (promocion.LimiteUso <= 0)
+                            promocion.Estado = 0;
+                        await queryRunner.manager.save(promocion);
+                    }
+                }
+                let presentacion = null;
+                if (prod.idPaquete) {
+                    presentacion = await (0, ProductoMedida_controllers_1.verifyProductoMedida)({ PaqueteId: prod.idPaquete });
+                }
+                // Crear detalle pedido
+                await (0, Detallepedido_controllers_1.createDetallePedido)(queryRunner, promocion, prod.Cantidad, presentacion, pedido, prod.Precio);
+                // Decrementar stock
+                if (presentacion) {
+                    await DecrementProducto(queryRunner, presentacion, pedido.Sucursal.IdSucursal, prod.Cantidad, nuevoIdPedido);
+                }
+                else if (promocion) {
+                    await DecrementPromocion(queryRunner, pedido.Sucursal.IdSucursal, prod.Cantidad, promocion, nuevoIdPedido);
+                }
+            }
+        }
+        // 3. Crear Venta Oficial
+        const nuevoIdVenta = await (0, idGenerator_1.generarIdSecuencial)('V');
+        const venta = new Venta_1.Venta();
+        venta.IdVenta = nuevoIdVenta;
+        venta.FechaVenta = fecha;
+        venta.HoraVenta = hora;
+        venta.PrecioTotal = Number(pedido.Total);
+        venta.Usuario = pedido.Usuario;
+        venta.Persona = pedido.Persona;
+        venta.Sucursal = pedido.Sucursal;
+        venta.Pedido = pedido;
+        await queryRunner.manager.save(venta);
+        // 4. Registrar Pago
+        if (pagoFinal) {
+            await (0, Pago_controllers_1.createPago)(queryRunner, venta, Number(pagoFinal.Monto), Number(pagoFinal.Cambio) || 0, pagoFinal.IdMetodoPago || 1, pedido);
+        }
+        // 5. Crear Detalles de Venta
+        const detallesPedido = await queryRunner.manager.find(await (await Promise.resolve().then(() => __importStar(require("../entities/DetallePedido")))).Detallepedido, { where: { Pedido: { IdPedido: nuevoIdPedido } }, relations: ["Producto", "Productomedida", "Promocion"] });
+        for (const det of detallesPedido) {
+            const { Detalleventa } = await Promise.resolve().then(() => __importStar(require("../entities/DetalleVenta")));
+            const dv = new Detalleventa();
+            dv.IdDetalleVenta = await (0, idGenerator_1.generarIdSecuencial)('DV');
+            dv.Venta = venta;
+            dv.Producto = det.Producto;
+            dv.Productomedida = det.Productomedida;
+            dv.Promocion = det.Promocion;
+            dv.Cantidad = det.Cantidad;
+            dv.Precio = det.Precio;
+            await queryRunner.manager.save(dv);
+        }
+        await queryRunner.commitTransaction();
+        return res.status(201).json({
+            message: "Pedido registrado y entregado correctamente",
+            idPedido: nuevoIdPedido,
+            idVenta: nuevoIdVenta
+        });
+    }
+    catch (error) {
+        await queryRunner.rollbackTransaction();
+        if (error instanceof error_handler_1.HttpError) {
+            return res.status(error.statusCode).json({ message: error.message });
+        }
+        return res.status(500).json({
+            message: "Error en registro rápido",
+            error: error instanceof Error ? error.message : "Error desconocido"
+        });
+    }
+    finally {
+        await queryRunner.release();
+    }
+};
+exports.registrarPedidoRapido = registrarPedidoRapido;

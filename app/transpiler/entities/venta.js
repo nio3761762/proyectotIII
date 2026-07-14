@@ -11,7 +11,6 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Venta = void 0;
 const typeorm_1 = require("typeorm");
-const Estado_1 = require("./Estado");
 const Usuario_1 = require("./Usuario");
 const Persona_1 = require("./Persona");
 const DetalleVenta_1 = require("./DetalleVenta");
@@ -35,9 +34,12 @@ __decorate([
     __metadata("design:type", String)
 ], Venta.prototype, "HoraVenta", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => Estado_1.Estado, (estado) => estado.Venta),
-    (0, typeorm_1.JoinColumn)({ name: "idestado" }),
-    __metadata("design:type", Estado_1.Estado)
+    (0, typeorm_1.Column)({ name: "preciototal", type: "numeric", precision: 10, scale: 2, default: 0 }),
+    __metadata("design:type", Number)
+], Venta.prototype, "PrecioTotal", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: "estado", type: "integer", default: 1 }),
+    __metadata("design:type", Number)
 ], Venta.prototype, "Estado", void 0);
 __decorate([
     (0, typeorm_1.ManyToOne)(() => Usuario_1.Usuario, (usuario) => usuario.Venta, { nullable: true }),
@@ -67,10 +69,10 @@ __decorate([
     __metadata("design:type", Array)
 ], Venta.prototype, "Pago", void 0);
 __decorate([
-    (0, typeorm_1.OneToOne)(() => Pedido_1.Pedido, (pedido) => pedido.Venta),
+    (0, typeorm_1.OneToOne)(() => Pedido_1.Pedido, (pedido) => pedido.Venta, { nullable: true }),
+    (0, typeorm_1.JoinColumn)({ name: "idpedido" }),
     __metadata("design:type", Pedido_1.Pedido)
 ], Venta.prototype, "Pedido", void 0);
 exports.Venta = Venta = __decorate([
     (0, typeorm_1.Entity)()
-    //@Check(`"Estado" IN (0, 1)`)
 ], Venta);

@@ -10,7 +10,7 @@
         <div
           class="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-orange-100 to-red-100 rounded-full flex items-center justify-center"
         >
-          <component :is="iconComponent" :class="iconClass" />
+          <AlertTriangle class="h-10 w-10 text-orange-500" />
         </div>
 
         <h2 class="text-2xl font-bold text-gray-800 mb-4">
@@ -74,14 +74,6 @@ const props = defineProps({
   confirmButtonClass: {
     type: String,
     default: 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-500',
-  },
-  iconComponent: {
-    type: [Object, Function], // This will be a Vue component, e.g., AlertTriangle
-    default: AlertTriangle,
-  },
-  iconClass: {
-    type: String,
-    default: 'h-10 w-10 text-blue-500',
   },
 });
 

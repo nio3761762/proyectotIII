@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { Producto } from "./Producto";
 import { Metodopago } from "./MetodoPago";
 import { Venta } from "./Venta";
+import { Pedido } from "./Pedido";
 
 @Entity()
 //@Check(`"Estado" IN (0, 1)`)
@@ -26,9 +27,13 @@ export class Pago extends BaseEntity {
     @JoinColumn({ name: "idmetodopago" })
     Metodopago: Metodopago;
 
-    @ManyToOne(() => Venta, (venta) => venta.Pago)
+    @ManyToOne(() => Venta, (venta) => venta.Pago, { nullable: true })
     @JoinColumn({ name: "idventa" })
     Venta: Venta;
+
+    @ManyToOne(() => Pedido, (pedido) => pedido.Pago, { nullable: true })
+    @JoinColumn({ name: "idpedido" })
+    Pedido: Pedido;
 
 
 }

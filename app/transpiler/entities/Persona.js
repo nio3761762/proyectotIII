@@ -14,16 +14,12 @@ const typeorm_1 = require("typeorm");
 const Usuario_1 = require("./Usuario");
 const Celular_1 = require("./Celular");
 const DIreccion_1 = require("./DIreccion");
-const Email_1 = require("./Email");
-const Genero_1 = require("./Genero");
-const Estado_1 = require("./Estado");
-const Imagen_1 = require("./Imagen");
-const Salario_1 = require("./Salario");
 const Venta_1 = require("./Venta");
 const Proveedor_1 = require("./Proveedor");
 const AdmDatos_1 = require("./AdmDatos");
 const Documento_1 = require("./Documento");
-const Repartidor_1 = require("./Repartidor");
+const Empleado_1 = require("./Empleado");
+const Pedido_1 = require("./Pedido");
 let Persona = class Persona extends typeorm_1.BaseEntity {
 };
 exports.Persona = Persona;
@@ -60,38 +56,38 @@ __decorate([
     __metadata("design:type", String)
 ], Persona.prototype, "HoraRegistro", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ name: "genero", type: "varchar", length: 100, nullable: true }),
+    __metadata("design:type", String)
+], Persona.prototype, "Genero", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: "imagen", type: "varchar", length: 255, nullable: true }),
+    __metadata("design:type", String)
+], Persona.prototype, "Imagen", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: "tipo", type: "varchar", length: 50, nullable: true }),
+    __metadata("design:type", String)
+], Persona.prototype, "Tipo", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: "email", type: "varchar", length: 255, nullable: true }),
+    __metadata("design:type", String)
+], Persona.prototype, "Email", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: "estado", type: "integer", default: 1 }),
+    __metadata("design:type", Number)
+], Persona.prototype, "Estado", void 0);
+__decorate([
+    (0, typeorm_1.OneToOne)(() => Empleado_1.Empleado, (empleado) => empleado.Persona),
+    __metadata("design:type", Empleado_1.Empleado)
+], Persona.prototype, "Empleado", void 0);
+__decorate([
     (0, typeorm_1.OneToOne)(() => Usuario_1.Usuario, (usuario) => usuario.Persona),
     __metadata("design:type", Usuario_1.Usuario)
 ], Persona.prototype, "Usuario", void 0);
-__decorate([
-    (0, typeorm_1.OneToOne)(() => Imagen_1.Imagen, (imagen) => imagen.Persona, { nullable: true }),
-    (0, typeorm_1.JoinColumn)({ name: "idimagen" }),
-    __metadata("design:type", Imagen_1.Imagen)
-], Persona.prototype, "Imagen", void 0);
-__decorate([
-    (0, typeorm_1.OneToOne)(() => Email_1.Email, (email) => email.Persona, { nullable: true }),
-    __metadata("design:type", Email_1.Email)
-], Persona.prototype, "Email", void 0);
 __decorate([
     (0, typeorm_1.OneToOne)(() => DIreccion_1.Direccion, (direccion) => direccion.Persona, { nullable: true }),
     (0, typeorm_1.JoinColumn)({ name: "iddireccion" }),
     __metadata("design:type", DIreccion_1.Direccion)
 ], Persona.prototype, "Direccion", void 0);
-__decorate([
-    (0, typeorm_1.ManyToOne)(() => Genero_1.Genero, (genero) => genero.Persona, { nullable: true }),
-    (0, typeorm_1.JoinColumn)({ name: "idgenero" }),
-    __metadata("design:type", Genero_1.Genero)
-], Persona.prototype, "Genero", void 0);
-__decorate([
-    (0, typeorm_1.ManyToOne)(() => Estado_1.Estado, (estado) => estado.Persona),
-    (0, typeorm_1.JoinColumn)({ name: "idestado" }),
-    __metadata("design:type", Estado_1.Estado)
-], Persona.prototype, "Estado", void 0);
-__decorate([
-    (0, typeorm_1.ManyToOne)(() => Salario_1.Salario, (salario) => salario.Persona, { nullable: true }),
-    (0, typeorm_1.JoinColumn)({ name: "idsalario" }),
-    __metadata("design:type", Salario_1.Salario)
-], Persona.prototype, "Salario", void 0);
 __decorate([
     (0, typeorm_1.OneToMany)(() => Celular_1.Celular, (celular) => celular.Persona),
     __metadata("design:type", Array)
@@ -109,13 +105,13 @@ __decorate([
     __metadata("design:type", Array)
 ], Persona.prototype, "Venta", void 0);
 __decorate([
+    (0, typeorm_1.OneToMany)(() => Pedido_1.Pedido, (venta) => venta.Persona),
+    __metadata("design:type", Array)
+], Persona.prototype, "Pedido", void 0);
+__decorate([
     (0, typeorm_1.OneToOne)(() => Proveedor_1.Proveedor, proveedor => proveedor.Persona),
     __metadata("design:type", Proveedor_1.Proveedor)
 ], Persona.prototype, "Proveedor", void 0);
-__decorate([
-    (0, typeorm_1.OneToOne)(() => Repartidor_1.Repartidor, (repartidor) => repartidor.Persona),
-    __metadata("design:type", Repartidor_1.Repartidor)
-], Persona.prototype, "Repartidor", void 0);
 exports.Persona = Persona = __decorate([
     (0, typeorm_1.Entity)()
 ], Persona);

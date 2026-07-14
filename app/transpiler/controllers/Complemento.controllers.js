@@ -3,7 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.getDocumento = exports.getComplemento = exports.verifyComplemento = void 0;
 const error_handler_1 = require("../utils/error.handler");
 const Complemento_1 = require("../entities/Complemento");
-const Documento_1 = require("../entities/Documento");
+const db_1 = require("../db");
 const verifyComplemento = async ({ TipoId }) => {
     const existComplemento = await Complemento_1.Complemento.findOne({ where: { IdComplemento: TipoId } });
     if (!existComplemento) {
@@ -14,8 +14,19 @@ const verifyComplemento = async ({ TipoId }) => {
 exports.verifyComplemento = verifyComplemento;
 const getComplemento = async (req, res) => {
     try {
-        const complemento = await Complemento_1.Complemento.find();
-        return res.json(complemento);
+        const result = await db_1.AppDataSource.query(`
+      SELECT COALESCE(
+        json_agg(
+          json_build_object(
+            'idcomplemento', b.IdComplemento,
+            'nombre', b.Nombre
+          )
+        ),
+        '[]'::json
+      ) AS complementos
+      FROM Complemento b;
+    `);
+        return res.json(result[0].complementos);
     }
     catch (error) {
         if (error instanceof Error) {
@@ -26,10 +37,11 @@ const getComplemento = async (req, res) => {
 exports.getComplemento = getComplemento;
 const getDocumento = async (req, res) => {
     try {
-        const complemento = await Documento_1.Documento.find({
-            relations: ['Tipodocumento']
-        });
-        return res.json(complemento);
+        const result = await db_1.AppDataSource.query(`
+      SELECT d.documento
+      FROM Documento d;
+    `);
+        return res.json(result);
     }
     catch (error) {
         if (error instanceof Error) {

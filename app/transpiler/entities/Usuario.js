@@ -12,10 +12,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.Usuario = void 0;
 const typeorm_1 = require("typeorm");
 const Persona_1 = require("./Persona");
-const Estado_1 = require("./Estado");
 const RolUsuario_1 = require("./RolUsuario");
 const Venta_1 = require("./Venta");
-const UsuarioSucursal_1 = require("./UsuarioSucursal");
+const Pedido_1 = require("./Pedido");
 let Usuario = class Usuario extends typeorm_1.BaseEntity {
 };
 exports.Usuario = Usuario;
@@ -28,17 +27,9 @@ __decorate([
     __metadata("design:type", String)
 ], Usuario.prototype, "Contrasena", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'pin', type: "varchar", length: 150 }),
+    (0, typeorm_1.Column)({ name: 'username', type: "varchar", length: 150, nullable: true }),
     __metadata("design:type", String)
-], Usuario.prototype, "Pin", void 0);
-__decorate([
-    (0, typeorm_1.Column)({ type: "varchar", length: 255, nullable: true }),
-    __metadata("design:type", Object)
-], Usuario.prototype, "Token", void 0);
-__decorate([
-    (0, typeorm_1.Column)({ type: "varchar", length: 255, nullable: true }),
-    __metadata("design:type", Object)
-], Usuario.prototype, "RToken", void 0);
+], Usuario.prototype, "Username", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: "varchar", length: 10, nullable: true }),
     __metadata("design:type", Object)
@@ -49,22 +40,21 @@ __decorate([
     __metadata("design:type", Persona_1.Persona)
 ], Usuario.prototype, "Persona", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => Estado_1.Estado, (estado) => estado.Usuario),
-    (0, typeorm_1.JoinColumn)({ name: "idestado" }),
-    __metadata("design:type", Estado_1.Estado)
+    (0, typeorm_1.Column)({ name: "estado", type: "integer", default: 1 }),
+    __metadata("design:type", Number)
 ], Usuario.prototype, "Estado", void 0);
 __decorate([
     (0, typeorm_1.OneToMany)(() => RolUsuario_1.Rolusuario, (rolusuario) => rolusuario.Usuario),
     __metadata("design:type", Array)
 ], Usuario.prototype, "Rolusuario", void 0);
 __decorate([
-    (0, typeorm_1.OneToMany)(() => UsuarioSucursal_1.Usuariosucursal, (usuariosucursal) => usuariosucursal.Usuario),
-    __metadata("design:type", Array)
-], Usuario.prototype, "Usuariosucursal", void 0);
-__decorate([
     (0, typeorm_1.OneToMany)(() => Venta_1.Venta, (venta) => venta.Usuario),
     __metadata("design:type", Array)
 ], Usuario.prototype, "Venta", void 0);
+__decorate([
+    (0, typeorm_1.OneToMany)(() => Pedido_1.Pedido, (pedido) => pedido.Usuario),
+    __metadata("design:type", Array)
+], Usuario.prototype, "Pedido", void 0);
 exports.Usuario = Usuario = __decorate([
     (0, typeorm_1.Entity)()
     //@Check(`"Estado" IN (0, 1)`)

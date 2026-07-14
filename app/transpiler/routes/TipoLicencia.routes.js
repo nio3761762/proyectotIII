@@ -2,7 +2,9 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const TipoLicencia_controllers_1 = require("../controllers/TipoLicencia.controllers");
+const verifyToken_1 = require("../middleware/verifyToken");
 const router = (0, express_1.Router)();
+router.use(verifyToken_1.authMiddleware);
 router.post("/tipolicencia", TipoLicencia_controllers_1.createTipoLicencia);
 router.get("/tipolicencia", TipoLicencia_controllers_1.getTipoLicencias);
 router.get("/tipolicencia/:id", TipoLicencia_controllers_1.getTipoLicencia);

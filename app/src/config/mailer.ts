@@ -14,5 +14,5 @@ export const transporter = nodemailer.createTransport({
 // yDhS//@123 
 
 transporter.verify().then(() =>{
-console.log('Ready for send emailds');
+
 });

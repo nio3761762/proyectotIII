@@ -1,11 +1,9 @@
 import { Request, Response } from "express";
-
 import { Celular } from "../entities/Celular";
-import { Persona } from "../entities/Persona";
 import { verifyPersona } from "./Persona.controllers";
 import { generarIdSecuencial } from "../utils/idGenerator";
-import { verifyEstado } from "./Estado.controllers";
 import { HttpError } from "../utils/error.handler";
+import { AppDataSource } from "../db";
 
 export const createCelular = async ({  Numero,PersonaId }: {  Numero: string,PersonaId:string }) => {
   
@@ -17,7 +15,6 @@ export const createCelular = async ({  Numero,PersonaId }: {  Numero: string,Per
     nuevo.IdCelular = nuevoId;
     nuevo.Numero = Numero;
     nuevo.Persona = await verifyPersona({PersonaId:PersonaId});
-    nuevo.Estado = await verifyEstado({EstadoId:1});
     await nuevo.save();
 
     return nuevo;
@@ -52,10 +49,13 @@ export const verifyCelular = async ({ CelularId }: { CelularId: string }) => {
 
 export const getCelular = async (req: Request, res: Response) => {
     try {
-
-        const complemento = await Celular.find({});
-        
-        return res.json(complemento)
+         const result = await AppDataSource.query(`
+             SELECT p.numero
+             FROM celular p;
+           `);
+       
+           return res.json(result); // ya es un array de objetos
+       
     } catch (error) {
         if (error instanceof Error) {
             return res.status(500).json({ message: error.message })

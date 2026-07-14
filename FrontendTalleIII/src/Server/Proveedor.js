@@ -15,6 +15,7 @@ export const listarProveedores = async () => {
 export const listarTipoProveedores = async () => {
   try {
     const response = await API.get('gettipoProveedor');
+  
     return response.data;
   } catch (error) {
     console.error('Error al obtener proveedores:', error);
@@ -25,7 +26,7 @@ export const listarTipoProveedores = async () => {
 export const DeleteProveedor = async (id) => {
   try {
     const response = await API.delete(`deleteProveedor/${id}`);
-     console.log(response.data)
+   
     return response.data;
    
   } catch (error) {
@@ -38,7 +39,7 @@ export const DeleteProveedor = async (id) => {
 export const RegistrarProveedor = async (Dato) => {
   try {
     const response = await API.post('Proveedor', { 
-     Persona:Dato
+     Personas:Dato
     });
     return response.data;
   } catch (error) {
@@ -56,7 +57,7 @@ export const updateProveedor = async (dato) => {
     Persona:dato
 
     });
-    console.log(response.data);
+  ;
     return response.data;
   } catch (error) {
     console.error('Error al intentar ingresar datos:', error.response);

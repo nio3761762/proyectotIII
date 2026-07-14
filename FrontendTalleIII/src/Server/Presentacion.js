@@ -1,8 +1,16 @@
 import api from './api';
 
-export const listarPresentaciones = async () => {
+export const listarPresentaciones = async (search,estado,page,limit) => {
     try {
-        const response = await api.get('/presentaciones');
+
+    const params = {
+      estado,
+      page
+    };
+
+    if(search) params.search=search
+    params.limit=limit
+        const response = await api.get('/presentaciones', { params });
         return response.data;
     } catch (error) {
         console.error('Error al listar presentaciones:', error);
@@ -12,7 +20,7 @@ export const listarPresentaciones = async () => {
 
 export const listarPresentacionesestado = async () => {
     try {
-        const response = await api.get('/presentacionestado');
+        const response = await api.get('/getpresentaciones');
         return response.data;
     } catch (error) {
         console.error('Error al listar presentaciones:', error);
@@ -33,7 +41,8 @@ export const obtenerPresentacion = async (id) => {
 export const registrarPresentacion = async (data) => {
     try {
         const response = await api.post('/addpresentacion', {
-            Nombre:data.Nombre
+            Nombre:data.Nombre,
+            Abreviatura: data.Abreviatura
         });
         return response.data;
     } catch (error) {
@@ -45,7 +54,8 @@ export const registrarPresentacion = async (data) => {
 export const updatePresentacion = async (data) => {
     try {
         const response = await api.put(`/updatePresntacion/${data.IdPresentacion}`, {
-            Nombre:data.Nombre
+            Nombre:data.Nombre,
+            Abreviatura:data.Abreviatura
         });
         return response.data;
     } catch (error) {

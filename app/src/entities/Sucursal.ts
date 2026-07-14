@@ -1,13 +1,17 @@
 import { Entity, Column, PrimaryColumn, ManyToOne, JoinColumn, OneToOne, OneToMany, BaseEntity } from "typeorm";
 import { Direccion } from "./DIreccion";
 import { Administrardatos } from "./AdmDatos";
-import { Estado } from "./Estado";
 import { Horario } from "./Horario";
-import { Usuariosucursal } from "./UsuarioSucursal";
-import { Productosucursal } from "./ProductoSucursal";
 import { Venta } from "./Venta";
-import { Distribucion } from "./Distribucion";
-import { Productostock } from "./ProductoStock";
+import { Produccion } from "./Produccion";
+import { EmpleadoSucursal } from "./EmpleadoSucursal";
+import { Transferencia } from "./Transferencia";
+import { Inventario } from "./Inventario";
+import { MovimientoInventario } from "./MovimientoInventario";
+import { Gasto } from "./Gastos";
+import { ProduccionEmpleado } from "./ProduccionEmpleado";
+import { Horno } from "./Horno";
+import { Pedido } from "./Pedido";
 
 @Entity()
 export class Sucursal extends BaseEntity {
@@ -29,11 +33,15 @@ export class Sucursal extends BaseEntity {
   @Column({ name: "fechaactualizacion", type: "date" , nullable:true})
   FechaActualizacion: Date;
 
-  @Column({ name: "celular", type: "varchar", length: 100 })
+  @Column({ name: "celular", type: "varchar", length: 100, nullable:true })
   Celular: string;
    
   @Column({ name: "central", type: "integer" })
   Central: number;
+
+  @Column({ name: "estado", type: "integer",default: 1}) 
+  Estado: number; 
+  
   //relacion uno a uno con Direccion
   @OneToOne(() => Direccion, (direccion) => direccion.Sucursal)
   @JoinColumn({ name: "iddireccion" })
@@ -42,30 +50,43 @@ export class Sucursal extends BaseEntity {
   // Relacion de muchos a uno con  Administrar datos
   @ManyToOne(() => Administrardatos, (dato) => dato.sucursal)
   @JoinColumn({ name: "iddatos" })
-  Datos: Administrardatos;
+  Datos : Administrardatos;
+   
+     @OneToMany(() => Gasto, (venta) => venta.Sucursal)
+  Gasto: Gasto[];
 
+  @OneToMany(() => Horario, (horario) => horario.Sucursal)
+  Horario: Horario[];
 
-  @ManyToOne(() => Estado, (estado) => estado.Sucursal)
-  @JoinColumn({ name: "idestado" })
-  Estado: Estado;
+   @OneToMany(() => Transferencia, (venta) => venta.SucursalOrigen)
+  TransferenciaOrigen: Transferencia[];
 
-
-  @ManyToOne(() => Horario, (horario) => horario.Sucursal)
-  @JoinColumn({ name: "idhorario" })
-  Horario: Horario;
-
-   @OneToMany(() => Usuariosucursal, (usuariosucursal) => usuariosucursal.Sucursal)
-  Usuariosucursal: Usuariosucursal[];
+   @OneToMany(() => Transferencia, (venta) => venta.SucursalDestino)
+  TransferenciaDestino: Transferencia[];
+   
+   
+  @OneToMany(() => Inventario, (productosucursal) => productosucursal.Sucursal)
+  Inventario: Inventario[];
+ 
+ @OneToMany(() => MovimientoInventario, (ingrediente) => ingrediente.Sucursal)
+      Movimiento: Inventario[]; 
+ 
 
  @OneToMany(() => Venta, (venta) => venta.Sucursal)
   Venta: Venta[];
+   @OneToMany(() => Pedido, (venta) => venta.Sucursal)
+  Pedido: Pedido[];
 
-  @OneToMany(() => Distribucion, (venta) => venta.Sucursal)
-  Distribucion: Distribucion[];
+   @OneToMany(() => Produccion, (productosucursal) => productosucursal.Sucursal)
+  Produccion: Produccion[];
 
-     @OneToMany(() => Productosucursal, (productosucursal) => productosucursal.Sucursal)
-  Productosucursal: Productosucursal[];
+  
+   @OneToMany(() => ProduccionEmpleado, (productosucursal) => productosucursal.Sucursal)
+  Produccionempleado: ProduccionEmpleado[];
 
-      @OneToMany(() => Productostock, (productosucursal) => productosucursal.Sucursal)
-  Productostock: Productostock[];
+ @OneToMany(() => EmpleadoSucursal, (es) => es.Sucursal)
+  EmpleadoSucursales: EmpleadoSucursal[];
+
+  @OneToMany(() => Horno, (h) => h.Sucursal)
+  Hornos: Horno[];
 }

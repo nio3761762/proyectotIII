@@ -14,7 +14,6 @@ const error_handler_1 = require("../utils/error.handler");
 const createRepartidor = async (req, res) => {
     try {
         const { PersonaData } = req.body; // Add IdTipoLicencia and NumeroLicencia
-        console.log(PersonaData);
         const persona = await (0, Persona_controllers_1.createPersona)({
             Nombre: PersonaData.Nombre,
             ApellidoPaterno: PersonaData.ApellidoPaterno,
@@ -163,7 +162,6 @@ const updateRepartidor = async (req, res) => {
                 ApellidoMaterno: PersonaData.ApellidoMaterno,
                 FechaDeNacimiento: PersonaData.FechaDeNacimiento,
                 IdGenero: PersonaData.IdGenero,
-                IdEmail: PersonaData.IdEmail, // Asegúrate de pasar el IdEmail si existe
                 email: PersonaData.Email,
                 IdDireccion: PersonaData.IdDireccion, // Asegúrate de pasar el IdDireccion si existe
                 BarrioId: PersonaData.IdBarrio,

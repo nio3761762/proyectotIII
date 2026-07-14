@@ -2,8 +2,10 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const UsuarioSucursal_controllers_1 = require("../controllers/UsuarioSucursal.controllers");
+const verifyToken_1 = require("../middleware/verifyToken");
 const router = (0, express_1.Router)();
-router.post('/usuario-sucursal', UsuarioSucursal_controllers_1.createUsuarioSucursal);
+router.use(verifyToken_1.authMiddleware);
+router.post('/usuario-sucursal', UsuarioSucursal_controllers_1.Asignar);
 router.get('/usuario-sucursal', UsuarioSucursal_controllers_1.getUsuarioSucursales);
 router.get('/usuario-sucursal/sucursal/:id', UsuarioSucursal_controllers_1.getUsuarioSucursalesBySucursal);
 router.get('/usuario-sucursal/usuario/:id', UsuarioSucursal_controllers_1.getUsuarioSucursalesByUsuario);

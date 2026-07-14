@@ -1,6 +1,4 @@
 import { BaseEntity, Check, OneToMany, Column, Entity, PrimaryColumn, OneToOne, ManyToOne, JoinColumn } from "typeorm";
-import bcrypt from "bcryptjs";
-import { Estado } from "./Estado";
 import { Usuario } from "./Usuario";
 import { Persona } from "./Persona";
 import { Detalleventa } from "./DetalleVenta";
@@ -10,7 +8,6 @@ import { Pedido } from "./Pedido";
 import { Sucursal } from "./Sucursal";
 
 @Entity()
-//@Check(`"Estado" IN (0, 1)`)
 export class Venta extends BaseEntity {
   @PrimaryColumn({ name: 'idventa', type: "varchar", length: 100 })
   IdVenta: string;
@@ -20,12 +17,13 @@ export class Venta extends BaseEntity {
 
   @Column({ name: "horaventa", type: "time" , nullable:true})
   HoraVenta: string;
+  
+  @Column({ name: "preciototal", type: "numeric", precision: 10, scale: 2, default:0 })
+  PrecioTotal: number;
 
-  @ManyToOne(() => Estado, (estado) => estado.Venta)
-  @JoinColumn({ name: "idestado" })
-  Estado: Estado;
-
-
+  @Column({ name: "estado", type: "integer",default: 1}) 
+  Estado: number; 
+  
   @ManyToOne(() => Usuario, (usuario) => usuario.Venta,{nullable:true})
   @JoinColumn({ name: "idusuario" })
   Usuario: Usuario;
@@ -47,7 +45,8 @@ export class Venta extends BaseEntity {
   @OneToMany(() => Pago, (pago) => pago.Venta)
   Pago: Pago[];
   
-   @OneToOne(() => Pedido, (pedido) => pedido.Venta)
+  @OneToOne(() => Pedido, (pedido) => pedido.Venta, { nullable:true})
+   @JoinColumn({ name: "idpedido" })
   Pedido: Pedido;
 }
 

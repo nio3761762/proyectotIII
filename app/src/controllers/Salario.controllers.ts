@@ -1,63 +1,60 @@
 import { Request, Response } from "express";
 import { Salario } from "../entities/Salario";
+import { generarIdSecuencial } from "../utils/idGenerator";
+import { verifyEmpleado } from "./Empleado.controllers";
 
-export const getSalario = async (req: Request, res: Response) => {
-  try {
-    const salarios = await Salario.find();
-    return res.json(salarios);
-  } catch (error) {
-    if (error instanceof Error) {
-      return res.status(500).json({ message: error.message });
-    }
-  }
+
+export const createSalario = async ({
+  salario,
+  fecha,
+  idempleado
+}: {
+  salario: number,
+  fecha: string,
+  idempleado: string
+}) => {
+
+  const result = await generarIdSecuencial('SAL');
+
+  const nuevo = new Salario();
+  nuevo.IdSalario = result;
+  nuevo.Salario = salario;
+  nuevo.FechaInicio = fecha ? new Date(fecha) : new Date();
+  nuevo.Empleado = await verifyEmpleado( idempleado );
+
+  await nuevo.save();
+
+  return nuevo;
 };
+export const updateSalario = async ({
+  salario,
+  fecha,
+  idempleado
+}: {
+  salario: number,
+  fecha: string,
+  idempleado: string
+}) => {
 
-export const verifySalario = async ({ SalarioId }: { SalarioId: string }) => {
-
-    const existSalario = await Salario.findOne({ where: { Salario: Number(SalarioId) } });
-   if (!existSalario) {
-  return await createSalario({ salario:Number(SalarioId)});
-  }else
-   return existSalario;
-};
-export const verifySalarioId = async ({ SalarioId }: { SalarioId: string }) => {
-
-    const existSalario = await Salario.findOne({ where: { IdSalario: SalarioId } });
-   if (!existSalario) {
-    throw new Error(`El salario con ID ${existSalario} no existe.`);
-   }
-   return existSalario;
-};
-
-export const createSalario = async ({  salario }: {  salario: number }) => {
+ const salarioActual = await Salario
+  .createQueryBuilder("s")
+  .leftJoin("s.Empleado", "e")
+  .where("e.idempleado = :idempleado", { idempleado })
+  .andWhere("s.fechafin IS NULL")
+  .getOne();
   
- const result = await Salario.createQueryBuilder("salario")
-    .select("MAX(CAST(SUBSTRING(Salario.IdSalario FROM '[0-9]+') AS INTEGER))", "ultimoNumero")
-    .getRawOne();
-
-  const nuevoNumero = (result?.ultimoNumero || 0) + 1;
-  const nuevoId = `SAL-${nuevoNumero}`;
-       
-
-    const nuevo= new Salario();
-    nuevo.IdSalario=nuevoId;
-    nuevo.Salario=salario;
-    await nuevo.save();
-
-    return nuevo;
-};
-export const updateSalario = async ({ SalarioId, salario }: { SalarioId: string, salario: number}) => {
-
-    const existSalario = await verifySalarioId({ SalarioId });
-    
-   if (!existSalario) {
-    throw new Error(`El salario con ID ${existSalario} no existe.`);
+  // 🔍 validar si es el mismo salario
+  if (salarioActual && Number(salarioActual.Salario) === salario) {
+    return salarioActual; // no haces nada
   }
-    
-    existSalario.IdSalario=SalarioId;
-    existSalario.Salario= salario ?? existSalario.Salario;
-    
-    await existSalario.save();
 
-    return existSalario;
+  // 🔴 cerrar salario actual
+  if (salarioActual) {
+    salarioActual.FechaFin = new Date();
+    salarioActual.Estado = 0;
+    await salarioActual.save();
+  }
+
+  // 🟢 crear nuevo salario
+  return await createSalario({ salario, fecha, idempleado });
 };

@@ -2,12 +2,13 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const Empleado_controllers_1 = require("../controllers/Empleado.controllers");
+const verifyToken_1 = require("../middleware/verifyToken");
+const Cargo_controllers_1 = require("../controllers/Cargo.controllers");
 const router = (0, express_1.Router)();
-// Rutas para empleados
-router.post("/addEmp", Empleado_controllers_1.createEmpleado); // Crear un nuevo empleado
-router.post("/addUserEmpl", Empleado_controllers_1.registerUserAndEmpl); // Crear un nuevo empleado
-router.get("/getsEmp", Empleado_controllers_1.getEmpleados); // Obtener todos los empleados
-router.get("/getEmp/:id", Empleado_controllers_1.getEmpleadoById); // Obtener un empleado por ID
-router.put("/updEmp/:id", Empleado_controllers_1.updateEmpleado); // Actualizar un empleado
-router.delete("/delEmp/:id", Empleado_controllers_1.deleteEmpleado); // Eliminar (desactivar) un empleado
+router.get('/getCargo', verifyToken_1.authMiddleware, Cargo_controllers_1.getCargo);
+router.post("/AddEmpleado", verifyToken_1.authMiddleware, Empleado_controllers_1.CreateEmpleado);
+router.put('/UpdateEmpleado/:id', verifyToken_1.authMiddleware, Empleado_controllers_1.UpdateEmpleado);
+router.delete('/deleteEmpleado/:id', verifyToken_1.authMiddleware, Empleado_controllers_1.deleteEmpleado);
+router.get('/getEmpleados/:id', verifyToken_1.authMiddleware, Empleado_controllers_1.getEmpleados);
+router.get('/getEmpleadosVendedores', verifyToken_1.authMiddleware, Empleado_controllers_1.getEmpleadosVendedores);
 exports.default = router;

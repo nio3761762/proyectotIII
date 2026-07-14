@@ -1,0 +1,18 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const ReporteSemanal_controllers_1 = require("../controllers/reportes/ReporteSemanal.controllers");
+const verifyToken_1 = require("../middleware/verifyToken");
+const router = (0, express_1.Router)();
+router.use(verifyToken_1.authMiddleware);
+router.get("/reporte-semanal/ventas", ReporteSemanal_controllers_1.getReporteSemanalVentas);
+router.get("/reporte-semanal/pedidos", ReporteSemanal_controllers_1.getReporteSemanalPedidos);
+router.get("/reporte-semanal/produccion", ReporteSemanal_controllers_1.getReporteSemanalProduccion);
+router.get("/reporte-semanal/transferencias", ReporteSemanal_controllers_1.getReporteSemanalTransferencias);
+router.get("/reporte-semanal/compras", ReporteSemanal_controllers_1.getReporteSemanalCompras);
+router.get("/reporte-semanal/gastos-generales", ReporteSemanal_controllers_1.getReporteSemanalGastosGenerales);
+router.get("/reporte-semanal/financiero", ReporteSemanal_controllers_1.getReporteSemanalFinanciero);
+router.get("/reporte-semanal/comisiones", ReporteSemanal_controllers_1.getReporteSemanalComisiones);
+router.get("/reporte-semanal/kardex", ReporteSemanal_controllers_1.getReporteSemanalKardex);
+router.get("/reporte-semanal/resumen-general", ReporteSemanal_controllers_1.getReporteSemanalGeneral);
+exports.default = router;

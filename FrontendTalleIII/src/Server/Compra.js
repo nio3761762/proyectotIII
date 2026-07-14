@@ -1,12 +1,22 @@
 
 import API from './api';
 
-export const listarCompras = async (fecha) => {
+export const listarCompras = async ( search, fecha, estado, page , limit) => {
   try {
-    // This is a placeholder. Replace with the actual endpoint.
-    const response = await API.get(`getCompras/${fecha}`);
+      const params = {
+      limit,
+      page,
+      fecha
+    };
+
+    if(search) params.search=search
+    if(estado != -1)params.estado=estado
+   
+
+    const response = await API.get(`getCompras`, { params });
+   
     return response.data;
-    
+   
   } catch (error) {
     console.error('Error al obtener las compras:', error);
     throw error;
@@ -15,8 +25,20 @@ export const listarCompras = async (fecha) => {
 
 export const registrarCompra = async (compraData) => {
   try {
-    // This is a placeholder. Replace with the actual endpoint.
-    const response = await API.post('registrarCompra',   {Compras:compraData, detalles:compraData.detalles});
+    const response = await API.post('registrarCompra',  
+       {
+        Compras: {
+          IdProveedor: compraData.IdProveedor,
+          Numero: compraData.Numero,
+          Descripcion: compraData.Descripcion,
+          Comprobante: compraData.Comprobante,
+          Fecha: compraData.Fecha,
+          PrecioTotal: compraData.PrecioTotal
+        }, 
+        detalles: compraData.detalles,
+        Destinos: compraData.destinos
+      });
+   
     return response.data; 
   } catch (error) {
     console.error('Error al registrar la compra:', error);
@@ -24,25 +46,22 @@ export const registrarCompra = async (compraData) => {
   }
 };
 
-export const anularCompra = async (idCompra) => {
+export const anularCompra = async (id) => {
   try {
-    // This is a placeholder. Replace with the actual endpoint.
-    const response = await API.put(`anularCompra/${idCompra}`);
+    const response = await API.delete(`anularCompra/${id}`);
     return response.data;
-
     } catch (error) {
     console.error('Error al anular la compra:', error);
     throw error;
   }
 };
 
-export const updateCompra = async (compraData) => {
+export const updateCompra = async (id,Compras, detalles, Destinos) => {
   try {
-    // This is a placeholder. Replace with the actual endpoint.
-    const response = await API.put(`updateCompra/${compraData.IdCompra}`, 
-      {Compras:compraData, detalles:compraData.detalles});
+    const response = await API.put(`actualizarCompra/${id}`, 
+      {Compras, detalles, Destinos});
     return response.data;
-
+   
      } catch (error) {
     console.error('Error al actualizar la compra:', error);
     throw error;

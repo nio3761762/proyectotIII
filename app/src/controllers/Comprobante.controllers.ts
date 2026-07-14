@@ -1,10 +1,11 @@
 import { HttpError } from "../utils/error.handler";
 import { Comprobante } from "../entities/Comprobante";
 import { Request, Response } from "express";
+import { AppDataSource } from "../db";
 
 
 
-export const verifyComprobante = async ({ TipoId }: { TipoId: string }) => {
+export const verifyComprobante = async ( TipoId: string ) => {
 
     const existComprobante = await Comprobante.findOne({ where: { IdComprobante: TipoId } });
 
@@ -17,10 +18,16 @@ export const verifyComprobante = async ({ TipoId }: { TipoId: string }) => {
 
 export const getComprobante = async (req: Request, res: Response) => {
     try {
+ const result = await AppDataSource.query(
+      `SELECT 
+          c.idcomprobante,
+          c.nombre
+     FROM comprobante c` );
 
-        const comprobante = await Comprobante.find();
-        
-        return res.json(comprobante)
+    return res.json({
+       result
+    });
+    
     } catch (error) {
         if (error instanceof Error) {
             return res.status(500).json({ message: error.message })

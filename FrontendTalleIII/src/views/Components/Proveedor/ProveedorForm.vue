@@ -282,7 +282,7 @@ const validateField = (field, value) => {
             break;
         case 'celular':
             if (!value || !value.trim()) error = 'El número de celular es requerido.';
-            else if (!/\D/.test(value)) error = 'Solo debe contener números.';
+            else if (/\D/.test(value)) error = 'Solo debe contener números.';
             else if (!(value.length >= 7 && value.length <= 8)) error = 'El número de celular debe tener 7 u 8 dígitos.';
             else {
                 const celularId = isEditing ? proveedor.value.Persona.Celulares[0]?.IdCelular : null;

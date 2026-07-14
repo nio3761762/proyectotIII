@@ -11,7 +11,6 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Documento = void 0;
 const typeorm_1 = require("typeorm");
-const TipoDocumento_1 = require("./TipoDocumento");
 const Complemento_1 = require("./Complemento");
 const Persona_1 = require("./Persona");
 let Documento = class Documento extends typeorm_1.BaseEntity {
@@ -25,11 +24,6 @@ __decorate([
     (0, typeorm_1.Column)({ name: "documento", type: "varchar", length: 100 }),
     __metadata("design:type", String)
 ], Documento.prototype, "Documento", void 0);
-__decorate([
-    (0, typeorm_1.ManyToOne)(() => TipoDocumento_1.Tipodocumento, (tipodocumento) => tipodocumento.Documento),
-    (0, typeorm_1.JoinColumn)({ name: "idtipodocumento" }),
-    __metadata("design:type", TipoDocumento_1.Tipodocumento)
-], Documento.prototype, "Tipodocumento", void 0);
 __decorate([
     (0, typeorm_1.ManyToOne)(() => Complemento_1.Complemento, (complemento) => complemento.Documento, { nullable: true }),
     (0, typeorm_1.JoinColumn)({ name: "idcomplemento" }),

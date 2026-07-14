@@ -16,7 +16,7 @@ export class Menu extends BaseEntity {
    @Column({ name: 'visible', type: "integer" })
    Visible: number;
 
-   @OneToOne(() => Icono, (icono) => icono.Menu)
+   @OneToOne(() => Icono, (icono) => icono.Menu, { nullable:true})
    @JoinColumn({ name: "idicono" })
    Icono: Icono;
 

@@ -5,64 +5,68 @@ const idGenerator_1 = require("../utils/idGenerator");
 const Factura_1 = require("../entities/Factura");
 const Venta_controllers_1 = require("./Venta.controllers");
 const Enlace_controllers_1 = require("./Enlace.controllers");
-const typeorm_1 = require("typeorm");
 const Venta_1 = require("../entities/Venta");
+const db_1 = require("../db");
+const Fecha_1 = require("../utils/Fecha");
 const createFactura = async (req, res) => {
+    const queryRunner = db_1.AppDataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
     try {
         const { factura } = req.body;
-        // Fecha y hora actual en Bolivia (UTC-4)
-        const ahora = new Date();
-        // Formatear fecha (solo YYYY-MM-DD)
-        const fechaBoliviaStr = new Intl.DateTimeFormat("en-CA", {
-            timeZone: "America/La_Paz",
-            year: "numeric",
-            month: "2-digit",
-            day: "2-digit"
-        }).format(ahora);
-        // Formatear hora (HH:mm:ss)
-        const horaBoliviaStr = new Intl.DateTimeFormat("en-GB", {
-            timeZone: "America/La_Paz",
-            hour: "2-digit",
-            minute: "2-digit",
-            second: "2-digit",
-            hour12: false
-        }).format(ahora);
-        // Convertir la fecha string a Date (para la BD tipo "date")
-        const fechaEmicionDate = new Date(fechaBoliviaStr);
-        // Calcular correlativo del día Bolivia
-        const [year, month, day] = fechaBoliviaStr.split("-").map(Number);
-        const inicioBolivia = new Date(Date.UTC(year, month - 1, day, 4, 0, 0)); // 00:00 Bolivia = 04:00 UTC
-        const finBolivia = new Date(Date.UTC(year, month - 1, day + 1, 3, 59, 59, 999));
-        const facturasHoy = await Factura_1.Factura.count({
+        const { fecha, hora } = (0, Fecha_1.getFechaHoraBolivia)();
+        // Contar facturas del día
+        const facturasHoy = await queryRunner.manager.count(Factura_1.Factura, {
             where: {
-                FechaEmicion: (0, typeorm_1.Between)(inicioBolivia, finBolivia)
+                FechaEmicion: fecha
             }
         });
-        const numeroSecuencial = (facturasHoy + 1).toString().padStart(4, "0");
-        const nroFactura = `${fechaBoliviaStr.replace(/-/g, "")}-${numeroSecuencial}`;
+        // Generar número secuencial
+        const numeroSecuencial = (facturasHoy + 1)
+            .toString()
+            .padStart(6, "0");
+        // YYYYMMDD-0001
+        const fechaCompacta = fecha
+            .toISOString()
+            .split("T")[0]
+            .replace(/-/g, "");
+        const nroFactura = `${fechaCompacta}-${numeroSecuencial}`;
+        // Verificar venta
+        const venta = await (0, Venta_controllers_1.verifyVenta)(factura.IdVenta);
         // Crear factura
-        const nuevaFactura = new Factura_1.Factura();
-        nuevaFactura.Venta = await (0, Venta_controllers_1.verifyVenta)({ VentaId: factura.IdVenta });
-        nuevaFactura.IdFactura = await (0, idGenerator_1.generarIdSecuencial)("F#");
-        nuevaFactura.FechaEmicion = fechaEmicionDate; // "2025-09-23"
-        nuevaFactura.HoraEmicion = horaBoliviaStr; // "19:48:42"
-        nuevaFactura.Aprobado = "Si";
-        nuevaFactura.NroFactura = nroFactura;
-        await nuevaFactura.save();
-        return res.json({
-            message: "La Factura se registró exitosamente",
-            nuevaFactura: {
+        const nuevaFactura = queryRunner.manager.create(Factura_1.Factura, {
+            IdFactura: await (0, idGenerator_1.generarIdSecuencial)("F#"),
+            Venta: venta,
+            FechaEmicion: fecha,
+            HoraEmicion: hora,
+            NitCiFacturacion: factura.documento,
+            NombreFacturacion: factura.Cliente,
+            Aprobado: "Si",
+            NroFactura: nroFactura
+        });
+        await queryRunner.manager.save(nuevaFactura);
+        await queryRunner.commitTransaction();
+        return res.status(201).json({
+            message: "La factura se registró exitosamente",
+            factura: {
                 ...nuevaFactura,
                 FechaEmicion: nuevaFactura.FechaEmicion
-                    ? nuevaFactura.FechaEmicion.toISOString().split("T")[0] // -> "YYYY-MM-DD"
-                    : null,
-                HoraEmicion: nuevaFactura.HoraEmicion // ya tienes "HH:mm:ss"
+                    ? new Date(nuevaFactura.FechaEmicion)
+                        .toISOString()
+                        .split("T")[0]
+                    : null
             }
         });
     }
     catch (error) {
+        await queryRunner.rollbackTransaction();
         console.error("Error al crear factura:", error);
-        return res.status(500).json({ message: error.message });
+        return res.status(500).json({
+            message: error.message
+        });
+    }
+    finally {
+        await queryRunner.release();
     }
 };
 exports.createFactura = createFactura;

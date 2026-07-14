@@ -1,33 +1,103 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getSubCategorias = exports.deleteSubCategoria = exports.updateSubCategoria = exports.createSubCategoria = exports.UpdateSubCategoria = exports.CreateSubCategoria = exports.updateCategoria = exports.createCategoria = exports.deleteCategoria = exports.verifySubCategoria = exports.verifyCategoria = exports.getSubCategoria = exports.getCategoria = exports.getCategorias = void 0;
+exports.getSubCategorias = exports.deleteSubCategoria = exports.updateSubCategoria = exports.createSubCategoria = exports.UpdateSubCategoria = exports.CreateSubCategoria = exports.updateCategoria = exports.createCategoria = exports.deleteCategoria = exports.verifySubCategoria = exports.verifyCategoria = exports.getSubCategoria = exports.getCategoria = exports.ListCategoria = exports.getCategorias = void 0;
 const Categoria_1 = require("../entities/Categoria");
-const Estado_controllers_1 = require("./Estado.controllers");
-const Estado_1 = require("../entities/Estado");
-const Foto_controllers_1 = require("./Foto.controllers");
 const SubCategoria_1 = require("../entities/SubCategoria");
 const error_handler_1 = require("../utils/error.handler");
 const idGenerator_1 = require("../utils/idGenerator");
+const db_1 = require("../db");
 const getCategorias = async (req, res) => {
     try {
-        const categorias = await Categoria_1.Categoria.find({ relations: ['Estado', 'Imagen', 'Subcategoria', 'Subcategoria.Estado', 'Subcategoria.Categoria'] });
-        return res.json(categorias);
+        const { search, estado, page = 1, limit = 8 } = req.query;
+        const offset = (Number(page) - 1) * Number(limit);
+        //  limpiar parámetros
+        const nombreParam = typeof search === "string" && search.trim() !== ""
+            ? search.trim()
+            : null;
+        const estadoParam = estado !== undefined && estado !== ""
+            ? Number(estado)
+            : null;
+        const result = await db_1.AppDataSource.query(`
+      SELECT 
+          c.idcategoria,
+          c.nombre,
+          c.estado,
+          c.imagen,
+          COUNT(*) OVER() AS total,
+          json_agg(
+              json_build_object(
+                  'idsubcategoria', sc.idsubcategoria,
+                  'nombre', sc.nombre,
+                  'estado', sc.estado
+              )
+          ) FILTER (WHERE sc.idsubcategoria IS NOT NULL) AS subcategorias
+      FROM categoria c
+      LEFT JOIN subcategoria sc 
+          ON sc.idcategoria = c.idcategoria
+      WHERE 
+          ($1::text IS NULL OR c.nombre ILIKE '%' || $1::text || '%')
+      AND ($2::int IS NULL OR c.estado = $2)
+      GROUP BY c.idcategoria
+      ORDER BY c.idcategoria
+      LIMIT $3 OFFSET $4;
+      `, [
+            nombreParam,
+            estadoParam,
+            Number(limit),
+            offset
+        ]);
+        //  si no hay resultados → array vacío
+        if (result.length === 0) {
+            return res.json({
+                total: 0,
+                page: Number(page),
+                limit: Number(limit),
+                data: []
+            });
+        }
+        return res.json({
+            total: result[0].total,
+            page: Number(page),
+            limit: Number(limit),
+            data: result
+        });
     }
     catch (error) {
-        if (error instanceof Error) {
-            return res.status(500).json({ message: error.message });
-        }
+        console.error("Error real:", error);
+        return res.status(500).json({ message: "Error interno del servidor" });
     }
 };
 exports.getCategorias = getCategorias;
+const ListCategoria = async (req, res) => {
+    try {
+        const result = await db_1.AppDataSource.query(`SELECT 
+          c.idcategoria,
+          c.nombre,
+          c.imagen
+     FROM categoria c
+     WHERE c.estado = 1`);
+        return res.json({
+            result
+        });
+    }
+    catch (error) {
+        console.error("Error real:", error);
+        return res.status(500).json({ message: "Error interno del servidor" });
+    }
+};
+exports.ListCategoria = ListCategoria;
 const getCategoria = async (req, res) => {
     try {
         const { id } = req.params;
-        const categorias = await SubCategoria_1.Subcategoria.find({
-            where: { Categoria: { IdCategoria: id },
-                Estado: { IdEstado: 1 } }
+        const result = await db_1.AppDataSource.query(`SELECT 
+          sc.idsubcategoria,
+          sc.nombre
+     FROM subcategoria sc 
+     WHERE  sc.estado = 1 AND sc.idcategoria = $1`, [id]);
+        return res.json({
+            idcategoria: id,
+            result
         });
-        return res.json(categorias);
     }
     catch (error) {
         if (error instanceof Error) {
@@ -41,7 +111,7 @@ const getSubCategoria = async (req, res) => {
         const { id } = req.params;
         const categorias = await Categoria_1.Categoria.findOne({
             where: { Subcategoria: { IdSubCategoria: id },
-                Estado: { IdEstado: 1 } },
+                Estado: 1 },
         });
         return res.json(categorias);
     }
@@ -71,23 +141,19 @@ exports.verifySubCategoria = verifySubCategoria;
 const deleteCategoria = async (req, res) => {
     try {
         const { id } = req.params;
-        const categoria = await Categoria_1.Categoria.findOne({
-            where: { IdCategoria: id },
-            relations: ['Estado']
-        });
-        if (!categoria) {
+        const result = await db_1.AppDataSource.query(`UPDATE categoria 
+          SET estado = CASE WHEN estado = 1 THEN 0 ELSE 1 END
+          WHERE IdCategoria = $1
+          RETURNING estado AS estado`, [id]);
+        // ✅ aquí está el cambio
+        if (result.length === 0) {
             return res.status(404).json({ message: "Categoria no encontrado" });
         }
-        const esActivo = categoria.Estado?.IdEstado === 1;
-        const nuevoEstadoId = esActivo ? 2 : 1;
-        const mensajeAccion = esActivo ? 'eliminaron' : 'habilitaron';
-        const nuevoEstado = await (0, Estado_controllers_1.verifyEstado)({ EstadoId: nuevoEstadoId });
-        if (!nuevoEstado) {
-            return res.status(500).json({ message: "No se pudo obtener el estado requerido." });
-        }
-        categoria.Estado = nuevoEstado;
-        await categoria.save();
-        return res.json({ message: `Se ${mensajeAccion} los datos de la Categoria correctamente` });
+        const nuevoEstado = Number(result[0][0].estado);
+        const mensajeAccion = nuevoEstado === 1 ? "habilitaron" : "eliminaron";
+        return res.json({
+            message: `Se ${mensajeAccion} los datos de la Categoria correctamente`,
+        });
     }
     catch (error) {
         console.error("Error al cambiar el estado del Categoria:", error);
@@ -100,19 +166,13 @@ exports.deleteCategoria = deleteCategoria;
 const createCategoria = async (req, res) => {
     try {
         const { RegistroCategoria } = req.body;
-        const estado = await Estado_1.Estado.findOneBy({ IdEstado: 1 });
-        if (!estado)
-            return res.status(404).json({ message: "Estado no encontrado" });
         const nuevoId = await (0, idGenerator_1.generarIdSecuencial)('CAT');
         const categoria = new Categoria_1.Categoria();
         categoria.IdCategoria = nuevoId;
         categoria.Nombre = RegistroCategoria.Nombre;
         categoria.FechaRegistro = new Date();
-        categoria.Estado = estado;
-        if (RegistroCategoria.Url) {
-            const imagen = await (0, Foto_controllers_1.createImagen)({ Foto: RegistroCategoria.Url });
-            categoria.Imagen = imagen;
-        }
+        if (RegistroCategoria.Url)
+            categoria.Imagen = RegistroCategoria.Url;
         await categoria.save();
         if (RegistroCategoria.Subcategoria.length > 0) {
             for (const sub of RegistroCategoria.Subcategoria) {
@@ -143,23 +203,14 @@ const updateCategoria = async (req, res) => {
         const { RegistroCategoria } = req.body;
         const categoria = await Categoria_1.Categoria.findOne({
             where: { IdCategoria: id },
-            relations: ['Estado']
         });
         if (!categoria) {
             return res.status(404).json({ message: "Categoria no encontrado" });
         }
         if (RegistroCategoria.Nombre)
             categoria.Nombre = RegistroCategoria.Nombre;
-        if (RegistroCategoria.IdImagen) {
-            const imagen = await (0, Foto_controllers_1.updateImagen)({ ImagenId: RegistroCategoria.IdImagen, Foto: RegistroCategoria.Url });
-            categoria.Imagen = imagen;
-        }
-        else {
-            if (RegistroCategoria.Url) {
-                const imagen = await (0, Foto_controllers_1.createImagen)({ Foto: RegistroCategoria.Url });
-                categoria.Imagen = imagen;
-            }
-        }
+        if (RegistroCategoria.Url)
+            categoria.Imagen = RegistroCategoria.Url;
         categoria.FechaActualizacion = new Date();
         await categoria.save();
         if (RegistroCategoria.Subcategoria.length > 0)
@@ -180,7 +231,6 @@ const CreateSubCategoria = async ({ Nombre, IdEstado, CategoriaId }) => {
     subcategoria.IdSubCategoria = nuevoId;
     subcategoria.Categoria = await (0, exports.verifyCategoria)({ CategoriaId: CategoriaId });
     subcategoria.Nombre = Nombre;
-    subcategoria.Estado = await (0, Estado_controllers_1.verifyEstado)({ EstadoId: IdEstado });
     await subcategoria.save();
     return subcategoria;
 };
@@ -192,7 +242,7 @@ const UpdateSubCategoria = async ({ SubCategoriaId, Nombre, IdEstado, CategoriaI
         if (nombreValido) {
             subcategoria.Nombre = Nombre;
         }
-        subcategoria.Estado = await (0, Estado_controllers_1.verifyEstado)({ EstadoId: IdEstado });
+        subcategoria.Estado = IdEstado;
         await subcategoria.save();
         return subcategoria;
     }
@@ -211,14 +261,10 @@ exports.UpdateSubCategoria = UpdateSubCategoria;
 const createSubCategoria = async (req, res) => {
     try {
         const { RegistroSubCategoria } = req.body;
-        const estado = await Estado_1.Estado.findOneBy({ IdEstado: 1 });
-        if (!estado)
-            return res.status(404).json({ message: "Estado no encontrado" });
         const nuevoId = await (0, idGenerator_1.generarIdSecuencial)('SCT');
         const subcategoria = new SubCategoria_1.Subcategoria();
         subcategoria.IdSubCategoria = nuevoId;
         subcategoria.Nombre = RegistroSubCategoria.Nombre;
-        subcategoria.Estado = estado;
         if (RegistroSubCategoria.IdCategoria) {
             const categoria = await (0, exports.verifyCategoria)({ CategoriaId: RegistroSubCategoria.IdCategoria });
             subcategoria.Categoria = categoria;
@@ -259,23 +305,19 @@ exports.updateSubCategoria = updateSubCategoria;
 const deleteSubCategoria = async (req, res) => {
     try {
         const { id } = req.params;
-        const subcategoria = await SubCategoria_1.Subcategoria.findOne({
-            where: { IdSubCategoria: id },
-            relations: ['Estado']
+        const result = await db_1.AppDataSource.query(`UPDATE subcategoria 
+   SET estado = CASE WHEN estado = 1 THEN 0 ELSE 1 END
+   WHERE IdSubcategoria = $1
+   RETURNING estado AS estado`, [id]);
+        // ✅ aquí está el cambio
+        if (result.length === 0) {
+            return res.status(404).json({ message: "Subcategoria no encontrado" });
+        }
+        const nuevoEstado = Number(result[0][0].estado);
+        const mensajeAccion = nuevoEstado === 1 ? "habilitaron" : "eliminaron";
+        return res.json({
+            message: `Se ${mensajeAccion} los datos de la subcategoria correctamente`,
         });
-        if (!subcategoria) {
-            return res.status(404).json({ message: "Sub Categoria no encontrado" });
-        }
-        const esActivo = subcategoria.Estado?.IdEstado === 1;
-        const nuevoEstadoId = esActivo ? 2 : 1;
-        const mensajeAccion = esActivo ? 'eliminaron' : 'habilitaron';
-        const nuevoEstado = await (0, Estado_controllers_1.verifyEstado)({ EstadoId: nuevoEstadoId });
-        if (!nuevoEstado) {
-            return res.status(500).json({ message: "No se pudo obtener el estado requerido." });
-        }
-        subcategoria.Estado = nuevoEstado;
-        await subcategoria.save();
-        return res.json({ message: `Se ${mensajeAccion} los datos de la sub Categoria correctamente` });
     }
     catch (error) {
         console.error("Error al cambiar el estado del Categoria:", error);
@@ -287,7 +329,7 @@ const deleteSubCategoria = async (req, res) => {
 exports.deleteSubCategoria = deleteSubCategoria;
 const getSubCategorias = async (req, res) => {
     try {
-        const subcategorias = await SubCategoria_1.Subcategoria.find({ relations: ['Estado', 'Categoria'] });
+        const subcategorias = await SubCategoria_1.Subcategoria.find({ relations: ['Categoria'] });
         if (!subcategorias) {
             return res.status(404).json({ message: "Sub Categorias no encontradas" });
         }

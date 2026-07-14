@@ -38,4 +38,12 @@ export const formatTimeAgo = (dateString, timeString) => {
   if (hours > 0) return `hace ${hours} ${hours === 1 ? 'hora' : 'horas'}`;
   if (minutes > 0) return `hace ${minutes} ${minutes === 1 ? 'minuto' : 'minutos'}`;
   return `hace unos segundos`;
-};
+  };
+
+  export const getLocalDate = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+  };

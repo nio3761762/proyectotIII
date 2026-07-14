@@ -11,8 +11,9 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Ingrediente = void 0;
 const typeorm_1 = require("typeorm");
-const Producto_1 = require("./Producto");
 const UnidadMedida_1 = require("./UnidadMedida");
+const Insumo_1 = require("./Insumo");
+const Receta_1 = require("./Receta");
 let Ingrediente = class Ingrediente extends typeorm_1.BaseEntity {
 };
 exports.Ingrediente = Ingrediente;
@@ -25,15 +26,19 @@ __decorate([
     __metadata("design:type", Number)
 ], Ingrediente.prototype, "Peso", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => Producto_1.Producto, (producto) => producto.Ingrediente),
-    (0, typeorm_1.JoinColumn)({ name: "idproductoingrediente" }),
-    __metadata("design:type", Producto_1.Producto)
-], Ingrediente.prototype, "Ingredientes", void 0);
+    (0, typeorm_1.Column)({ name: 'pesoconvertido', type: "numeric", precision: 12, scale: 3, default: 0 }),
+    __metadata("design:type", Number)
+], Ingrediente.prototype, "Pesoconvertido", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => Producto_1.Producto, (producto) => producto.Producto),
-    (0, typeorm_1.JoinColumn)({ name: "idproducto" }),
-    __metadata("design:type", Producto_1.Producto)
-], Ingrediente.prototype, "Producto", void 0);
+    (0, typeorm_1.ManyToOne)(() => Insumo_1.Insumo, (producto) => producto.Ingrediente, { nullable: true }),
+    (0, typeorm_1.JoinColumn)({ name: "idinsumo" }),
+    __metadata("design:type", Insumo_1.Insumo)
+], Ingrediente.prototype, "Insumo", void 0);
+__decorate([
+    (0, typeorm_1.ManyToOne)(() => Receta_1.Receta, (ingrediente) => ingrediente.Ingredientes),
+    (0, typeorm_1.JoinColumn)({ name: 'idreceta' }),
+    __metadata("design:type", Receta_1.Receta)
+], Ingrediente.prototype, "Receta", void 0);
 __decorate([
     (0, typeorm_1.ManyToOne)(() => UnidadMedida_1.Unidadmedida, (unidadmedida) => unidadmedida.Ingrediente),
     (0, typeorm_1.JoinColumn)({ name: "idunidadmedida" }),
@@ -41,5 +46,4 @@ __decorate([
 ], Ingrediente.prototype, "Unidadmedida", void 0);
 exports.Ingrediente = Ingrediente = __decorate([
     (0, typeorm_1.Entity)()
-    //@Check(`"Estado" IN (0, 1)`)
 ], Ingrediente);

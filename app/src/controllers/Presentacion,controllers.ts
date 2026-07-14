@@ -2,18 +2,18 @@ import { Request, Response } from "express";
 import { HttpError } from "../utils/error.handler";
 import { generarIdSecuencial } from "../utils/idGenerator";
 import { Presentacion } from "../entities/Presentacion";
-import { verifyEstado } from "./Estado.controllers";
+import { AppDataSource } from "../db";
 
 export const AddPresentacion = async (req: Request, res: Response) => {
     try {
-        const {Nombre} = req.body;
+        const {Nombre,Abreviatura} = req.body;
         
         const nuevo = new Presentacion();
         
         const nuevoId = await generarIdSecuencial('PREN');
         nuevo.IdPresentacion = nuevoId;
         nuevo.Nombre =Nombre;
-        nuevo.Estado = await verifyEstado({EstadoId:1});
+        nuevo.Abreviatura = Abreviatura
         nuevo.FechaRegistro = new Date();
         
         await nuevo.save();
@@ -30,7 +30,7 @@ export const AddPresentacion = async (req: Request, res: Response) => {
 export const updatePresentacion = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        const {Nombre} = req.body;
+        const {Nombre,Abreviatura} = req.body;
         
          const existe = await Presentacion.findOne({
           
@@ -42,6 +42,7 @@ export const updatePresentacion = async (req: Request, res: Response) => {
         
         existe.Nombre = Nombre;
         existe.FechaActualizacion = new Date();
+        existe.Abreviatura = Abreviatura
         
         await existe.save();
 
@@ -66,18 +67,15 @@ export const verifyPresentacion = async ({ PresentacionId }: { PresentacionId: s
 };
 
 
-export const getPresentacionEstaoo = async (req: Request, res: Response) => {
+export const getPresentaciones = async (req: Request, res: Response) => {
     try {
-        const presentacion = await Presentacion.find({
-          where:{Estado:{IdEstado:1}},
-        });
 
-        const resultado = presentacion.map(p => ({
-            ...p,
-            Estado: p.Estado?.IdEstado
-        }));
+       const result = await AppDataSource.query(
+        `SELECT p.idpresentacion , p.nombre
+        FROM presentacion p
+        WHERE p.estado = 1 `);
 
-        return res.json(resultado);
+        return res.json(result);
     } catch (error) {
         if (error instanceof Error) {
             return res.status(500).json({ message: error.message });
@@ -88,16 +86,61 @@ export const getPresentacionEstaoo = async (req: Request, res: Response) => {
 
 export const getPresentacion = async (req: Request, res: Response) => {
     try {
-        const presentacion = await Presentacion.find({
-            relations: ['Estado']
-        });
+      
+ const { search, estado, page = 1, limit = 8 } = req.query;
 
-        const resultado = presentacion.map(p => ({
-            ...p,
-            Estado: p.Estado?.IdEstado
-        }));
+    const offset = (Number(page) - 1) * Number(limit);
 
-        return res.json(resultado);
+    //  limpiar parámetros
+    const nombreParam =
+      typeof search === "string" && search.trim() !== ""
+        ? search.trim()
+        : null;
+
+    const estadoParam =
+      estado !== undefined && estado !== ""
+        ? Number(estado)
+        : null;
+
+    const result = await AppDataSource.query(
+     `
+      SELECT 
+          p.idpresentacion,
+          p.nombre,
+          p.estado,
+          p.abreviatura,
+          COUNT(*) OVER() AS total
+      FROM presentacion p
+      WHERE 
+          ($1::text IS NULL OR p.nombre ILIKE '%' || $1::text || '%')
+      AND ($2::int IS NULL OR p.estado = $2)
+      ORDER BY p.idpresentacion
+      LIMIT $3 OFFSET $4;
+      `,
+      [
+        nombreParam,
+        estadoParam,
+        Number(limit),
+        offset
+      ]
+    );
+
+    // si no hay resultados → array vacío
+    if (result.length === 0) {
+      return res.json({
+        total: 0,
+        page: Number(page),
+        limit: Number(limit),
+        data: []
+      });
+    }
+
+    return res.json({
+      total: result[0].total,
+      page: Number(page),
+      limit: Number(limit),
+      data: result
+    });
     } catch (error) {
         if (error instanceof Error) {
             return res.status(500).json({ message: error.message });
@@ -105,13 +148,11 @@ export const getPresentacion = async (req: Request, res: Response) => {
     }
 };
 
-export const getpresentacion = async ( req:Request, res:Response) =>{
+export const getbypresentacion = async ( req:Request, res:Response) =>{
     try {
        const {id}  = req.body;
         const presentacion = await Presentacion.findOne({ 
-               where:{IdPresentacion:id},
-                relations:['Estado']})
-
+               where:{IdPresentacion:id}})
     if (!presentacion) {
       return res.status(404).json({ message: "presentacion no encontrado" });
     }
@@ -126,30 +167,24 @@ export const getpresentacion = async ( req:Request, res:Response) =>{
 export const deletePresentacion= async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+ const result = await AppDataSource.query(
+  `UPDATE presentacion 
+   SET estado = CASE WHEN estado = 1 THEN 0 ELSE 1 END
+   WHERE IdPresentacion = $1
+   RETURNING estado AS estado`,
+  [id]
+);
 
-    const presentacion = await Presentacion.findOne({
-      where: { IdPresentacion: id },
-      relations: ['Estado']
+    // ✅ aquí está el cambio
+    if (result.length === 0) {
+      return res.status(404).json({ message: "Presentacion no encontrado" });
+    }
+const nuevoEstado = Number(result[0][0].estado);
+    const mensajeAccion = nuevoEstado === 1 ? "habilitaron" : "eliminaron";
+
+    return res.json({
+      message: `Se ${mensajeAccion} los datos de la presentacion correctamente`,
     });
-
-    if (!presentacion) {
-      return res.status(404).json({ message: "presentacion no encontrado" });
-    }
-    
-    const esActivo = presentacion.Estado?.IdEstado === 1;
-    const nuevoEstadoId = esActivo ? 2 : 1; 
-    const mensajeAccion = esActivo ? 'eliminaron' : 'habilitaron';
-
-    const nuevoEstado = await verifyEstado({ EstadoId: nuevoEstadoId });
-
-    if (!nuevoEstado) {
-      return res.status(500).json({ message: "No se pudo obtener el estado requerido." });
-    }
-
-    presentacion.Estado = nuevoEstado;
-    await presentacion.save();
-
-    return res.json({ message: `Se ${mensajeAccion} los datos de la presentacion correctamente` });
 
   } catch (error) {
     console.error("Error al cambiar el estado del usuario:", error);

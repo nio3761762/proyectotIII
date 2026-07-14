@@ -6,7 +6,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const multer_1 = __importDefault(require("multer"));
 const path_1 = __importDefault(require("path"));
+const verifyToken_1 = require("../middleware/verifyToken");
 const router = (0, express_1.Router)();
+router.use(verifyToken_1.authMiddleware);
 // Configuración de almacenamiento
 const storage = multer_1.default.diskStorage({
     destination: (req, file, cb) => {

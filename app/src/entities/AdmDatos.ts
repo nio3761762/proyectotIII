@@ -1,11 +1,8 @@
 import { BaseEntity, Check, OneToMany, Column, Entity, PrimaryColumn, OneToOne, JoinColumn } from "typeorm";
 import { Sucursal } from "./Sucursal";
-import { Imagen } from "./Imagen";
 import { Persona } from "./Persona";
-import { Email } from "./Email";
 
 @Entity()
-//@Check(`"Estado" IN (0, 1)`)
 export class Administrardatos extends BaseEntity {
     @PrimaryColumn({ name: 'iddatos', type: "integer" })
     IdDatos: number;
@@ -15,20 +12,19 @@ export class Administrardatos extends BaseEntity {
 
     @Column({ name: 'celular', type: "varchar", length: 20 })
     Celular: string;
+     
+    @Column({ name: 'email', type: "varchar", length: 255, nullable: true })
+    Email : string;
 
+     @Column({ name: 'foto', type: "varchar", length: 255 })
+    Foto : string;
     //Relacoion de uno a muchos con Sucurcal 
-    @OneToMany(() => Sucursal, (sucursal) => sucursal.Datos)
-    sucursal: Sucursal[];
 
-    @OneToOne(() => Imagen, (imagen) => imagen.Administrardatos)
-    @JoinColumn({ name: "foto" })
-    Imagen: Imagen;   
+    @OneToMany(() => Sucursal, (sucursal) => sucursal.Datos)
+    sucursal: Sucursal[]; 
 
     @OneToOne(() => Persona, (persona) => persona.Administrardatos)
     @JoinColumn({ name: "idpropietario" })
     Persona: Persona;   
 
-    @OneToOne(() => Email, (email) => email.Administrardatos)
-    @JoinColumn({ name: "idemail" })
-    Email: Email;   
 }

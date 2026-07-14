@@ -1,378 +1,274 @@
 <template>
-  <div class="min-h-screen p-6 space-y-8">
-    <CategoriaHeader
-      :categoriasActivos="categoriasActivos"
-      :totalCategorias="categorias.length"
-    />
-    <CategoriaFilters
-      v-model="filtros"
-      :statusOptions="statusOptions"
-      @nueva-categoria="abrirModalRegistro"
-    />
-    <CategoriaList
-      :categorias="categoriasPaginados"
-      :categoriaExpandido="categoriaExpandido"
-      :contarSubCategorias="contarSubCategorias"
-      :obtenerSubCategoria="obtenerSubCategoria"
-      @toggle-subcategorias="toggleSubcategorias"
-      @editar="abrirModalEdicion"
-      @cambiar-estado="abrirModalActivarDesactivar"
-    />
-    <CategoriaPagination
-      v-if="totalPaginas > 0"
-      :totalPaginas="totalPaginas"
-      v-model:paginaActual="paginaActual"
-      :paginacionInfo="paginacionInfo"
-      :visiblePages="visiblePages"
+  <div class="min-h-screen">
+    <div class="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-orange-400/5 to-red-500/5 rounded-full blur-3xl pointer-events-none"></div>
+    <div class="absolute bottom-0 left-0 w-80 h-80 bg-gradient-to-tr from-red-400/5 to-orange-500/5 rounded-full blur-2xl pointer-events-none"></div>
+
+    <!-- Loading -->
+    <Transition name="fade" mode="out-in">
+      <div v-if="cargandoInicial" class="flex items-center justify-center py-20">
+        <div class="text-center">
+          <div class="w-20 h-20 mx-auto relative mb-6">
+            <div class="absolute inset-0 rounded-full border-4 border-orange-200 animate-pulse"></div>
+            <div class="absolute inset-0 rounded-full border-4 border-transparent border-t-orange-500 border-r-red-500 animate-spin"></div>
+            <div class="absolute inset-0 flex items-center justify-center">
+              <div class="p-3 bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl shadow-lg">
+                <Tags class="h-6 w-6 text-white" />
+              </div>
+            </div>
+          </div>
+          <h3 class="text-lg font-bold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent mb-1">Cargando Categorías</h3>
+          <p class="text-gray-500 text-sm">Preparando datos...</p>
+          <div class="mt-4 w-40 mx-auto h-1 bg-gray-200 rounded-full overflow-hidden">
+            <div class="h-full bg-gradient-to-r from-orange-500 to-red-500 rounded-full animate-pulse"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Contenido -->
+      <div v-else>
+
+        <!-- Header -->
+        <div class="relative bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl border border-white/50 p-8">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-4">
+              <div class="p-3 bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl shadow-lg">
+                <Tags class="h-8 w-8 text-white" />
+              </div>
+              <div>
+                <h1 class="text-4xl font-bold bg-gradient-to-r from-orange-600 via-red-600 to-orange-700 bg-clip-text text-transparent">
+                  Gestión de Categorías
+                </h1>
+                <p class="text-gray-600 mt-1 font-medium">Administra las categorías y subcategorías</p>
+              </div>
+            </div>
+            <div class="hidden md:flex items-center space-x-6">
+              <div class="text-center">
+                <div class="text-2xl font-bold text-gray-800">{{ paginacion.total ?? 0 }}</div>
+                <div class="text-sm text-gray-500">Total</div>
+              </div>
+              <div class="p-2 bg-green-100 rounded-xl">
+                <TrendingUp class="h-6 w-6 text-green-600" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Filtros -->
+        <div class="mt-6">
+          <FiltrosCategoria
+            v-model:search="filtros.search"
+            v-model:estado="filtros.estado"
+            v-model:limite="filtros.limite"
+            @update:search="onSearchChange"
+            @update:estado="onEstadoChange"
+            @update:limite="onLimiteChange"
+          >
+            <template #acciones>
+              <button
+                @click="abrirModalNueva"
+                class="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white rounded-2xl px-6 py-2 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 flex items-center gap-2"
+              >
+                <Plus class="h-4 w-4" /> Nueva Categoría
+              </button>
+            </template>
+          </FiltrosCategoria>
+        </div>
+
+        <!-- Cards -->
+        <div class="relative mt-6">
+          <Transition name="fade">
+            <div v-if="cargando" class="absolute inset-0 bg-white/50 backdrop-blur-sm flex items-center justify-center rounded-3xl z-10">
+              <div class="animate-spin rounded-full h-10 w-10 border-4 border-orange-500 border-t-transparent"></div>
+            </div>
+          </Transition>
+
+          <div v-if="!cargando && categorias.length === 0" class="bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl border border-white/50 p-16 text-center">
+            <div class="p-4 bg-gradient-to-br from-orange-100 to-red-100 rounded-full w-20 h-20 mx-auto mb-4 flex items-center justify-center">
+              <Tags class="h-10 w-10 text-orange-500" />
+            </div>
+            <h3 class="text-xl font-bold text-gray-700 mb-2">No se encontraron categorías</h3>
+            <p class="text-gray-500">Intenta cambiar los filtros o crea una nueva categoría.</p>
+          </div>
+
+          <div v-else class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            <CategoriaCard
+              v-for="cat in categorias"
+              :key="cat.idcategoria"
+              :categoria="cat"
+              @editar="abrirModalEditar"
+              @toggleEstado="abrirModalConfirmacion"
+            />
+          </div>
+
+          <Paginado
+            :paginaActual="paginacion.paginaActual"
+            :totalPaginas="paginacion.totalPaginas"
+            :total="paginacion.total"
+            :limite="filtros.limite"
+            @update:paginaActual="onCambiarPagina"
+          />
+        </div>
+      </div>
+    </Transition>
+
+    <!-- Notificación toast -->
+    <Transition name="slide-up">
+      <div v-if="notificacion.visible" class="fixed bottom-6 right-6 bg-gradient-to-r from-orange-500 to-red-600 text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-2 z-50">
+        <CheckCircle class="h-5 w-5" />
+        {{ notificacion.mensaje }}
+      </div>
+    </Transition>
+
+    <!-- Modal Confirmación -->
+    <ModalConfirmacion
+      :show="modalConfirmacion.visible"
+      :mensaje="modalConfirmacion.accion"
+      :nombreUsuario="modalConfirmacion.nombre"
+      @confirmar="onConfirmar"
+      @cancelar="cerrarModalConfirmacion"
     />
 
-    <CategoriaFormModal
-      :show="mostrarModal"
-      :esEdicion="esEdicion"
-      :categoriaActual="categoriaActual"
-      :errors="categoriaErrors"
-      :previewUrl="previewUrl"
-      @close="cerrarModal"
-      @update:categoriaActual="categoriaActual = $event"
-      @handle-image-upload="handleImageUpload"
-      @agregar-subcategoria="agregarSubcategoriaAlModal"
-      @toggle-subcategoria-estado="toggleSubcategoriaEstadoEnModal"
-      @guardar="guardarCategoria"
-      @validate="validateCategoriaField"
-      @update:subcategoria="updateSubcategoria"
-      @validate-subcategoria="validateSubcategoria"
+    <!-- Modal Registrar/Editar -->
+    <RegistrarCategoria
+      :show="modalRegistrar.visible"
+      :categoria="modalRegistrar.categoria"
+      :guardando="guardando"
+      :todasCategorias="categorias"
+      @close="cerrarModalRegistrar"
+      @guardar="onGuardar"
     />
-
-    <ConfirmacionModal
-      :show="modalActivarDesactivar"
-      :title="categoriaActual.Estado?.IdEstado === 1 ? '¿Desactivar Categoría?' : '¿Activar Categoría?'"
-      :confirmText="categoriaActual.Estado?.IdEstado === 1 ? 'Sí, Desactivar' : 'Sí, Activar'"
-      cancelText="Cancelar"
-      :confirmButtonClass="categoriaActual.Estado?.IdEstado === 1 ? 'bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700' : 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-emerald-600 hover:to-green-500'"
-      :iconComponent="AlertTriangle"
-      iconClass="h-10 w-10 text-orange-500"
-      @confirm="confirmarActivacionDesactivacion"
-      @cancel="modalActivarDesactivar = false"
-    >
-      ¿Está seguro de que desea {{ categoriaActual.Estado?.IdEstado === 1 ? 'desactivar' : 'activar' }} la categoría <span class="font-semibold">{{ categoriaActual.Nombre }}</span>?
-    </ConfirmacionModal>
-
-    <div v-if="showToast" class="fixed top-6 right-6 bg-green-500 text-white px-6 py-4 rounded-2xl shadow-xl flex items-center gap-3 z-50 animate-slide-in">
-      <CheckCircle class="h-5 w-5" />
-      <span class="font-semibold">{{ toastMessage }}</span>
-    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, reactive } from 'vue';
+import { ref, reactive, onMounted } from 'vue';
+import { Tags, TrendingUp, Plus, CheckCircle } from 'lucide-vue-next';
+
 import {
-  AlertTriangle, CheckCircle
-} from 'lucide-vue-next';
-import ConfirmacionModal from '../Modals/ConfirmacionModal.vue';
-import CategoriaHeader from './CategoriaHeader.vue';
-import CategoriaFilters from './CategoriaFilters.vue';
-import CategoriaList from './CategoriaList.vue';
-import CategoriaPagination from './CategoriaPagination.vue';
-import CategoriaFormModal from './CategoriaFormModal.vue';
-import { SubirFoto } from '@/Server/Foto';
-import { listarCategorias, RegistrarCategoria, UpdateCategoria, DeleteCategoria } from '@/Server/Categoria';
+  listarCategorias, RegistrarCategoria as apiRegistrar,
+  UpdateCategoria, DeleteCategoria
+} from '@/Server/Categoria';
 
-const categorias = ref([]);
-const filtros = ref({ Nombre: '', estado: 'Todos' });
-const statusOptions = [
-  { value: "Todos", label: "Todos", color: "bg-gray-500" },
-  { value: "Activo", label: "Activo", color: "bg-green-500" },
-  { value: "Inactivo", label: "Inactivo", color: "bg-red-500" }
-];
+import FiltrosCategoria  from './FiltrosCategoria.vue';
+import CategoriaCard     from './CategoriaCard.vue';
+import RegistrarCategoria from './RegistrarCategoria.vue';
+import Paginado          from '@/views/Components/Modals/Paginado.vue';
+import ModalConfirmacion from '@/views/Components/Modals/ModalConfirmacion.vue';
 
-const mostrarModal = ref(false);
-const modalActivarDesactivar = ref(false);
-const esEdicion = ref(false);
-const showToast = ref(false);
-const toastMessage = ref('');
-const paginaActual = ref(1);
-const itemsPorPagina = ref(6);
-const categoriaExpandido = ref(null);
-const archivo = ref(null);
-const previewUrl = ref(null);
+// ── Estado ────────────────────────────────────────────────────────────────────
+const cargandoInicial = ref(true);
+const cargando        = ref(false);
+const guardando       = ref(false);
+const categorias      = ref([]);
 
-const categoriaActual = ref({ IdCategoria: null, Nombre: '', Estado: { IdEstado: 1 }, Imagen: { IdImagen: null, Url: '' }, Subcategoria: [] });
-const subcategoriasOriginales = ref([]);
+const paginacion = reactive({ paginaActual: 1, totalPaginas: 1, total: 0 });
+const filtros    = reactive({ search: '', estado: '-1', limite: 8 });
+const notificacion       = reactive({ visible: false, mensaje: '' });
+const modalConfirmacion  = reactive({ visible: false, nombre: '', accion: '', categoria: null });
+const modalRegistrar     = reactive({ visible: false, categoria: null });
 
-const categoriaErrors = reactive({
-  nombre: '',
-  subcategorias: []
-});
+let debounceTimer = null;
 
-const validateCategoriaField = (field, value, allCategorias = [], isEditing = false, currentCategoriaId = null) => {
-  let error = '';
-  switch (field) {
-    case 'nombre':
-      if (!value) error = 'El nombre es requerido.';
-      else if (value.length > 50) error = 'El nombre no puede tener más de 50 caracteres.';
-      else if (!/^[a-zA-Z\s]*$/.test(value)) error = 'El nombre solo puede contener letras y espacios.';
-      else {
-        const lowerCaseValue = value.toLowerCase();
-        const isDuplicate = allCategorias.some(cat => {
-          if (isEditing && cat.IdCategoria === currentCategoriaId) {
-            return false;
-          }
-          return cat.Nombre.toLowerCase() === lowerCaseValue;
-        });
-        if (isDuplicate) error = 'Ya existe una categoría con este nombre.';
-      }
-      break;
-    default:
-      break;
-  }
-  categoriaErrors.nombre = error;
-  return error;
-};
-
-const validateSubcategoriaField = (field, value, allSubcategorias = [], isEditingIndex = null) => {
-  let error = '';
-  switch (field) {
-    case 'nombre':
-      if (!value) error = 'El nombre de la subcategoría es requerido.';
-      else if (value.length > 50) error = 'El nombre no puede tener más de 50 caracteres.';
-      else if (!/^[a-zA-Z\s]*$/.test(value)) error = 'El nombre solo puede contener letras y espacios.';
-      else {
-        const lowerCaseValue = value.toLowerCase();
-        const isDuplicate = allSubcategorias.some((sub, index) => {
-          if (isEditingIndex !== null && index === isEditingIndex) {
-            return false;
-          }
-          return sub.Nombre.toLowerCase() === lowerCaseValue;
-        });
-        if (isDuplicate) error = 'Ya existe una subcategoría con este nombre.';
-      }
-      break;
-    default:
-      break;
-  }
-  return error;
-};
-
-const validateCategoriaForm = () => {
-  categoriaErrors.nombre = '';
-  categoriaErrors.subcategorias = [];
-
-  let isValid = true;
-
-  categoriaErrors.nombre = validateCategoriaField('nombre', categoriaActual.value.Nombre, categorias.value, esEdicion.value, categoriaActual.value.IdCategoria);
-  if (categoriaErrors.nombre) isValid = false;
-
-  categoriaActual.value.Subcategoria.forEach((sub, index) => {
-    const subError = validateSubcategoriaField('nombre', sub.Nombre, categoriaActual.value.Subcategoria, index);
-    if (subError) {
-      categoriaErrors.subcategorias[index] = subError;
-      isValid = false;
-    } else {
-      categoriaErrors.subcategorias[index] = '';
-    }
-  });
-
-  return isValid;
-};
-
-const categoriasActivos = computed(() => categorias.value.filter(r => r.Estado.IdEstado === 1).length);
-
-const categoriasFiltrados = computed(() => {
-  let resultado = categorias.value;
-  if (filtros.value.Nombre) {
-    resultado = resultado.filter(c => c.Nombre.toLowerCase().includes(filtros.value.Nombre.toLowerCase()));
-  }
-  if (filtros.value.estado !== 'Todos') {
-    const estadoId = filtros.value.estado === 'Activo' ? 1 : 2;
-    resultado = resultado.filter(c => c.Estado.IdEstado === estadoId);
-  }
-  return resultado;
-});
-
-const totalPaginas = computed(() => {
-  return Math.ceil(categoriasFiltrados.value.length / itemsPorPagina.value)
-});
-
-const categoriasPaginados = computed(() => {
-  const start = (paginaActual.value - 1) * itemsPorPagina.value;
-  const end = start + itemsPorPagina.value;
-  return categoriasFiltrados.value.slice(start, end);
-});
-
-const paginacionInfo = computed(() => {
-  const total = categoriasFiltrados.value.length;
-  const inicio = total === 0 ? 0 : (paginaActual.value - 1) * itemsPorPagina.value + 1;
-  const fin = Math.min(inicio + itemsPorPagina.value - 1, total);
-  return `Mostrando ${inicio}-${fin} de ${total} categorías`;
-});
-
-const visiblePages = computed(() => {
-  const pages = [];
-  for (let i = 1; i <= totalPaginas.value; i++) {
-    pages.push(i);
-  }
-  return pages;
-});
-
-const handleImageUpload = (event) => {
-  const file = event.target.files[0];
-  if (file) {
-    archivo.value = file;
-    previewUrl.value = URL.createObjectURL(file);
-  }
-};
-
-const showToastMessage = (message) => {
-  toastMessage.value = message;
-  showToast.value = true;
-  setTimeout(() => { showToast.value = false; }, 3000);
-};
-
-const ListarCategorias = async () => {
+// ── API ────────────────────────────────────────────────────────────────────────
+const cargarCategorias = async () => {
   try {
-    categorias.value = await listarCategorias();
-  } catch (error) {
-    showToastMessage("Error al cargar las categorías.");
+    cargando.value = true;
+    const estadoParam = filtros.estado === '-1' ? undefined : filtros.estado;
+    const resp = await listarCategorias(
+      filtros.search || undefined,
+      estadoParam,
+      paginacion.paginaActual,
+      filtros.limite,
+    );
+
+    categorias.value        = resp.data       ?? [];
+    paginacion.total        = Number(resp.total       ?? 0);
+    paginacion.totalPaginas = Number(resp.totalPages  ?? resp.totalPaginas
+      ?? (categorias.value.length === filtros.limite ? paginacion.paginaActual + 1 : paginacion.paginaActual));
+  } catch (err) {
+    console.error(err);
+    mostrarNotificacion('Error al cargar categorías');
+  } finally {
+    cargando.value        = false;
+    cargandoInicial.value = false;
   }
 };
 
-const limpiarFormularioModal = () => {
-  categoriaActual.value = { IdCategoria: null, Nombre: '', Estado: { IdEstado: 1 }, Imagen: { IdImagen: null, Url: '' }, Subcategoria: [] };
-  subcategoriasOriginales.value = [];
-  archivo.value = null;
-  previewUrl.value = null;
+// ── Filtros ────────────────────────────────────────────────────────────────────
+const onSearchChange = (val) => {
+  filtros.search = val;
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => { paginacion.paginaActual = 1; cargarCategorias(); }, 400);
 };
+const onEstadoChange  = (val) => { filtros.estado = val; paginacion.paginaActual = 1; cargarCategorias(); };
+const onLimiteChange  = (val) => { filtros.limite = val; paginacion.paginaActual = 1; cargarCategorias(); };
+const onCambiarPagina = (page) => { paginacion.paginaActual = page; cargarCategorias(); };
 
-const abrirModalRegistro = () => {
-  esEdicion.value = false;
-  limpiarFormularioModal();
-  categoriaErrors.nombre = '';
-  categoriaErrors.subcategorias = [];
-  mostrarModal.value = true;
-};
+// ── Modales registrar/editar ───────────────────────────────────────────────────
+const abrirModalNueva  = () => { modalRegistrar.categoria = null;    modalRegistrar.visible = true; };
+const abrirModalEditar = (cat) => { modalRegistrar.categoria = { ...cat }; modalRegistrar.visible = true; };
+const cerrarModalRegistrar = () => { modalRegistrar.visible = false; modalRegistrar.categoria = null; };
 
-const abrirModalEdicion = (categoria) => {
-  esEdicion.value = true;
-  limpiarFormularioModal();
-  categoriaActual.value = JSON.parse(JSON.stringify(categoria));
-  if (!categoriaActual.value.Subcategoria) {
-      categoriaActual.value.Subcategoria = [];
-  }
-  subcategoriasOriginales.value = JSON.parse(JSON.stringify(categoria.Subcategoria || []));
-  if(categoria.Imagen && categoria.Imagen.Url) previewUrl.value = categoria.Imagen.Url;
-  categoriaErrors.nombre = '';
-  categoriaErrors.subcategorias = [];
-  mostrarModal.value = true;
-};
-
-const cerrarModal = () => {
-  mostrarModal.value = false;
-  limpiarFormularioModal();
-  categoriaErrors.nombre = '';
-  categoriaErrors.subcategorias = [];
-};
-
-const handlePhotoUpload = async () => {
-  if (!archivo.value) return;
+const onGuardar = async (data) => {
+  guardando.value = true;
   try {
-    const imageUrl = await SubirFoto(archivo.value);
-    if (!categoriaActual.value.Imagen) categoriaActual.value.Imagen = {};
-    categoriaActual.value.Imagen.Url = imageUrl;
-  } catch (error) {
-    showToastMessage('No se pudo subir la imagen.');
+    const payload = {
+      IdCategoria: data.idcategoria,
+      Nombre:      data.nombre,
+      Url:         data.imagen,
+      Subcategoria: data.subcategorias.map(s => ({
+        ...(s.idsubcategoria ? { IdSubCategoria: s.idsubcategoria } : {}),
+        Nombre:   s.nombre,
+        IdEstado: s.idestado,
+      })),
+    };
+
+    const resp = data.idcategoria
+      ? await UpdateCategoria({ ...payload })
+      : await apiRegistrar(payload);
+
+    mostrarNotificacion(resp?.message ?? 'Categoría guardada');
+    cerrarModalRegistrar();
+    await cargarCategorias();
+  } catch (err) {
+    console.error(err);
+    mostrarNotificacion('Error al guardar la categoría');
+  } finally {
+    guardando.value = false;
   }
 };
 
-const agregarSubcategoriaAlModal = () => {
-    if (!Array.isArray(categoriaActual.value.Subcategoria)) {
-        categoriaActual.value.Subcategoria = [];
-    }
-    categoriaActual.value.Subcategoria.push({ IdSubCategoria: null, Nombre: '', Estado: { IdEstado: 1 } });
+// ── Modal confirmación ─────────────────────────────────────────────────────────
+const abrirModalConfirmacion = (cat) => {
+  modalConfirmacion.categoria = cat;
+  modalConfirmacion.nombre    = cat.nombre;
+  modalConfirmacion.accion    = cat.estado === 1 ? 'Desactivar' : 'Activar';
+  modalConfirmacion.visible   = true;
 };
-
-const toggleSubcategoriaEstadoEnModal = (index) => {
-    const sub = categoriaActual.value.Subcategoria[index];
-    if (sub.IdSubCategoria) {
-        sub.Estado.IdEstado = sub.Estado.IdEstado === 1 ? 2 : 1;
-    } else {
-        categoriaActual.value.Subcategoria.splice(index, 1);
-    }
-};
-
-const guardarCategoria = async () => {
-  if (!validateCategoriaForm()) {
-    showToastMessage('Por favor, corrija los errores en el formulario.', 'error');
-    return;
-  }
-  
-  await handlePhotoUpload();
-
-  const catDato = {
-    IdCategoria: categoriaActual.value.IdCategoria,
-    Nombre: categoriaActual.value.Nombre,
-    Url: categoriaActual.value.Imagen?.Url,
-    IdImagen: categoriaActual.value.Imagen?.IdImagen,
-    Subcategoria: categoriaActual.value.Subcategoria?.map(sub => ({
-      IdSubCategoria: sub.IdSubCategoria,
-      Nombre: sub.Nombre,
-      IdEstado: sub.Estado?.IdEstado
-    }))
-  };
-
+const cerrarModalConfirmacion = () => { modalConfirmacion.visible = false; modalConfirmacion.categoria = null; };
+const onConfirmar = async () => {
+  const cat = modalConfirmacion.categoria;
+  cerrarModalConfirmacion();
+  if (!cat) return;
   try {
-    const response = esEdicion.value ? await UpdateCategoria(catDato) : await RegistrarCategoria(catDato);
-    
-    showToastMessage(response.message || 'Operación completada');
-    await ListarCategorias();
-    cerrarModal();
-  } catch (error) {
-    showToastMessage("Error al guardar la categoría o sus subcategorías.");
-  }
+    const resp = await DeleteCategoria(cat.idcategoria);
+    mostrarNotificacion(resp?.message ?? 'Estado actualizado');
+    await cargarCategorias();
+  } catch (err) { mostrarNotificacion('Error al cambiar el estado'); }
 };
 
-const toggleSubcategorias = (id) => {
-  categoriaExpandido.value = categoriaExpandido.value === id ? null : id;
+// ── Utilidades ─────────────────────────────────────────────────────────────────
+const mostrarNotificacion = (mensaje) => {
+  notificacion.mensaje = mensaje; notificacion.visible = true;
+  setTimeout(() => { notificacion.visible = false; }, 3000);
 };
 
-const abrirModalActivarDesactivar = (categoria) => {
-  categoriaActual.value = { ...categoria };
-  modalActivarDesactivar.value = true;
-};
-
-const confirmarActivacionDesactivacion = async () => {
-    try {
-        const response = await DeleteCategoria(categoriaActual.value.IdCategoria);
-        showToastMessage(response.message);
-        await ListarCategorias();
-    } catch (error) {
-        showToastMessage("Error al cambiar el estado de la categoría.");
-    }
-    modalActivarDesactivar.value = false;
-};
-
-const contarSubCategorias = (sub) => sub?.length || 0;
-const obtenerSubCategoria = (sub) => sub?.filter(s => s.Estado.IdEstado === 1) || [];
-
-const updateSubcategoria = ({ index, value }) => {
-  categoriaActual.value.Subcategoria[index].Nombre = value;
-};
-
-const validateSubcategoria = ({ index, value }) => {
-  categoriaErrors.subcategorias[index] = validateSubcategoriaField('nombre', value, categoriaActual.value.Subcategoria, index);
-};
-
-onMounted(ListarCategorias);
-
+onMounted(cargarCategorias);
 </script>
 
 <style scoped>
-.animate-fade-in { animation: fade-in 0.3s ease-out; }
-@keyframes fade-in { from { opacity: 0; transform: translateY(-10px) scale(0.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
-.animate-slide-in { animation: slide-in 0.3s ease-out; }
-@keyframes slide-in { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: linear-gradient(to bottom, #fdba74, #f97316); border-radius: 10px; }
-::-webkit-scrollbar-thumb:hover { background: linear-gradient(to bottom, #f97316, #ea580c); }
+.fade-enter-active, .fade-leave-active { transition: opacity 0.2s; }
+.fade-enter-from, .fade-leave-to       { opacity: 0; }
+.slide-up-enter-active, .slide-up-leave-active { transition: all 0.3s ease; }
+.slide-up-enter-from, .slide-up-leave-to       { opacity: 0; transform: translateY(16px); }
 </style>

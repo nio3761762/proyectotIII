@@ -1,15 +1,10 @@
 import { BaseEntity, Check, OneToMany, Column, Entity, PrimaryColumn, OneToOne, ManyToOne, JoinColumn } from 'typeorm';
 import bcrypt from 'bcryptjs';
-import { Producto } from './Producto';
-import { Estado } from './Estado';
-import { Promocionproducto } from './PromocionProducto';
 import { Ingrediente } from './Ingrediente';
-import { Productomedida } from './ProductoMedida';
-import {  Presentacionproducto } from './Presentacionproducto';
 import { Categoriamedida } from './CategoriaMedida';
+import { Insumomedida } from './InsumoMedida';
 
 @Entity()
-//@Check(`'Estado' IN (0, 1)`)
 export class Unidadmedida extends BaseEntity {
    @PrimaryColumn({ name: 'idunidadmedida', type: 'integer' })
    IdUnidadMedida: number;
@@ -26,12 +21,8 @@ export class Unidadmedida extends BaseEntity {
    @Column({ name: 'fecharegistro', type: 'date' })
    FechaRegistro: Date;
 
-   // @OneToMany(() => Producto, (producto) => producto.Unidadmedida)
-   // Producto: Producto[];
-
-   @ManyToOne(() => Estado, (estado) => estado.Unidadmedida)
-   @JoinColumn({ name: 'idestado' })
-   Estado: Estado;
+   @Column({ name: "estado", type: "integer",default: 1}) 
+   Estado: number; 
 
     @ManyToOne(() => Categoriamedida, (estado) => estado.Unidadmedida, {nullable:true})
    @JoinColumn({ name: 'idcategoriamedida' })
@@ -40,10 +31,7 @@ export class Unidadmedida extends BaseEntity {
    @OneToMany(() => Ingrediente, (ingrediente) => ingrediente.Unidadmedida)
    Ingrediente: Ingrediente[];
 
-   @OneToMany(() => Productomedida, (productomedida) => productomedida.Unidadmedida)
-   Productomedida: Productomedida[];
-
-    @OneToMany(() => Presentacionproducto, (paquete) => paquete.Unidadmedida)
-     Paquete: Presentacionproducto[];
+   @OneToMany(() => Insumomedida, (productomedida) => productomedida.Unidadmedida)
+   Insumomedida: Insumomedida[];
    
 }

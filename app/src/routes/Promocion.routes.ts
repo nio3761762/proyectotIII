@@ -4,22 +4,21 @@ import {
     updatePromocion,
     deletePromocion,
     getPromociones,
-    getPromocion,
-    getPromocionesActiva,
     activarPromociones,
-    cerrarPromocionesVencidas
+    cerrarPromocionesVencidas,
+    getPromocionesVista
 } from '../controllers/Promocion.controllers';
 import { authMiddleware } from '../middleware/verifyToken';
 
 const router = Router();
+
+router.get('/promociones-vista', getPromocionesVista);
 
 router.use(authMiddleware);
 router.post('/promocion', createPromocion);
 router.put('/promocion/:id', updatePromocion);
 router.delete('/promociones/:id', deletePromocion);
 router.get('/promociones', getPromociones);
-router.get('/promocionactiva', getPromocionesActiva);
-router.get('/Onepromocione/:id', getPromocion);
 router.post("/cerrar-vencidas", cerrarPromocionesVencidas);
 router.post("/activar", activarPromociones);
 

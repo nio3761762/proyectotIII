@@ -1,16 +1,23 @@
 import { Request, Response } from "express";
 import { Administrardatos } from "../entities/AdmDatos";
-import { Imagen } from "../entities/Imagen";
-import { updateImagen } from "./Foto.controllers";
-import { updateEmail } from "./Email.controllers";
 import { verifyPersona } from "./Persona.controllers";
+import { AppDataSource } from "../db";
 
 
 // Obtener todos
 export const getDatos = async ( req: Request, res: Response) => {
     try {
-        const datos = await Administrardatos.find({  relations: ['Imagen','Email','Persona'],});
-        return res.json(datos);
+      const result = await AppDataSource.query(`
+      SELECT 
+          ad.*,
+          row_to_json(p) AS persona
+      FROM administrardatos ad
+      LEFT JOIN persona p 
+          ON p.idpersona = ad.idpropietario;
+    `);
+
+    //  siempre devuelve array
+    return res.json(result.length > 0 ? result : []);
     } catch (error) {
         return res.status(500).json({ message: "Error al obtener los datos", error });
     }
@@ -31,8 +38,9 @@ export const updateDatos = async (req: Request, res: Response) => {
 
         if(updateDatos.Nombre) datos.Nombre = updateDatos.Nombre;
         if(updateDatos.IdPersona) datos.Persona =await verifyPersona({PersonaId:updateDatos.IdPersona});
-        if(updateDatos.IdEmail)  datos.Email = await updateEmail({EmailId:updateDatos.IdEmail,email: updateDatos.Email});
-        datos.Celular = updateDatos.Celular;
+        if(updateDatos.Email)  datos.Email = updateDatos.Email;
+        if(updateDatos.Url) datos.Foto = updateDatos.Url
+        if( updateDatos.Celular) datos.Celular = updateDatos.Celular;
         await datos.save();
 
         return res.json({message:"Se actualizaron los datos de la Panaderia correctamente"});
@@ -49,24 +57,12 @@ export const updateDatosPhoto = async (req: Request, res: Response) => {
             Foto,
         } = req.body;
 
-        const datos = await Administrardatos.findOne({ where: { IdDatos: parseInt(id) },relations: ["Imagen"] });
+        const datos = await Administrardatos.findOne({ where: { IdDatos: parseInt(id) }});
 
         if (!datos) {
             return res.status(404).json({ message: "Dato no encontrado" });
         }
-          let UpdateImagen;
-  try {
-      UpdateImagen= await updateImagen({  ImagenId:datos.Imagen.IdImagen,Foto  });
-          } catch (error) {
-              if (error instanceof Error)
-              return res.status(400).json({ message: error.message });
-          }
-      
-          if (!UpdateImagen) {
-  return res.status(500).json({ message: "No se pudo actiualizar la Imagen" });
-}
-        
-        datos.Imagen=UpdateImagen;
+          if (Foto) datos.Foto=Foto;
         await datos.save();
    
 

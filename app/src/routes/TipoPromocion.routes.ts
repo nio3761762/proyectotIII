@@ -6,6 +6,6 @@ const router = Router();
 
 
 router.use(authMiddleware)
-router.get("/tipopromocion",getTipopromocions);
+ router.get("/tipopromocion",getTipopromocions);
 
 export default router;

@@ -12,7 +12,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.Celular = void 0;
 const typeorm_1 = require("typeorm");
 const Persona_1 = require("./Persona");
-const Estado_1 = require("./Estado");
 let Celular = class Celular extends typeorm_1.BaseEntity {
 };
 exports.Celular = Celular;
@@ -30,9 +29,8 @@ __decorate([
     __metadata("design:type", Persona_1.Persona)
 ], Celular.prototype, "Persona", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => Estado_1.Estado, (estado) => estado.Celular),
-    (0, typeorm_1.JoinColumn)({ name: "idestado" }),
-    __metadata("design:type", Estado_1.Estado)
+    (0, typeorm_1.Column)({ name: "estado", type: "integer", default: 1 }),
+    __metadata("design:type", Number)
 ], Celular.prototype, "Estado", void 0);
 exports.Celular = Celular = __decorate([
     (0, typeorm_1.Entity)()

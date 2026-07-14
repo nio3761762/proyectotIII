@@ -11,7 +11,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Marca = void 0;
 const typeorm_1 = require("typeorm");
-const Producto_1 = require("./Producto");
+const Insumo_1 = require("./Insumo");
 let Marca = class Marca extends typeorm_1.BaseEntity {
 };
 exports.Marca = Marca;
@@ -24,9 +24,9 @@ __decorate([
     __metadata("design:type", String)
 ], Marca.prototype, "Nombre", void 0);
 __decorate([
-    (0, typeorm_1.OneToMany)(() => Producto_1.Producto, (producto) => producto.Marca),
+    (0, typeorm_1.OneToMany)(() => Insumo_1.Insumo, (isnumo) => isnumo.Marca),
     __metadata("design:type", Array)
-], Marca.prototype, "Producto", void 0);
+], Marca.prototype, "Insumo", void 0);
 exports.Marca = Marca = __decorate([
     (0, typeorm_1.Entity)()
     //@Check(`"Estado" IN (0, 1)`)

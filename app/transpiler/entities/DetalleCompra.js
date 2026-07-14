@@ -12,7 +12,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.Detallecompra = void 0;
 const typeorm_1 = require("typeorm");
 const Compra_1 = require("./Compra");
-const ProductoMedida_1 = require("./ProductoMedida");
+const InsumoMedida_1 = require("./InsumoMedida");
+const Insumo_1 = require("./Insumo");
 let Detallecompra = class Detallecompra extends typeorm_1.BaseEntity {
 };
 exports.Detallecompra = Detallecompra;
@@ -21,26 +22,31 @@ __decorate([
     __metadata("design:type", String)
 ], Detallecompra.prototype, "IdDetalleCompra", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'descripcion', type: "varchar", length: 255, nullable: true }),
-    __metadata("design:type", String)
-], Detallecompra.prototype, "Descripcion", void 0);
-__decorate([
     (0, typeorm_1.Column)({ name: "cantidad", type: "integer" }),
     __metadata("design:type", Number)
 ], Detallecompra.prototype, "Cantidad", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: "precio", type: "numeric", precision: 10, scale: 2 }),
+    (0, typeorm_1.Column)({ name: "precio", type: "numeric", precision: 10, scale: 2, default: 0 }),
     __metadata("design:type", Number)
 ], Detallecompra.prototype, "Precio", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: "preciototal", type: "numeric", precision: 10, scale: 2, default: 0 }),
+    __metadata("design:type", Number)
+], Detallecompra.prototype, "PrecioTotal", void 0);
 __decorate([
     (0, typeorm_1.Column)({ name: "fechavencimiento", type: "date" }),
     __metadata("design:type", Date)
 ], Detallecompra.prototype, "FechaVencimineto", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => ProductoMedida_1.Productomedida, (comprobante) => comprobante.Detallecompra, { nullable: true }),
-    (0, typeorm_1.JoinColumn)({ name: "idmedida" }),
-    __metadata("design:type", ProductoMedida_1.Productomedida)
-], Detallecompra.prototype, "Productomedida", void 0);
+    (0, typeorm_1.ManyToOne)(() => Insumo_1.Insumo, (comprobante) => comprobante.Detallecompra, { nullable: true }),
+    (0, typeorm_1.JoinColumn)({ name: "idinsumo" }),
+    __metadata("design:type", Insumo_1.Insumo)
+], Detallecompra.prototype, "Insumo", void 0);
+__decorate([
+    (0, typeorm_1.ManyToOne)(() => InsumoMedida_1.Insumomedida, (comprobante) => comprobante.Detallecompra, { nullable: true }),
+    (0, typeorm_1.JoinColumn)({ name: "idinsumomedida" }),
+    __metadata("design:type", InsumoMedida_1.Insumomedida)
+], Detallecompra.prototype, "Insumomedida", void 0);
 __decorate([
     (0, typeorm_1.ManyToOne)(() => Compra_1.Compra, (compra) => compra.Detallecompra),
     (0, typeorm_1.JoinColumn)({ name: "idcompra" }),
@@ -48,5 +54,4 @@ __decorate([
 ], Detallecompra.prototype, "Compra", void 0);
 exports.Detallecompra = Detallecompra = __decorate([
     (0, typeorm_1.Entity)()
-    //@Check(`"Estado" IN (0, 1)`)
 ], Detallecompra);

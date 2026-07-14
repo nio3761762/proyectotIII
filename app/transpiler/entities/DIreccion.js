@@ -14,7 +14,6 @@ const typeorm_1 = require("typeorm");
 const Persona_1 = require("./Persona");
 const Barrio_1 = require("./Barrio");
 const Sucursal_1 = require("./Sucursal");
-const Entrega_1 = require("./Entrega");
 let Direccion = class Direccion extends typeorm_1.BaseEntity {
 };
 exports.Direccion = Direccion;
@@ -43,10 +42,6 @@ __decorate([
     (0, typeorm_1.OneToOne)(() => Persona_1.Persona, (persona) => persona.Direccion),
     __metadata("design:type", Persona_1.Persona)
 ], Direccion.prototype, "Persona", void 0);
-__decorate([
-    (0, typeorm_1.OneToMany)(() => Entrega_1.Entrega, (envio) => envio.Direccion),
-    __metadata("design:type", Array)
-], Direccion.prototype, "Entrega", void 0);
 __decorate([
     (0, typeorm_1.OneToOne)(() => Sucursal_1.Sucursal, (sucursal) => sucursal.Direccion),
     __metadata("design:type", Sucursal_1.Sucursal)

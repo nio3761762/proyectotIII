@@ -1,5 +1,4 @@
 import { BaseEntity, Column, Entity, PrimaryColumn, ManyToOne, JoinColumn, OneToMany } from "typeorm";
-import { Tipodocumento } from "./TipoDocumento";
 import { Documento } from "./Documento";
 
 @Entity()

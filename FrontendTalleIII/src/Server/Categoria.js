@@ -1,9 +1,27 @@
 import API from './api';
-
-
-export const listarCategorias = async () => {
+ 
+export const listCategorias = async () =>{
   try {
-    const response = await API.get('Categorias');
+    const response = await API.get('listacategoria');
+    return response.data;
+  } catch (error) {
+    console.error('Error al obtener medidas:', error);
+    throw error;
+  }
+}
+
+export const listarCategorias = async (search,estado,page,limit) => {
+  try {
+    
+     const params = {
+      estado,
+      page
+    };
+
+    if(search) params.search=search
+    params.limit=limit
+
+    const response = await API.get('Categorias', { params });
     return response.data;
   } catch (error) {
     console.error('Error al obtener medidas:', error);
@@ -37,7 +55,7 @@ export const RegistrarCategoria = async (Categoria) => {
       RegistroCategoria: Categoria
 
     });
-    console.log(response.data);
+    
     return response.data;
   } catch (error) {
     console.error('Error al intentar ingresar datos:', error.response);
@@ -51,7 +69,7 @@ export const UpdateCategoria = async (Categoria) => {
       RegistroCategoria: Categoria
 
     });
-    console.log(response.data);
+    
     return response.data;
   } catch (error) {
     console.error('Error al intentar ingresar datos:', error.response);
@@ -84,9 +102,7 @@ export const RegistrarSubCategoria = async (Categoria) => {
   try {
     const response = await API.post('SubCategoria', { 
       RegistroSubCategoria: Categoria
-
     });
-    console.log(response.data);
     return response.data;
   } catch (error) {
     console.error('Error al intentar ingresar datos:', error.response);
@@ -100,7 +116,7 @@ export const UpdateSubCategoria = async (Categoria) => {
       RegistroSubCategoria: Categoria
 
     });
-    console.log(response.data);
+    
     return response.data;
   } catch (error) {
     console.error('Error al intentar ingresar datos:', error.response);

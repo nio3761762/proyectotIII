@@ -6,6 +6,8 @@ import { generarIdSecuencial } from "../utils/idGenerator";
 import { verifyUnidadMedida } from "./Medida.controllers";
 import { verifyProducto } from "./Producto.controllers";
 import { Request, Response } from "express";
+import { verifyInsumo } from "./Insumo.controllers";
+import { Receta } from "../entities/Receta";
 
 export const verifyIngrediente = async ({ IngredienteId }: { IngredienteId: string }) => {
 
@@ -19,66 +21,129 @@ export const verifyIngrediente = async ({ IngredienteId }: { IngredienteId: stri
 
     return existUnidadMedida;
 };
+export const verifyReceta = async (RecetaId: string ) => {
 
-export const createIngrediente = async ({ Peso, ingredienteId, id, UnidadmedidaId }: { Peso: number, ingredienteId: string, id: string, UnidadmedidaId: number }) => {
+  const existProducto = await Receta.findOne({ where: { IdReceta: RecetaId } });
+
+
+  if (!existProducto) {
+    throw new HttpError(404, `La receta con ID ${RecetaId} no existe.`);
+  }
+
+  return existProducto;
+};
+
+export const createIngrediente = async (  Peso: number, ingredienteId: string,receta:Receta, UnidadmedidaId: number ) => {
   
     const ingrediente = new Ingrediente();
 
-    ingrediente.Ingredientes = await verifyProducto({ ProductoId: ingredienteId });
-    ingrediente.Producto = await verifyProducto({ ProductoId: id });
+    ingrediente.Insumo = await verifyInsumo({ ProductoId: ingredienteId });
+    ingrediente.Receta = receta;
     ingrediente.Peso = Peso;
-    ingrediente.Unidadmedida = await verifyUnidadMedida({ UnidadMedidaId: UnidadmedidaId });
+    ingrediente.Unidadmedida = await verifyUnidadMedida({UnidadMedidaId: UnidadmedidaId });
+    ingrediente.Pesoconvertido = Peso * ingrediente.Unidadmedida.Cantidad;
     ingrediente.IdIngrediente = await generarIdSecuencial('INGR');
 
     await ingrediente.save();
     return ingrediente;
 };
 
-export const updateIngrediente = async ({ IdINgredientes, Peso, ingredienteId, id, UnidadmedidaId }: { IdINgredientes: string, Peso: number, ingredienteId: string, id: string, UnidadmedidaId: number }) => {
+export const updateIngrediente = async (  IdINgredientes: string, Peso: number, ingredienteId: string, receta:Receta, UnidadmedidaId: number ) => {
 
     if (!IdINgredientes) {
-        console.log("Registrando ingrediente")
-        return createIngrediente({ Peso, ingredienteId, id, UnidadmedidaId })
+        return createIngrediente( Peso, ingredienteId, receta, UnidadmedidaId )
     }
     const ingrediente = await verifyIngrediente({ IngredienteId: IdINgredientes });
-    ingrediente.Ingredientes = await verifyProducto({ ProductoId: ingredienteId });
-    ingrediente.Producto = await verifyProducto({ ProductoId: id });
+    ingrediente.Insumo = await verifyInsumo({ ProductoId: ingredienteId });
     ingrediente.Peso = Peso;
     ingrediente.Unidadmedida = await verifyUnidadMedida({ UnidadMedidaId: UnidadmedidaId });
+    ingrediente.Pesoconvertido = Peso * ingrediente.Unidadmedida.Cantidad;
     await ingrediente.save();
     return ingrediente;
 };
 
 
 export const getProductoIngrediente = async (req: Request, res: Response) => {
-    try {
-        const { id } = req.params;
-        const producto = await Ingrediente.find({
-            where: { Producto: { IdProducto: id } },
-            relations: ['Ingredientes', 'Unidadmedida', 'Unidadmedida.Categoria']
-        });
+  try {
+    const { id } = req.params;
 
-        if (!producto) return res.status(404).json({ message: "Producto no encontrado" });
+    const result = await AppDataSource.query(`
+      SELECT 
+        p.idproducto,
+        p.nombre,
 
-        const ingrediente = producto.map(p => ({
-            IdIngrediente: p?.IdIngrediente,     // cuidado con la mayúscula, debe coincidir con tu modelo
-            Peso: p?.Peso,
-            IdInsumo: p?.Ingredientes?.IdProducto,
-            IdUnidadMedida: p?.Unidadmedida?.IdUnidadMedida,
-            IdCategoriaMedida: p?.Unidadmedida?.Categoria?.IdCategoriaMedida
-        }));
-        return res.json(ingrediente);
-    } catch (error) {
-        if (error instanceof Error) {
-            return res.status(500).json({ message: error.message });
-        }
+        COALESCE(
+          json_agg(
+            json_build_object(
+              'idReceta', r.idreceta,
+              'rendimiento', r.rendimiento,
+              'tiempoHorneadoMin', r.tiempohorneado,
+              'cantidadPorLata', r.cantidadporlata,
+
+              'ingredientes', (
+                SELECT COALESCE(
+                  json_agg(
+                    json_build_object(
+                      'idIngrediente', i.idingrediente,
+                      'cantidad', i.peso,
+
+                      'insumo', json_build_object(
+                        'idInsumo', ins.idinsumo,
+                        'nombre', ins.nombre,
+                        'imagen', ins.imagen
+                      ),
+
+                      'unidadMedida', json_build_object(
+                        'idUnidadMedida', um.idunidadmedida,
+                        'nombre', um.nombre,
+                        'cantidad', um.cantidad,
+                        'abreviatura', um.abreviatura,
+
+                        'categoria', json_build_object(
+                          'idCategoria', c.idcategoriamedida,
+                          'nombre', c.nombre
+                        )
+                      )
+                    )
+                  ),
+                  '[]'
+                )
+                FROM ingrediente i
+                LEFT JOIN insumo ins ON ins.idinsumo = i.idinsumo
+                LEFT JOIN unidadmedida um ON um.idunidadmedida = i.idunidadmedida
+                LEFT JOIN categoriamedida c ON c.idcategoriamedida = um.idcategoriamedida
+                WHERE i.idreceta = r.idreceta
+              )
+            )
+          ) FILTER (WHERE r.idreceta IS NOT NULL),
+          '[]'
+        ) AS receta
+
+      FROM producto p
+      LEFT JOIN receta r ON r.idproducto = p.idproducto
+
+      WHERE p.idproducto = $1
+
+      GROUP BY p.idproducto, p.nombre
+    `, [id]);
+
+    if (result.length === 0) {
+      return res.status(404).json({ message: "Producto no encontrado" });
     }
+
+    return res.json(result[0]);
+
+  } catch (error) {
+    if (error instanceof Error) {
+      return res.status(500).json({ message: error.message });
+    }
+  }
 };
 
 export const ObtenerIngredientes = async ({ IngredienteId }: { IngredienteId: string }) => {
 
     const existUnidadMedida = await Ingrediente.find({
-        where: { Producto:{IdProducto: IngredienteId} }
+        where: { Receta:{IdReceta: IngredienteId} }
     });
 
 
@@ -86,181 +151,72 @@ export const ObtenerIngredientes = async ({ IngredienteId }: { IngredienteId: st
 };
 
 export const registrarProduccionDeProducto = async (req: Request, res: Response) => {
-    const { id, cantidadProducida, ingredientes } = req.body;
-
-    if (!id || !cantidadProducida || !ingredientes || !Array.isArray(ingredientes) || ingredientes.length === 0) {
-        return res.status(400).json({ message: "Faltan datos: id, cantidadProducida y un array de ingredientes son requeridos." });
-    }
-
-    if (isNaN(cantidadProducida) || cantidadProducida <= 0) {
-        return res.status(400).json({ message: "cantidadProducida debe ser un número positivo." });
-    }
-
-    const queryRunner = AppDataSource.createQueryRunner();
-    await queryRunner.connect();
-    await queryRunner.startTransaction();
-
-    try {
-        const recetasActualizadas = [];
-
-        for (const item of ingredientes) {
-            const { totalPeso, ingredienteId, UnidadmedidaId } = item;
-
-            if (!totalPeso || !ingredienteId || !UnidadmedidaId) {
-                throw new HttpError(400, `Datos incompletos para un ingrediente: totalPeso, ingredienteId, UnidadmedidaId son requeridos.`);
-            }
-
-            if (isNaN(totalPeso) || totalPeso <= 0) {
-                throw new HttpError(400, `totalPeso para el ingrediente ${ingredienteId} debe ser un número positivo.`);
-            }
-
-            const pesoPorUnidad = totalPeso / cantidadProducida;
-
-            // 1. Definir/Actualizar la receta (peso por unidad)
-            const nuevoIngredienteReceta = await createIngrediente({ Peso: pesoPorUnidad, ingredienteId, id, UnidadmedidaId });
-            recetasActualizadas.push(nuevoIngredienteReceta);
-
-            // 2. Descontar stock del insumo
-            const insumo = await queryRunner.manager.findOne(Producto, {
-                where: { IdProducto: ingredienteId }
-            });
-
-            if (!insumo || insumo.Cantidad < totalPeso) {
-                throw new HttpError(400, `Stock insuficiente para el insumo ${insumo?.Nombre || ingredienteId}. Se necesitan ${totalPeso} y hay ${insumo?.Cantidad || 0}.`);
-            }
-
-            insumo.Cantidad -= totalPeso;
-            await queryRunner.manager.save(insumo);
-        }
-
-        // 3. Incrementar stock del producto final (una vez, después de procesar todos los insumos)
-        const productoFinal = await queryRunner.manager.findOne(Producto, {
-            where: { IdProducto: id }
-        });
-
-        if (!productoFinal) {
-            throw new HttpError(404, `El producto final con ID ${id} no fue encontrado.`);
-        }
-
-        productoFinal.Cantidad += cantidadProducida;
-        await queryRunner.manager.save(productoFinal);
-
-        await queryRunner.commitTransaction();
-
-        return res.status(200).json({ message: "Producción registrada, recetas actualizadas y stock ajustado correctamente.", recetas: recetasActualizadas });
+   try {
+    const { ingredientes,Recetas } = req.body;
+       const receta = new Receta();
+       
+       receta.CantidadPorLata= Recetas.cantidad // cuantos productos por lata entra
+       receta.Producto = await verifyProducto({ProductoId:Recetas.IdProducto})
+       receta.Rendimiento = Recetas.Rendimiento // CUÁNTOS PRODUCTOS PRODUCE
+       receta.TiempoHorneadoMin = Recetas.Tiempo
+       receta.IdReceta = await generarIdSecuencial('REC');
+   
+        await receta.save()
+       
+        for (const ingret of ingredientes){
+        await createIngrediente(ingret.Peso,ingret.Insumo,receta,ingret.UnidadMedida)
+       }
+        return res.status(200).json({ message: "Producción registrada, recetas actualizadas y stock ajustado correctamente." });
 
     } catch (error) {
-        await queryRunner.rollbackTransaction();
+        
         
         if (error instanceof HttpError) {
             return res.status(error.statusCode).json({ message: error.message });
         }
-        console.error(error);
         return res.status(500).json({ message: "Error interno del servidor al procesar la producción." });
 
-    } finally {
-        await queryRunner.release();
-    }
+    } 
 };
 
 export const actualizarIngredienteReceta = async (req: Request, res: Response) => {
-    const {id }= req.params; // El ID del producto final cuya receta se va a actualizar
-    const { cantidadProducida, ingredientes } = req.body;
-         console.log(id,cantidadProducida, ingredientes)
-    if (!id || !cantidadProducida || !ingredientes || !Array.isArray(ingredientes)) {
-        return res.status(400).json({ message: "Faltan datos: id (en params), cantidadProducida y un array de ingredientes son requeridos." });
+  try {
+    const { id } = req.params; 
+    const { ingredientes, Recetas } = req.body;
+    
+    const receta = await Receta.findOne({
+      where: { IdReceta: id },
+      relations: ['Ingredientes']
+    });
+
+    if (!receta)
+      return res.status(400).json({ message: "Receta no encontrado" });
+
+       if(Recetas.cantidad >0 )receta.CantidadPorLata= Recetas.cantidad // cuantos productos por lata entra
+       if(Recetas.Rendimiento> 0)receta.Rendimiento = Recetas.Rendimiento // CUÁNTOS PRODUCTOS PRODUCE
+       if(Recetas.Tiempo > 0)receta.TiempoHorneadoMin = Recetas.Tiempo
+    
+       await receta.save();
+
+    // 🔥 crear o actualizar
+    for (const ingret of ingredientes || []) {
+      await updateIngrediente(
+        ingret.IdIngrediente, ingret.Peso, ingret.Insumo,receta, ingret.UnidadMedida);
     }
 
-    if (isNaN(cantidadProducida) || cantidadProducida <= 0) {
-        return res.status(400).json({ message: "cantidadProducida debe ser un número positivo." });
-    }
+    return res.status(200).json({
+      message: "Receta de producto actualizada correctamente."
+    });
 
-    const queryRunner = AppDataSource.createQueryRunner();
-    await queryRunner.connect();
-    await queryRunner.startTransaction();
-
-    try {
-        const recetasActualizadasOcreadas = [];
-        const idsIngredientesRecibidos = new Set();
-
-        // Obtener todas las recetas existentes para este producto final
-        const recetasExistentes = await queryRunner.manager.find(
-            Ingrediente, { where: { Producto: { IdProducto: id } }
-        });
-        const mapaRecetasExistentes = new Map(recetasExistentes.map(rec => [rec.IdIngrediente, rec]));
-
-        for (const item of ingredientes) {
-            const { IdIngrediente, totalPeso, ingredienteId, UnidadmedidaId } = item;
-
-            if (!totalPeso || !ingredienteId || !UnidadmedidaId) {
-                throw new HttpError(400, `Datos incompletos para un ingrediente: totalPeso, ingredienteId, UnidadmedidaId son requeridos.`);
-            }
-
-            if (isNaN(totalPeso) || totalPeso <= 0) {
-                throw new HttpError(400, `totalPeso para el ingrediente ${ingredienteId} debe ser un número positivo.`);
-            }
-
-            const pesoPorUnidad = totalPeso;
-
-            if (IdIngrediente && mapaRecetasExistentes.has(IdIngrediente)) {
-                // Actualizar ingrediente existente en la receta
-                const ingredienteActualizado = await updateIngrediente({
-                    IdINgredientes: IdIngrediente,
-                    Peso: pesoPorUnidad,
-                    ingredienteId,
-                    id,
-                    UnidadmedidaId
-                });
-                recetasActualizadasOcreadas.push(ingredienteActualizado);
-                idsIngredientesRecibidos.add(IdIngrediente);
-            } else {
-                // Crear nuevo ingrediente en la receta
-                const nuevoIngrediente = await createIngrediente({
-                    Peso: pesoPorUnidad,
-                    ingredienteId,
-                    id,
-                    UnidadmedidaId
-                });
-                recetasActualizadasOcreadas.push(nuevoIngrediente);
-                idsIngredientesRecibidos.add(nuevoIngrediente.IdIngrediente);
-            }
-        }
-
-        // Eliminar ingredientes de la receta que ya no están en la lista enviada
-        for (const recetaExistente of recetasExistentes) {
-            if (!idsIngredientesRecibidos.has(recetaExistente.IdIngrediente)) {
-                await queryRunner.manager.delete(Ingrediente, { IdIngrediente: recetaExistente.IdIngrediente });
-            }
-        }
-
-       
-        
-         const productoFinal = await queryRunner.manager.findOne(Producto, {
-            where: { IdProducto: id }
-        });
-
-        if (!productoFinal) {
-            throw new HttpError(404, `El producto final con ID ${id} no fue encontrado.`);
-        }
-
-        productoFinal.Cantidad = cantidadProducida;
-        await queryRunner.manager.save(productoFinal);
-
-        await queryRunner.commitTransaction();
-
-        return res.status(200).json({ message: "Receta de producto actualizada correctamente.", recetas: recetasActualizadasOcreadas });
-
-    } catch (error) {
-        await queryRunner.rollbackTransaction();
-        
-        if (error instanceof HttpError) {
-            return res.status(error.statusCode).json({ message: error.message });
-        }
-        console.error(error);
-        return res.status(500).json({ message: "Error interno del servidor al actualizar la receta del producto." });
-    } finally {
-        await queryRunner.release();
-    }
+  } catch (error) {
+     console.error("ERROR REAL:", error);
+    return res.status(500).json({
+      message: "Error interno del servidor al actualizar la receta del producto."
+     , error: error instanceof Error ? {
+      message: error.message,
+      stack: error.stack
+    } : error});
+  }
 };
 
 export const eliminarIngredienteReceta = async (req: Request, res: Response) => {

@@ -1,68 +1,41 @@
 import { Request, Response } from "express";
 import { Producto } from "../entities/Producto";
-import { verifyEstado } from "./Estado.controllers";
-import { verifyTipoProducto } from "./Tipoproducto.controllers";
-import { verifyMarca } from "./Marca.controllers";
 import { verifySubCategoria } from "./Categoria.controllers";
 import { HttpError } from "../utils/error.handler";
-import { createImagen, updateImagen, verifyImagen } from "./Foto.controllers";
-import { createPrecio, updatePrecio } from "./Precio.controllers";
 import { Sucursal } from "../entities/Sucursal";
-import { createSucursalProducto } from "./SucursalProducto.controllers";
-import { createPaquete, updatePaquete } from "./Presentacionproducto.controllers";
 import { generarIdSecuencial } from "../utils/idGenerator";
 import { Like } from "typeorm";
 import { createProductoMedida, updateProductoMedida } from "./ProductoMedida.controllers";
-import { Unidadmedida } from "../entities/UnidadMedida";
-import { Productomedida } from "../entities/ProductoMedida";
-import { createIngrediente, ObtenerIngredientes, updateIngrediente } from "./Ingredientes.controllers";
-import { Ingrediente } from "../entities/Ingrediente";
-import { Productosucursal } from "../entities/ProductoSucursal";
-
+import { AppDataSource } from "../db";
+import { Productomedidaprecio } from "../entities/Productomedidaprecio";
+import { getFechaHoraBolivia } from "../utils/Fecha";
+const { fecha, hora} = getFechaHoraBolivia()
 
 export const createProducto = async (req: Request, res: Response) => {
   try {
     const { RegistroProducto } = req.body;
-
-
-
+  
     const nuevoId = await generarIdSecuencial('PROD');
 
     const producto = new Producto();
     producto.IdProducto = nuevoId;
-    producto.Nombre = RegistroProducto.Nombre;
-    producto.FechaRegistro = new Date();
-    producto.Estado = await verifyEstado({ EstadoId: 1 });
+    if(RegistroProducto.Nombre) producto.Nombre = RegistroProducto.Nombre;
+    producto.FechaRegistro = fecha;
 
+producto.HoraRegistro = hora;
     if (RegistroProducto.Descripcion) producto.Descripcion = RegistroProducto.Descripcion;
-    if (RegistroProducto.Url) {
-      const imagen = await createImagen({ Foto: RegistroProducto.Url });
-      producto.Imagen = imagen;
-    }
+   
     if (RegistroProducto.IdSubCategoria) producto.Subcategoria = await verifySubCategoria({ CategoriaId: RegistroProducto.IdSubCategoria });
-    if (RegistroProducto.IdMarca) producto.Marca = await verifyMarca({ Marcaid: RegistroProducto.IdMarca });
-    if (RegistroProducto.IdTipo) producto.Tipoproducto = await verifyTipoProducto({ TipoId: RegistroProducto.IdTipo });
     if (RegistroProducto.Descripcion) producto.Descripcion = RegistroProducto.Descripcion;
+    if(RegistroProducto.Descripcionlarga) producto.Descripcionlarga = RegistroProducto.Descripcionlarga
+     if (RegistroProducto.Url) producto.Imagen =  RegistroProducto.Url
+     if(RegistroProducto.StockMinimo) producto.StockMinimo = RegistroProducto.StockMinimo
     await producto.save();
 
-    if (!RegistroProducto.IdMarca) {
-      const sucursales = await Sucursal.find();
-      for (const sucursal of sucursales)
-        await createSucursalProducto({ SucursalId: sucursal.IdSucursal, ProductoId: nuevoId,stockminimo:RegistroProducto.StockMinimo });
-    }
     if (RegistroProducto.Productomedida && RegistroProducto.Productomedida.length > 0)
       for (const medida of RegistroProducto.Productomedida)
-        await createProductoMedida({ IdProducto: nuevoId, IdUnidadMedida: medida.IdUnidadMedida, Cantidad: medida.Cantidad, Precio: medida.Precio, PrecioMayor: medida.PrecioMayor })
-
-
-    if (RegistroProducto.Paquete && RegistroProducto.Paquete.length > 0)
-      for (const paquete of RegistroProducto.Paquete)
-        await createPaquete({
-          IdProducto: nuevoId, IdUnidadMedida: paquete.IdUnidadMedida, Nombre: paquete.Nombre,
-          PrecioVenta: paquete.PrecioVenta, Cantidad: paquete.Cantidad, IdEstado: paquete.Estado, IdPresentacion: paquete.IdPresentacion,
-          Url: paquete.Url,StockMinimo:paquete.StockMinimo
-        })
-
+        await createProductoMedida( nuevoId,  medida.Idpresentacion,  medida.Cantidad, medida.Precio,medida.PrecioMayor, medida.Url,medida.Comision)
+     
 
     return res.json({ message: "El Producto se registró correctamente" });
   } catch (error) {
@@ -72,62 +45,97 @@ export const createProducto = async (req: Request, res: Response) => {
   }
 };
 
-export const deleteProducto = async (req: Request, res: Response) => {
+export const updateProducto = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    const { RegistroProducto } = req.body;
 
-    const producto = await Producto.findOne({
-      where: { IdProducto: id },
-      relations: ['Estado']
-    });
+    const producto = await Producto.findOne(
+      { where: { IdProducto: id }, relations: ["Productomedida"] });
 
-    if (!producto) {
-      return res.status(404).json({ message: "Producto no encontrado" });
-    }
+    if (!producto) return res.status(404).json({ message: "Producto no encontrado" });
 
-    const esActivo = producto.Estado?.IdEstado === 1;
-    const nuevoEstadoId = esActivo ? 2 : 1;
-    const mensajeAccion = esActivo ? 'eliminaron' : 'habilitaron';
-
-    const nuevoEstado = await verifyEstado({ EstadoId: nuevoEstadoId });
-
-    if (!nuevoEstado) {
-      return res.status(500).json({ message: "No se pudo obtener el estado requerido." });
-    }
-
-    producto.Estado = nuevoEstado;
+   
+    
+    if (RegistroProducto.Nombre) producto.Nombre = RegistroProducto.Nombre;
+    if (RegistroProducto.IdSubCategoria) producto.Subcategoria = await verifySubCategoria({ CategoriaId: RegistroProducto.IdSubCategoria });
+    if (RegistroProducto.Descripcion) producto.Descripcion = RegistroProducto.Descripcion;
+    if (RegistroProducto.Descripcionlarga) producto.Descripcionlarga = RegistroProducto.Descripcionlarga
+    if (RegistroProducto.Url) producto.Imagen =  RegistroProducto.Url
+     if(RegistroProducto.StockMinimo) producto.StockMinimo = RegistroProducto.StockMinimo
     await producto.save();
 
-    return res.json({ message: `Se ${mensajeAccion} los datos del Producto correctamente` });
+    // IDs enviados desde el front (o vacío si no mandaron nada)
+// const idsEnviadosMedida = RegistroProducto.Productomedida?.map((pm: any) => pm.IdProductomedida)
+//   .filter((id: any) => id !== undefined) || [];
 
-  } catch (error) {
-    console.error("Error al cambiar el estado del Producto:", error);
-    if (error instanceof Error) {
-      return res.status(500).json({ message: error.message });
-    }
+// // Todas las medidas actuales en BD
+// const medidasActuales = producto.Productomedida || [];
+
+// if (!RegistroProducto.Productomedida || RegistroProducto.Productomedida.length === 0) {
+//   // Caso: no se envió nada → eliminar todas
+//   for (const medida of medidasActuales) {
+//     await Productomedida.delete({ IdProductoMedida: medida.IdProductoMedida });
+//   }
+// } else {
+//   // Caso: sí se enviaron medidas → eliminar las que no estén en idsEnviados
+//   const medidasAEliminar = medidasActuales.filter(
+//     (pm: any) => !idsEnviadosMedida.includes(pm.IdProductoMedida)
+//   );
+
+//   for (const medida of medidasAEliminar) {
+//     await Productomedida.delete({ IdProductoMedida: medida.IdProductoMedida });
+//   }
+
+  // Crear o actualizar las medidas que vinieron
+  if (RegistroProducto.Productomedida && RegistroProducto.Productomedida.length > 0) 
+  for (const medida of RegistroProducto.Productomedida) {
+    await updateProductoMedida(
+       medida.Idproductomedida,
+     id,
+      medida.Idpresentacion,
+       medida.Cantidad,
+      medida.Precio,
+     medida.PrecioMayor,
+     medida.Url,
+      medida.Idestado,
+      medida.Comision
+    );
   }
-};
-
-export const PrecioProducto = async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-
-    const producto = await Producto.findOne({
-      where: { IdProducto: id },
-      relations: ['Productomedida', 'Productomedida.Unidadmedida']
-    });
-
-    if (!producto) {
-      return res.status(404).json({ message: "Producto no encontrado" });
-    }
-
 
     return res.json({
-      Precio: producto.Productomedida[0].PrecioVenta,
-      Unidadmedida: producto.Productomedida[0].Unidadmedida.IdUnidadMedida,
-      Id: producto.Productomedida[0].IdProductoMedida,
-      PrecioMayor: producto.Productomedida[0].PrecioMayor
+      producto: producto
+      , message: "El Producto se actualizó correctamente"
     });
+  } catch (error) {
+    if (error instanceof Error) {
+      return res.status(500).json({ message: error.message });
+    }
+  }
+};
+
+export const deleteProducto = async (req: Request, res: Response) => {
+  try {
+      const { id } = req.params;
+   
+     const result = await AppDataSource.query(
+     `UPDATE producto 
+      SET estado = CASE WHEN estado = 1 THEN 0 ELSE 1 END
+      WHERE IdProducto = $1
+      RETURNING estado AS estado`,
+     [id]
+   );
+   
+       // ✅ aquí está el cambio
+       if (result.length === 0) {
+         return res.status(404).json({ message: "Producto no encontrado" });
+       }
+   const nuevoEstado = Number(result[0][0].estado);
+       const mensajeAccion = nuevoEstado === 1 ? "habilitaron" : "eliminaron";
+   
+       return res.json({
+         message: `Se ${mensajeAccion} los datos del producto correctamente`,
+       });
 
   } catch (error) {
     console.error("Error al cambiar el estado del Producto:", error);
@@ -137,92 +145,275 @@ export const PrecioProducto = async (req: Request, res: Response) => {
   }
 };
 
-export const getProductos = async (req: Request, res: Response) => {
+export const getProductos = async (req: Request, res: Response) => { 
   try {
-    const productos = await Producto.find({
-      where: { Tipoproducto: { IdTipoProducto: 'ITP-2' } },
-      relations: [
-        'Estado',
-        'Marca',
-        'Tipoproducto',
-        'Subcategoria',
-        'Subcategoria.Categoria',
-        'Imagen',
-        'Productomedida',
-        'Paquete',
-        'Paquete.Estado',
-        'Paquete.Unidadmedida',
-        'Productosucursal',
-        'Productosucursal.Sucursal']
-    });
-    return res.json(productos);
-  } catch (error) {
-    if (error instanceof Error) {
-      return res.status(500).json({ message: error.message });
-    }
-  }
-};
+    const { search, estado, categoria, subcategoria, page = 1, limit = 8 } = req.query;
 
-export const getInsumo = async (req: Request, res: Response) => {
-  try {
-    const productos = await Producto.find({
-      where: { Tipoproducto: { IdTipoProducto: 'ITP-1' } },
-      relations: [
-        'Estado',
-        'Marca',
-        'Tipoproducto',
-        'Subcategoria',
-        'Subcategoria.Categoria',
-        'Imagen',
-        'Productomedida',
-        'Productomedida.Unidadmedida',
-        'Productomedida.Unidadmedida.Categoria'
-      ]
-    });
-    return res.json(productos);
-  } catch (error) {
-    if (error instanceof Error) {
-      return res.status(500).json({ message: error.message });
-    }
-  }
-};
-export const getBuscarProductos = async (req: Request, res: Response) => {
-  try {
-    // Trae los productos (filtra por tipo en la base si Tipoproducto es relación)
-    const productos = await Producto.find({
-      where: { Tipoproducto: { IdTipoProducto: "ITP-2" } },
-      relations: ["Productosucursal", "Productosucursal.Sucursal"],
-    });
+    const offset = (Number(page) - 1) * Number(limit);
 
-    // Filtrar en memoria: quedarse solo con los que tienen 1+ Productosucursal
-    const productosConSucursal = productos.filter(
-      (p) => Array.isArray(p.Productosucursal) && p.Productosucursal.length > 0
+    const searchParam =
+      typeof search === "string" && search.trim() !== ""
+        ? search.trim()
+        : null;
+
+    const estadoParam =
+      estado !== undefined && estado !== ""
+        ? Number(estado)
+        : null;
+
+    const categoriaParam =
+      typeof categoria === "string" && categoria !== ""
+        ? categoria
+        : null;
+
+    const subcategoriaParam =
+      typeof subcategoria === "string" && subcategoria !== ""
+        ? subcategoria
+        : null;
+
+    const result = await AppDataSource.query(
+    `
+    SELECT 
+      p.idproducto,
+      p.nombre,
+      p.descripcion,
+      p.descripcionlarga,
+      p.fecharegistro,
+      p.fechaactualizacion,
+      p.estado,
+      p.imagen,
+      p.cantidad,
+      COUNT(*) OVER() AS total,
+
+      --  Subcategoria + Categoria
+      json_build_object(
+        'IdSubCategoria', sc.idsubcategoria,
+        'Nombre', sc.nombre,
+        'Estado', sc.estado,
+        'Categoria', json_build_object(
+          'IdCategoria', c.idcategoria,
+          'Nombre', c.nombre,
+          'Estado', c.estado
+        )
+      ) AS "Subcategoria",
+
+      --  PRODUCTO MEDIDA (SUBQUERY)
+      COALESCE(pm_data.productomedida, '[]') AS "Productomedida"
+
+    FROM producto p
+
+    LEFT JOIN subcategoria sc 
+      ON sc.idsubcategoria = p.idsubcategoria
+
+    LEFT JOIN categoria c 
+      ON c.idcategoria = sc.idcategoria
+
+    --  PRODUCTOMEDIDA COMO ARRAY
+    LEFT JOIN LATERAL (
+      SELECT json_agg(
+        jsonb_build_object(
+          'IdProductoMedida', pm.idproductomedida,
+          'Cantidad', pm.cantidad,
+          'Imagen', pm.imagen,
+          'PrecioVenta', pm.precioventa,
+          'PrecioMayor', pm.preciomayor,
+          'Comision', pm.comision,
+          'Estado', pm.estado,
+          'Presentacion', json_build_object(
+            'IdPresentacion', pr.idpresentacion,
+            'Nombre', pr.nombre,
+            'Abreviatura', pr.abreviatura
+          ),
+          'Productomedidaprecio', COALESCE(pmp_data.precios, '[]')
+        )
+      ) AS productomedida
+      FROM productomedida pm
+      LEFT JOIN presentacion pr 
+        ON pr.idpresentacion = pm.idpresentacion
+        
+      LEFT JOIN LATERAL (
+        SELECT jsonb_agg(
+          jsonb_build_object(
+            'IdProductoMedidaPrecio', pmp.idproductomedidaprecio,
+            'CantidadMinima', pmp.cantidadminima,
+            'Precio', pmp.precio,
+            'Estado', pmp.estado
+          )
+        ) AS precios
+        FROM productomedidaprecio pmp
+        WHERE pmp.idproductomedida = pm.idproductomedida
+      ) pmp_data ON true
+     WHERE pm.idproducto = p.idproducto
+
+    ) pm_data ON true
+
+    WHERE 
+      ($1::text IS NULL OR p.nombre ILIKE '%' || $1::text || '%')
+    AND ($2::int IS NULL OR p.estado = $2)
+    AND ($3::text IS NULL OR c.idcategoria = $3)
+    AND ($4::text IS NULL OR sc.idsubcategoria = $4)
+    
+    ORDER BY p.idproducto
+    LIMIT $5 OFFSET $6;
+    `,
+    [
+      searchParam,
+      estadoParam,
+      categoriaParam,
+      subcategoriaParam,
+      Number(limit),
+      offset
+    ]
     );
 
-    // Opcional: normalizar/limpiar salida para el front (evita enviar arrays vacíos innecesarios)
-    const resultado = productosConSucursal.map((p) => {
-      // tomar la primera Productosucursal por ejemplo (o dejar toda la lista si la necesitas)
-      const ps0 = p.Productosucursal[0];
+    if (result.length === 0) {
+      return res.json({
+        total: 0,
+        page: Number(page),
+        limit: Number(limit),
+        data: []
+      });
+    }
 
-      // calcular precioActual (tomando el último por fecha si hay)
-      let precioActual = null;
-      // if (Array.isArray(p.Precio) && p.Precio.length) {
-      //   precioActual = [...p.Precio]
-      //     .sort((a, b) => new Date(b.FechaRegistro).getTime() - new Date(a.FechaRegistro).getTime())[0]
-      //     .Precio;
-      // }
-
-      return {
-        IdProducto: p.IdProducto,
-        Nombre: p.Nombre,
-        Descripcion: p.Descripcion,
-        FechaRegistro: p.FechaRegistro,
-        precioActual,
-        Productosucursal: p.Productosucursal, // o ps0 si solo quieres la primera
-      };
+    return res.json({
+      total: result[0].total,
+      page: Number(page),
+      limit: Number(limit),
+      data: result
     });
 
-    return res.json(resultado);
+  } catch (error) {
+    console.error("Error real:", error);
+    return res.status(500).json({ message: "Error interno del servidor" });
+  }
+};
+export const getProductosVista = async (req: Request, res: Response) => {
+  try {
+    const { search, categoria, subcategoria, page = 1, limit = 12 } = req.query;
+
+    const offset = (Number(page) - 1) * Number(limit);
+
+    const searchParam =
+      typeof search === "string" && search.trim() !== ""
+        ? search.trim()
+        : null;
+
+    const categoriaParam =
+      typeof categoria === "string" && categoria !== ""
+        ? categoria
+        : null;
+
+    const subcategoriaParam =
+      typeof subcategoria === "string" && subcategoria !== ""
+        ? subcategoria
+        : null;
+
+    const result = await AppDataSource.query(
+    `
+    SELECT 
+      p.idproducto,
+      p.nombre,
+      p.descripcion,
+      p.descripcionlarga,
+      p.fecharegistro,
+      p.fechaactualizacion,
+      p.estado,
+      p.imagen,
+      COUNT(*) OVER() AS total,
+
+      --  Subcategoria + Categoria
+      json_build_object(
+        'IdSubCategoria', sc.idsubcategoria,
+        'Nombre', sc.nombre,
+        'Estado', sc.estado,
+        'Categoria', json_build_object(
+          'IdCategoria', c.idcategoria,
+          'Nombre', c.nombre,
+          'Estado', c.estado
+        )
+      ) AS "Subcategoria",
+
+      --  PRODUCTO MEDIDA (SUBQUERY)
+      COALESCE(pm_data.productomedida, '[]') AS "Productomedida"
+
+    FROM producto p
+
+    LEFT JOIN subcategoria sc 
+      ON sc.idsubcategoria = p.idsubcategoria
+
+    LEFT JOIN categoria c 
+      ON c.idcategoria = sc.idcategoria
+
+    --  PRODUCTOMEDIDA COMO ARRAY
+    LEFT JOIN LATERAL (
+      SELECT json_agg(
+        jsonb_build_object(
+          'IdProductoMedida', pm.idproductomedida,
+          'Cantidad', pm.cantidad,
+          'Imagen', pm.imagen,
+          'PrecioVenta', pm.precioventa,
+          'PrecioMayor', pm.preciomayor,
+          'Estado', pm.estado,
+          'Presentacion', json_build_object(
+            'IdPresentacion', pr.idpresentacion,
+            'Nombre', pr.nombre,
+            'Abreviatura', pr.abreviatura
+          ),
+          'Productomedidaprecio', COALESCE(pmp_data.precios, '[]')
+        )
+      ) AS productomedida
+      FROM productomedida pm
+      LEFT JOIN presentacion pr 
+        ON pr.idpresentacion = pm.idpresentacion
+      LEFT JOIN LATERAL (
+        SELECT jsonb_agg(
+          jsonb_build_object(
+            'IdProductoMedidaPrecio', pmp.idproductomedidaprecio,
+            'CantidadMinima', pmp.cantidadminima,
+            'Precio', pmp.precio,
+            'Estado', pmp.estado
+          )
+        ) AS precios
+        FROM productomedidaprecio pmp
+        WHERE pmp.idproductomedida = pm.idproductomedida
+        AND pmp.estado = 1
+      ) pmp_data ON true
+      WHERE pm.idproducto = p.idproducto
+      AND pm.estado = 1
+    ) pm_data ON true
+
+    WHERE p.estado = 1 
+    AND ($1::text IS NULL OR p.nombre ILIKE '%' || $1::text || '%')
+    AND ($2::text IS NULL OR c.idcategoria = $2)
+    AND ($3::text IS NULL OR sc.idsubcategoria = $3)
+     
+    ORDER BY p.idproducto
+    LIMIT $4 OFFSET $5;
+    `,
+    [
+      searchParam,
+      categoriaParam,
+      subcategoriaParam,
+      Number(limit),
+      offset
+    ]
+    );
+
+    if (result.length === 0) {
+      return res.json({
+        total: 0,
+        page: Number(page),
+        limit: Number(limit),
+        data: []
+      });
+    }
+
+    return res.json({
+      total: Number(result[0].total),
+      page: Number(page),
+      limit: Number(limit),
+      data: result
+    });
   } catch (error) {
     if (error instanceof Error) {
       return res.status(500).json({ message: error.message });
@@ -233,15 +424,23 @@ export const getBuscarProductos = async (req: Request, res: Response) => {
 
 export const getProducto = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
-    const producto = await Producto.findOne({
-      where: { IdProducto: id },
-      relations: ['Estado', 'Marca', 'Unidadmedida', 'Tipoproducto', 'Subcategoria', 'Subcategoria.categoria', 'Precio', "Imagen"]
-    });
+const result = await AppDataSource.query(
+  `
+  SELECT 
+    p.idproducto,
+    p.nombre,
+    p.descripcion,
+    p.descripcionlarga,
+    p.fecharegistro,
+    p.fechaactualizacion,
+    p.estado,
+    p.imagen,
+    p.cantidad
+   FROM producto p 
+   WHERE estado = 1
+  `,);
 
-    if (!producto) return res.status(404).json({ message: "Producto no encontrado" });
-
-    return res.json(producto);
+     return res.json(result);
   } catch (error) {
     if (error instanceof Error) {
       return res.status(500).json({ message: error.message });
@@ -269,102 +468,6 @@ export const getProductoSucursal = async (req: Request, res: Response) => {
   }
 };
 
-
-export const updateProducto = async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    const { RegistroProducto } = req.body;
-
-    const producto = await Producto.findOne(
-      { where: { IdProducto: id }, relations: ["Productomedida", "Ingrediente"] });
-
-    if (!producto) return res.status(404).json({ message: "Producto no encontrado" });
-
-
-    if (RegistroProducto.Nombre) producto.Nombre = RegistroProducto.Nombre;
-
-    if (RegistroProducto.IdImagen) {
-      const imagen = await updateImagen({ ImagenId: RegistroProducto.IdImagen, Foto: RegistroProducto.Url });
-      producto.Imagen = imagen;
-    } else {
-      if (RegistroProducto.Url) {
-        const imagen = await createImagen({ Foto: RegistroProducto.Url });
-        producto.Imagen = imagen;
-      }
-    }
-
-    if (RegistroProducto.IdSubCategoria) producto.Subcategoria = await verifySubCategoria({ CategoriaId: RegistroProducto.IdSubCategoria });
-    if (RegistroProducto.IdMarca) producto.Marca = await verifyMarca({ Marcaid: RegistroProducto.IdMarca });
-    if (RegistroProducto.Descripcion) producto.Descripcion = RegistroProducto.Descripcion;
-    await producto.save();
-     
-    const productosucursal = await Productosucursal.find({
-      where:{Producto:{IdProducto:id}}
-    })
-   if(!productosucursal){
-return res.status(404).json({ message: "Producto no encontrado  ninguna sucursal" });
-   }
-    for(const prod of productosucursal){
-      prod.StockMinimo= RegistroProducto.StockMinimo;
-      await prod.save();
-    }
-    // IDs enviados desde el front (o vacío si no mandaron nada)
-const idsEnviadosMedida = RegistroProducto.Productomedida?.map((pm: any) => pm.IdProductomedida)
-  .filter((id: any) => id !== undefined) || [];
-
-// Todas las medidas actuales en BD
-const medidasActuales = producto.Productomedida || [];
-
-if (!RegistroProducto.Productomedida || RegistroProducto.Productomedida.length === 0) {
-  // Caso: no se envió nada → eliminar todas
-  for (const medida of medidasActuales) {
-    await Productomedida.delete({ IdProductoMedida: medida.IdProductoMedida });
-  }
-} else {
-  // Caso: sí se enviaron medidas → eliminar las que no estén en idsEnviados
-  const medidasAEliminar = medidasActuales.filter(
-    (pm: any) => !idsEnviadosMedida.includes(pm.IdProductoMedida)
-  );
-
-  for (const medida of medidasAEliminar) {
-    await Productomedida.delete({ IdProductoMedida: medida.IdProductoMedida });
-  }
-
-  // Crear o actualizar las medidas que vinieron
-  for (const medida of RegistroProducto.Productomedida) {
-    await updateProductoMedida({
-      IdProductomedida: medida.IdProductomedida,
-      IdProducto: id,
-      IdUnidadMedida: medida.IdUnidadMedida,
-      Cantidad:  medida.Cantidad,
-      Precio: medida.Precio,
-      PrecioMayor: medida.PrecioMayor,
-  
-    });
-  }
-}
-    if (RegistroProducto.Paquete && RegistroProducto.Paquete.length > 0) {
-      for (const paquete of RegistroProducto.Paquete)
-        await updatePaquete({
-          IdPaquete: paquete.IdPaquete, IdProducto: producto.IdProducto, IdUnidadMedida: paquete.IdUnidadMedida, Nombre: paquete.Nombre,
-          PrecioVenta: paquete.PrecioVenta, Cantidad: paquete.Cantidad, IdEstado: paquete.Estado, IdPresentacion: paquete.IdPresentacion
-          , IdImagen: paquete.IdImagen, Url: paquete.Url, StockMinimo:paquete.StockMinimo
-        })
-    }
-
-
-
-    return res.json({
-      producto: producto
-      , message: "El Producto se actualizó correctamente"
-    });
-  } catch (error) {
-    if (error instanceof Error) {
-      return res.status(500).json({ message: error.message });
-    }
-  }
-};
-
 export const verifyProducto = async ({ ProductoId }: { ProductoId: string }) => {
 
   const existProducto = await Producto.findOne({ where: { IdProducto: ProductoId } });
@@ -376,3 +479,4 @@ export const verifyProducto = async ({ ProductoId }: { ProductoId: string }) => 
 
   return existProducto;
 };
+

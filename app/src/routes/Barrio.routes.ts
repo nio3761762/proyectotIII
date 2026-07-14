@@ -11,7 +11,7 @@ import { authMiddleware } from "../middleware/verifyToken";
 const router = Router();
 
 
- router.use(authMiddleware)
+router.use(authMiddleware)
 router.get("/Barrio",getBarrios);
 router.get("/getDepartamento",getDepartamento);
 router.get("/getDistrito/:id",getDistrito);

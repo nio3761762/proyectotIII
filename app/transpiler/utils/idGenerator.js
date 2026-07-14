@@ -1,48 +1,52 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.generarIdSecuencial = generarIdSecuencial;
-const db_1 = require("../db"); // Importar AppDataSource
+const db_1 = require("../db");
 /**
  * Genera un ID secuencial con el formato MMDDYYYY<PREFIJO>-<SECUENCIA>
  * La secuencia se reinicia cada día.
- * Utiliza una transacción para garantizar la atomicidad y evitar IDs duplicados.
+ * Si se pasa un queryRunner, participa en su transacción (evita saltos por rollback).
  *
  * @param prefijo El prefijo para el tipo de entidad (ej. 'U' para Usuario).
+ * @param queryRunner Opcional — si se provee, usa esa conexión/transacción.
  * @returns El nuevo ID generado.
  */
-async function generarIdSecuencial(prefijo) {
-    const queryRunner = db_1.AppDataSource.createQueryRunner();
-    await queryRunner.connect();
+async function generarIdSecuencial(prefijo, queryRunner) {
+    const propio = !queryRunner;
+    const qr = queryRunner ?? db_1.AppDataSource.createQueryRunner();
+    if (propio) {
+        await qr.connect();
+        await qr.startTransaction();
+    }
     try {
-        await queryRunner.startTransaction();
         const ahora = new Date();
         const anio = ahora.getFullYear();
         const mes = (ahora.getMonth() + 1).toString().padStart(2, '0');
         const dia = ahora.getDate().toString().padStart(2, '0');
         const fechaFormatoSQL = `${anio}-${mes}-${dia}`;
         const fechaFormatoId = `${mes}${dia}${anio}`;
-        // 1. Buscar la secuencia actual (usa el mismo nombre de tabla en todas las consultas)
-        const res = await queryRunner.query('SELECT ultima_secuencia FROM "contadorsecuencias" WHERE prefijo = $1 AND fecha = $2 FOR UPDATE', [prefijo, fechaFormatoSQL]);
+        const res = await qr.query('SELECT ultima_secuencia FROM "contadorsecuencias" WHERE prefijo = $1 AND fecha = $2 FOR UPDATE', [prefijo, fechaFormatoSQL]);
         let nuevaSecuencia;
         if (res.length === 0) {
-            // 2a. Insertar nuevo registro
             nuevaSecuencia = 1;
-            await queryRunner.query('INSERT INTO "contadorsecuencias" (prefijo, fecha, ultima_secuencia) VALUES ($1, $2, $3)', [prefijo, fechaFormatoSQL, nuevaSecuencia]);
+            await qr.query('INSERT INTO "contadorsecuencias" (prefijo, fecha, ultima_secuencia) VALUES ($1, $2, $3)', [prefijo, fechaFormatoSQL, nuevaSecuencia]);
         }
         else {
-            // 2b. Actualizar registro existente
             nuevaSecuencia = res[0].ultima_secuencia + 1;
-            await queryRunner.query('UPDATE "contadorsecuencias" SET ultima_secuencia = $1 WHERE prefijo = $2 AND fecha = $3', [nuevaSecuencia, prefijo, fechaFormatoSQL]);
+            await qr.query('UPDATE "contadorsecuencias" SET ultima_secuencia = $1 WHERE prefijo = $2 AND fecha = $3', [nuevaSecuencia, prefijo, fechaFormatoSQL]);
         }
-        await queryRunner.commitTransaction();
+        if (propio)
+            await qr.commitTransaction();
         return `${fechaFormatoId}${prefijo}-${nuevaSecuencia}`;
     }
     catch (error) {
-        await queryRunner.rollbackTransaction();
+        if (propio)
+            await qr.rollbackTransaction();
         console.error('Error al generar ID secuencial:', error);
         throw new Error('No se pudo generar el ID secuencial.');
     }
     finally {
-        await queryRunner.release();
+        if (propio)
+            await qr.release();
     }
 }

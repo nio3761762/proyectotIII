@@ -1,11 +1,10 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.verifyUnidadMedida = exports.updateUnidadMedida = exports.getUnidadMedida = exports.getUnidadMedidas = exports.deleteUnidadMedida = exports.createUnidadMedida = exports.updateMediada = exports.createMediada = void 0;
-const Estado_1 = require("../entities/Estado");
 const UnidadMedida_1 = require("../entities/UnidadMedida");
-const Estado_controllers_1 = require("./Estado.controllers");
 const error_handler_1 = require("../utils/error.handler");
 const CategoriaMedida_controllers_1 = require("./CategoriaMedida.controllers");
+const db_1 = require("../db");
 const createMediada = async ({ Nombre, Cantidad, Abreviatura, estado, IdCategoria }) => {
     const result = await UnidadMedida_1.Unidadmedida.createQueryBuilder("Unidadmedida")
         .select("MAX(Unidadmedida.IdUnidadMedida)", "maxId")
@@ -17,7 +16,6 @@ const createMediada = async ({ Nombre, Cantidad, Abreviatura, estado, IdCategori
     unidadmedida.Cantidad = Cantidad;
     unidadmedida.Abreviatura = Abreviatura;
     unidadmedida.FechaRegistro = new Date();
-    unidadmedida.Estado = await (0, Estado_controllers_1.verifyEstado)({ EstadoId: estado });
     unidadmedida.Categoria = await (0, CategoriaMedida_controllers_1.verifyCategoriaMedida)({ UnidadMedidaId: IdCategoria });
     await unidadmedida.save();
     return unidadmedida;
@@ -31,7 +29,7 @@ const updateMediada = async ({ Idmedida, Nombre, Cantidad, Abreviatura, estado, 
     unidadmedida.Nombre = Nombre;
     unidadmedida.Cantidad = Cantidad;
     unidadmedida.Abreviatura = Abreviatura;
-    unidadmedida.Estado = await (0, Estado_controllers_1.verifyEstado)({ EstadoId: estado });
+    unidadmedida.Estado = estado;
     await unidadmedida.save();
     return unidadmedida;
 };
@@ -39,9 +37,6 @@ exports.updateMediada = updateMediada;
 const createUnidadMedida = async (req, res) => {
     try {
         const { RegistroUnidadmedida } = req.body;
-        const estado = await Estado_1.Estado.findOneBy({ IdEstado: 1 });
-        if (!estado)
-            return res.status(404).json({ message: "Estado no encontrado" });
         const result = await UnidadMedida_1.Unidadmedida.createQueryBuilder("Unidadmedida")
             .select("MAX(Unidadmedida.IdUnidadMedida)", "maxId")
             .getRawOne();
@@ -52,7 +47,6 @@ const createUnidadMedida = async (req, res) => {
         unidadmedida.Cantidad = RegistroUnidadmedida.Cantidad;
         unidadmedida.Abreviatura = RegistroUnidadmedida.Abreviatura;
         unidadmedida.FechaRegistro = new Date();
-        unidadmedida.Estado = estado;
         await unidadmedida.save();
         return res.json({ message: `La Medida ${RegistroUnidadmedida.Nombre} no existe.` });
     }
@@ -66,23 +60,19 @@ exports.createUnidadMedida = createUnidadMedida;
 const deleteUnidadMedida = async (req, res) => {
     try {
         const { id } = req.params;
-        const unidadmedida = await UnidadMedida_1.Unidadmedida.findOne({
-            where: { IdUnidadMedida: Number(id) },
-            relations: ['Estado']
+        const result = await db_1.AppDataSource.query(`UPDATE unidadmedida
+         SET estado = CASE WHEN estado = 1 THEN 0 ELSE 1 END
+         WHERE IdUnidadMedida = $1
+         RETURNING estado AS estado`, [id]);
+        // ✅ aquí está el cambio
+        if (result.length === 0) {
+            return res.status(404).json({ message: "Insumo no encontrado" });
+        }
+        const nuevoEstado = Number(result[0][0].estado);
+        const mensajeAccion = nuevoEstado === 1 ? "habilitaron" : "eliminaron";
+        return res.json({
+            message: `Se ${mensajeAccion} los datos del insumo correctamente`,
         });
-        if (!unidadmedida) {
-            return res.status(404).json({ message: "Unidad de medida no encontrado" });
-        }
-        const esActivo = unidadmedida.Estado?.IdEstado === 1;
-        const nuevoEstadoId = esActivo ? 2 : 1;
-        const mensajeAccion = esActivo ? 'eliminaron' : 'habilitaron';
-        const nuevoEstado = await (0, Estado_controllers_1.verifyEstado)({ EstadoId: nuevoEstadoId });
-        if (!nuevoEstado) {
-            return res.status(500).json({ message: "No se pudo obtener el estado requerido." });
-        }
-        unidadmedida.Estado = nuevoEstado;
-        await unidadmedida.save();
-        return res.json({ message: `Se ${mensajeAccion} los datos de la  Unidad de medida correctamente` });
     }
     catch (error) {
         console.error("Error al cambiar el estado del Unidadmedida:", error);
@@ -111,7 +101,6 @@ const getUnidadMedida = async (req, res) => {
         const { id } = req.params;
         const unidadmedida = await UnidadMedida_1.Unidadmedida.findOne({
             where: { IdUnidadMedida: Number(id) },
-            relations: ['Estado']
         });
         if (!unidadmedida)
             return res.status(404).json({ message: "Unidad de medida no encontrado" });

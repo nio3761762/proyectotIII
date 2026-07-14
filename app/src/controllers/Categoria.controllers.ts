@@ -1,35 +1,121 @@
 import { Request, Response } from "express";
 import { Categoria } from "../entities/Categoria";
-import { verifyEstado } from "./Estado.controllers";
-import { Estado } from "../entities/Estado";
-import { createImagen, updateImagen } from "./Foto.controllers";
 import { Subcategoria } from "../entities/SubCategoria";
 import { HttpError } from "../utils/error.handler";
 import { generarIdSecuencial } from "../utils/idGenerator";
-
+import { AppDataSource } from "../db";
 
 export const getCategorias = async (req: Request, res: Response) => {
-    try {
+  try {
+    const { search, estado, page = 1, limit = 8 } = req.query;
 
-        const categorias = await Categoria.find({ relations: ['Estado', 'Imagen', 'Subcategoria', 'Subcategoria.Estado', 'Subcategoria.Categoria'] });
-        return res.json(categorias)
-    } catch (error) {
-        if (error instanceof Error) {
-            return res.status(500).json({ message: error.message })
-        }
+    const offset = (Number(page) - 1) * Number(limit);
+
+    //  limpiar parámetros
+    const nombreParam =
+      typeof search === "string" && search.trim() !== ""
+        ? search.trim()
+        : null;
+
+    const estadoParam =
+      estado !== undefined && estado !== ""
+        ? Number(estado)
+        : null;
+
+    const result = await AppDataSource.query(
+      `
+      SELECT 
+          c.idcategoria,
+          c.nombre,
+          c.estado,
+          c.imagen,
+          COUNT(*) OVER() AS total,
+          json_agg(
+              json_build_object(
+                  'idsubcategoria', sc.idsubcategoria,
+                  'nombre', sc.nombre,
+                  'estado', sc.estado
+              )
+          ) FILTER (WHERE sc.idsubcategoria IS NOT NULL) AS subcategorias
+      FROM categoria c
+      LEFT JOIN subcategoria sc 
+          ON sc.idcategoria = c.idcategoria
+      WHERE 
+          ($1::text IS NULL OR c.nombre ILIKE '%' || $1::text || '%')
+      AND ($2::int IS NULL OR c.estado = $2)
+      GROUP BY c.idcategoria
+      ORDER BY c.idcategoria
+      LIMIT $3 OFFSET $4;
+      `,
+      [
+        nombreParam,
+        estadoParam,
+        Number(limit),
+        offset
+      ]
+    );
+
+    //  si no hay resultados → array vacío
+    if (result.length === 0) {
+      return res.json({
+        total: 0,
+        page: Number(page),
+        limit: Number(limit),
+        data: []
+      });
     }
-}
+
+    return res.json({
+      total: result[0].total,
+      page: Number(page),
+      limit: Number(limit),
+      data: result
+    });
+
+  } catch (error) {
+    console.error("Error real:", error);
+    return res.status(500).json({ message: "Error interno del servidor" });
+  }
+};
+
+
+export const ListCategoria = async (req: Request, res: Response) => {
+  try {
+   
+    const result = await AppDataSource.query(
+      `SELECT 
+          c.idcategoria,
+          c.nombre,
+          c.imagen
+     FROM categoria c
+     WHERE c.estado = 1` );
+
+    return res.json({
+       result
+    });
+
+  } catch (error) {
+    console.error("Error real:", error);
+    return res.status(500).json({ message: "Error interno del servidor" });
+  }
+};
 
 
 export const getCategoria = async (req: Request, res: Response) => {
     try {
          const { id } = req.params;
+      const result = await AppDataSource.query(
+      `SELECT 
+          sc.idsubcategoria,
+          sc.nombre
+     FROM subcategoria sc 
+     WHERE  sc.estado = 1 AND sc.idcategoria = $1`,[id] );
 
-        const categorias = await Subcategoria.find({ 
-            where:{Categoria:{IdCategoria:id},
-                Estado:{IdEstado:1}}
+    return res.json({
+       idcategoria: id,
+       result
     });
-        return res.json(categorias)
+      
     } catch (error) {
         if (error instanceof Error) {
             return res.status(500).json({ message: error.message })
@@ -43,7 +129,7 @@ export const getSubCategoria = async (req: Request, res: Response) => {
 
         const categorias = await Categoria.findOne({ 
             where:{Subcategoria:{IdSubCategoria:id},
-                Estado:{IdEstado:1}},});
+                Estado:1},});
         return res.json(categorias)
     } catch (error) {
         if (error instanceof Error) {
@@ -68,35 +154,29 @@ export const verifySubCategoria = async ({ CategoriaId }: { CategoriaId: string 
     return existCategoria;
 };
 
-
-
 export const deleteCategoria = async (req: Request, res: Response) => {
     try {
-        const { id } = req.params;
-
-        const categoria = await Categoria.findOne({
-            where: { IdCategoria: id },
-            relations: ['Estado']
-        });
-
-        if (!categoria) {
-            return res.status(404).json({ message: "Categoria no encontrado" });
-        }
-
-        const esActivo = categoria.Estado?.IdEstado === 1;
-        const nuevoEstadoId = esActivo ? 2 : 1;
-        const mensajeAccion = esActivo ? 'eliminaron' : 'habilitaron';
-
-        const nuevoEstado = await verifyEstado({ EstadoId: nuevoEstadoId });
-
-        if (!nuevoEstado) {
-            return res.status(500).json({ message: "No se pudo obtener el estado requerido." });
-        }
-
-        categoria.Estado = nuevoEstado;
-        await categoria.save();
-
-        return res.json({ message: `Se ${mensajeAccion} los datos de la Categoria correctamente` });
+         const { id } = req.params;
+       
+         const result = await AppDataSource.query(
+         `UPDATE categoria 
+          SET estado = CASE WHEN estado = 1 THEN 0 ELSE 1 END
+          WHERE IdCategoria = $1
+          RETURNING estado AS estado`,
+         [id]
+       );
+       
+           // ✅ aquí está el cambio
+           if (result.length === 0) {
+             return res.status(404).json({ message: "Categoria no encontrado" });
+           }
+       const nuevoEstado = Number(result[0][0].estado);
+           const mensajeAccion = nuevoEstado === 1 ? "habilitaron" : "eliminaron";
+       
+           return res.json({
+             message: `Se ${mensajeAccion} los datos de la Categoria correctamente`,
+           });
+       
 
     } catch (error) {
         console.error("Error al cambiar el estado del Categoria:", error);
@@ -111,21 +191,14 @@ export const createCategoria = async (req: Request, res: Response) => {
     try {
         const { RegistroCategoria } = req.body;
 
-        const estado = await Estado.findOneBy({ IdEstado: 1 });
-
-        if (!estado) return res.status(404).json({ message: "Estado no encontrado" });
-
         const nuevoId = await generarIdSecuencial('CAT');
 
         const categoria = new Categoria();
         categoria.IdCategoria = nuevoId;
         categoria.Nombre = RegistroCategoria.Nombre;
         categoria.FechaRegistro = new Date();
-        categoria.Estado = estado;
-        if (RegistroCategoria.Url) {
-            const imagen = await createImagen({ Foto: RegistroCategoria.Url });
-            categoria.Imagen = imagen;
-        }
+        if (RegistroCategoria.Url)  categoria.Imagen = RegistroCategoria.Url 
+           
         await categoria.save();
 
 
@@ -161,23 +234,15 @@ export const updateCategoria = async (req: Request, res: Response) => {
 
         const categoria = await Categoria.findOne({
             where: { IdCategoria: id },
-            relations: ['Estado']
         });
-
         if (!categoria) {
             return res.status(404).json({ message: "Categoria no encontrado" });
         }
 
         if (RegistroCategoria.Nombre) categoria.Nombre = RegistroCategoria.Nombre;
-        if (RegistroCategoria.IdImagen) {
-            const imagen = await updateImagen({ ImagenId: RegistroCategoria.IdImagen, Foto: RegistroCategoria.Url });
-            categoria.Imagen = imagen;
-        } else {
-            if (RegistroCategoria.Url) {
-                const imagen = await createImagen({ Foto: RegistroCategoria.Url });
-                categoria.Imagen = imagen;
-            }
-        }
+        if (RegistroCategoria.Url)  categoria.Imagen =  RegistroCategoria.Url;
+         
+        
         categoria.FechaActualizacion = new Date();
 
         await categoria.save();
@@ -203,8 +268,7 @@ export const CreateSubCategoria = async ({ Nombre, IdEstado, CategoriaId }: { No
     subcategoria.IdSubCategoria = nuevoId;
     subcategoria.Categoria = await verifyCategoria({ CategoriaId: CategoriaId })
     subcategoria.Nombre = Nombre;
-    subcategoria.Estado = await verifyEstado({ EstadoId: IdEstado });
-
+   
     await subcategoria.save();
 
 
@@ -232,8 +296,7 @@ export const UpdateSubCategoria = async ({
         if (nombreValido) {
             subcategoria.Nombre = Nombre;
         }
-
-        subcategoria.Estado = await verifyEstado({ EstadoId: IdEstado });
+        subcategoria.Estado = IdEstado;
 
         await subcategoria.save();
 
@@ -256,14 +319,11 @@ export const createSubCategoria = async (req: Request, res: Response) => {
     try {
         const { RegistroSubCategoria } = req.body;
 
-        const estado = await Estado.findOneBy({ IdEstado: 1 });
-
-        if (!estado) return res.status(404).json({ message: "Estado no encontrado" });
+     
         const nuevoId = await generarIdSecuencial('SCT');
         const subcategoria = new Subcategoria();
         subcategoria.IdSubCategoria = nuevoId;
         subcategoria.Nombre = RegistroSubCategoria.Nombre;
-        subcategoria.Estado = estado;
         if (RegistroSubCategoria.IdCategoria) {
             const categoria = await verifyCategoria({ CategoriaId: RegistroSubCategoria.IdCategoria });
             subcategoria.Categoria = categoria;
@@ -311,31 +371,27 @@ export const updateSubCategoria = async (req: Request, res: Response) => {
 
 export const deleteSubCategoria = async (req: Request, res: Response) => {
     try {
-        const { id } = req.params;
+         const { id } = req.params;
 
-        const subcategoria = await Subcategoria.findOne({
-            where: { IdSubCategoria: id },
-            relations: ['Estado']
-        });
+  const result = await AppDataSource.query(
+  `UPDATE subcategoria 
+   SET estado = CASE WHEN estado = 1 THEN 0 ELSE 1 END
+   WHERE IdSubcategoria = $1
+   RETURNING estado AS estado`,
+  [id]
+);
 
-        if (!subcategoria) {
-            return res.status(404).json({ message: "Sub Categoria no encontrado" });
-        }
+    // ✅ aquí está el cambio
+    if (result.length === 0) {
+      return res.status(404).json({ message: "Subcategoria no encontrado" });
+    }
+const nuevoEstado = Number(result[0][0].estado);
+    const mensajeAccion = nuevoEstado === 1 ? "habilitaron" : "eliminaron";
 
-        const esActivo = subcategoria.Estado?.IdEstado === 1;
-        const nuevoEstadoId = esActivo ? 2 : 1;
-        const mensajeAccion = esActivo ? 'eliminaron' : 'habilitaron';
+    return res.json({
+      message: `Se ${mensajeAccion} los datos de la subcategoria correctamente`,
+    });
 
-        const nuevoEstado = await verifyEstado({ EstadoId: nuevoEstadoId });
-
-        if (!nuevoEstado) {
-            return res.status(500).json({ message: "No se pudo obtener el estado requerido." });
-        }
-
-        subcategoria.Estado = nuevoEstado;
-        await subcategoria.save();
-
-        return res.json({ message: `Se ${mensajeAccion} los datos de la sub Categoria correctamente` });
 
     } catch (error) {
         console.error("Error al cambiar el estado del Categoria:", error);
@@ -348,7 +404,7 @@ export const deleteSubCategoria = async (req: Request, res: Response) => {
 export const getSubCategorias = async (req: Request, res: Response) => {
     try {
 
-        const subcategorias = await Subcategoria.find({ relations: ['Estado', 'Categoria'] });
+        const subcategorias = await Subcategoria.find({ relations: ['Categoria'] });
 
         if (!subcategorias) {
             return res.status(404).json({ message: "Sub Categorias no encontradas" });

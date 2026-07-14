@@ -1,17 +1,11 @@
 
 import { BaseEntity, Check, OneToMany, Column, Entity, PrimaryColumn, OneToOne, ManyToOne, JoinColumn } from "typeorm";
-import bcrypt from "bcryptjs";
-import { Estado } from "./Estado";
-import { Usuario } from "./Usuario";
-import { Persona } from "./Persona";
-import { Venta } from "./Venta";
 import { Producto } from "./Producto";
 import { Promocion } from "./Promocion";
-import { Presentacionproducto } from "./Presentacionproducto";
 import { Pedido } from "./Pedido";
+import { Productomedida } from "./ProductoMedida";
 
 @Entity()
-//@Check(`"Estado" IN (0, 1)`)
 export class Detallepedido extends BaseEntity {
     @PrimaryColumn({ name: 'iddetallepedido', type: "varchar", length: 100 })
     IdDetallePedido: string;
@@ -19,11 +13,14 @@ export class Detallepedido extends BaseEntity {
     @Column({ name: "cantidad", type: "integer" })
     Cantidad: number;
 
+    @Column({ name: "cantidad_devuelta", type: "integer", default: 0 })
+    CantidadDevuelta: number;
+
     @Column({ name: "precio", type: "numeric", precision: 10, scale: 2 })
     Precio: number;
 
-    @Column({ name: "modo", type: "integer", nullable: true })
-    Modo: number;
+    @Column({ name: "subtotal", type: "numeric", precision: 10, scale: 2, default: 0 })
+    Subtotal: number; 
 
     @ManyToOne(() => Pedido, (venta) => venta.Detallepedido)
     @JoinColumn({ name: "idpedido" })
@@ -33,14 +30,12 @@ export class Detallepedido extends BaseEntity {
     @JoinColumn({ name: "idproducto" })
     Producto: Producto;
 
+    @ManyToOne(() => Productomedida, (producto) => producto.Detallepedido, { nullable: true })
+    @JoinColumn({ name: "idproductomedida" })
+    Productomedida: Productomedida;
+
     @ManyToOne(() => Promocion, (promocion) => promocion.Detallepedido, { nullable: true })
     @JoinColumn({ name: "idpromocion" })
     Promocion: Promocion;
-
-    @ManyToOne(() => Presentacionproducto, (paquete) => paquete.Detallepedido, { nullable: true })
-    @JoinColumn({ name: "idpaquete" })
-    Paquete: Presentacionproducto;
-    nuevoDetalleventa: Venta;
-
 }
 

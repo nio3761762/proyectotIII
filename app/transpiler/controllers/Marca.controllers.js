@@ -3,12 +3,11 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.verifyMarca = exports.getMarcas = void 0;
 const Marca_1 = require("../entities/Marca");
 const error_handler_1 = require("../utils/error.handler");
+const db_1 = require("../db");
 const getMarcas = async (req, res) => {
     try {
-        const Marcas = await Marca_1.Marca.find({
-        //   relations: ['Estado', 'Marca', 'Unidadmedida', 'TipoMarca', 'Subcategoria', 'Subcategoria.categoria']
-        });
-        return res.json(Marcas);
+        const result = await db_1.AppDataSource.query(`SELECT * FROM marca`);
+        return res.json({ result });
     }
     catch (error) {
         if (error instanceof Error) {

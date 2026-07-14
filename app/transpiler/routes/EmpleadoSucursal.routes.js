@@ -1,0 +1,10 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const EmpleadoSucursal_controllers_1 = require("../controllers/EmpleadoSucursal.controllers");
+const verifyToken_1 = require("../middleware/verifyToken");
+const router = (0, express_1.Router)();
+router.use(verifyToken_1.authMiddleware);
+router.post("/empleado-sucursal/assign", EmpleadoSucursal_controllers_1.asignarEmpleadosSucursal);
+router.get("/empleados-sin-sucursal", EmpleadoSucursal_controllers_1.getEmpleadosSinSucursal);
+exports.default = router;

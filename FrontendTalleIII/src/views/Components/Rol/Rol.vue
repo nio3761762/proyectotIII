@@ -1,90 +1,160 @@
-
 <template>
   <div class="min-h-screen">
-    <RolHeader
-      :rolesActivos="rolesActivos"
-      :totalRoles="roles.length"
-    />
-    <RolFilters
-      v-model="filtros"
-      :statusOptions="statusOptions"
-      @nuevo-rol="abrirModalRegistro"
-    />
-    <RolList
-      :roles="rolesPaginados"
-      :permisoExpandido="permisoExpandido"
-      :contarPermisos="contarPermisos"
-      :obtenerMenusDelRol="obtenerMenusDelRol"
-      :agruparPermisosPorMenu="agruparPermisosPorMenu"
-      @toggle-permisos="togglePermisos"
-      @editar="abrirModalEdicion"
-      @cambiar-estado="abrirModalActivarDesactivar"
-      @nuevo-rol="abrirModalRegistro"
-    />
-    <RolPagination
-      v-if="totalPaginas > 0"
-      :totalPaginas="totalPaginas"
-      v-model:paginaActual="paginaActual"
-      :paginacionInfo="paginacionInfo"
-      :visiblePages="visiblePages"
-    />
+    <div class="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-orange-400/5 to-red-500/5 rounded-full blur-3xl pointer-events-none"></div>
+    <div class="absolute bottom-0 left-0 w-80 h-80 bg-gradient-to-tr from-red-400/5 to-orange-500/5 rounded-full blur-2xl pointer-events-none"></div>
 
-    <!-- Modal Crear/Editar -->
-    <RolFormModal
-      :show="mostrarModal"
-      :esEdicion="esEdicion"
-      :rolActual="rolActual"
+    <Transition name="fade" mode="out-in">
+      <!-- Loading inicial -->
+      <div v-if="cargandoInicial" class="flex items-center justify-center py-20">
+        <div class="text-center">
+          <div class="relative mb-6">
+            <div class="w-20 h-20 mx-auto relative">
+              <div class="absolute inset-0 rounded-full border-4 border-orange-200 animate-pulse"></div>
+              <div class="absolute inset-0 rounded-full border-4 border-transparent border-t-orange-500 border-r-red-500 animate-spin"></div>
+              <div class="absolute inset-0 flex items-center justify-center">
+                <div class="p-3 bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl shadow-lg">
+                  <Shield class="h-6 w-6 text-white" />
+                </div>
+              </div>
+            </div>
+          </div>
+          <h3 class="text-lg font-bold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent mb-1">Cargando Roles</h3>
+          <p class="text-gray-500 text-sm">Preparando datos...</p>
+          <div class="mt-4 w-40 mx-auto h-1 bg-gray-200 rounded-full overflow-hidden">
+            <div class="h-full bg-gradient-to-r from-orange-500 to-red-500 rounded-full animate-pulse"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Contenido principal -->
+      <div v-else>
+        <!-- Header -->
+        <div class="relative bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl border border-white/50 p-8">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-4">
+              <div class="p-3 bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl shadow-lg">
+                <Shield class="h-8 w-8 text-white" />
+              </div>
+              <div>
+                <h1 class="text-4xl font-bold bg-gradient-to-r from-orange-600 via-red-600 to-orange-700 bg-clip-text text-transparent">
+                  Gestión de Roles
+                </h1>
+                <p class="text-gray-600 mt-1 font-medium">Administra los niveles de acceso del sistema</p>
+              </div>
+            </div>
+            <div class="hidden md:flex items-center space-x-6">
+              <div class="text-center">
+                <div class="text-2xl font-bold text-gray-800">{{ paginacion.total ?? 0 }}</div>
+                <div class="text-sm text-gray-500">Total</div>
+              </div>
+              <div class="p-2 bg-orange-100 rounded-xl">
+                <TrendingUp class="h-6 w-6 text-orange-600" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Filtros -->
+        <div class="mt-6">
+          <FiltroRol
+            v-model:search="filtros.search"
+            v-model:estado="filtros.estado"
+            v-model:limite="filtros.limite"
+            @update:search="onSearchChange"
+            @update:estado="onEstadoChange"
+            @update:limite="onLimiteChange"
+          >
+            <template #acciones>
+              <button
+                @click="abrirFormularioNuevo"
+                class="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white rounded-2xl px-6 py-2 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 flex items-center gap-2 font-bold"
+              >
+                <Plus class="h-4 w-4" />
+                Nuevo Rol
+              </button>
+            </template>
+          </FiltroRol>
+        </div>
+
+        <!-- Cards -->
+        <div class="relative mt-6">
+          <Transition name="fade">
+            <div v-if="cargando" class="absolute inset-0 bg-white/50 backdrop-blur-sm flex items-center justify-center rounded-3xl z-10">
+              <div class="animate-spin rounded-full h-10 w-10 border-4 border-orange-500 border-t-transparent"></div>
+            </div>
+          </Transition>
+
+          <div v-if="!cargando && roles.length === 0" class="bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl border border-white/50 p-16 text-center">
+            <div class="p-4 bg-gradient-to-br from-orange-100 to-red-100 rounded-full w-20 h-20 mx-auto mb-4 flex items-center justify-center">
+              <Shield class="h-10 w-10 text-orange-500" />
+            </div>
+            <h3 class="text-xl font-bold text-gray-700 mb-2">No se encontraron roles</h3>
+            <p class="text-gray-500">Intenta cambiar los filtros o registra un nuevo rol.</p>
+          </div>
+
+          <div v-else class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            <RolCard
+              v-for="rol in roles"
+              :key="rol.idrol || rol.IdRol"
+              :rol="rol"
+              :permisoExpandido="permisoExpandido"
+              @editar="abrirFormularioEditar"
+              @toggleEstado="abrirModalConfirmacion"
+              @togglePermisos="togglePermisos"
+            />
+          </div>
+
+          <Paginado
+            :paginaActual="paginacion.paginaActual"
+            :totalPaginas="paginacion.totalPaginas"
+            :total="paginacion.total"
+            :limite="filtros.limite"
+            @update:paginaActual="onCambiarPagina"
+          />
+        </div>
+      </div>
+    </Transition>
+
+    <!-- Modal Registro/Edición -->
+    <RegistrarRol
+      :show="showModal"
+      :rol="rolSeleccionado"
+      :esEdicion="!!rolSeleccionado"
       :menus="menus"
       :menusSeleccionados="menusSeleccionados"
       :permisosSeleccionados="permisosSeleccionados"
       :permisosPorMenu="permisosPorMenu"
-      :formValido="formValido"
-      @close="cerrarModal"
-      @update:rolActual="rolActual = $event"
-      @update:menusSeleccionados="menusSeleccionados = $event"
-      @update:permisosSeleccionados="permisosSeleccionados = $event"
+      :guardando="guardando"
+      :cargandoDatos="cargandoDatosEdicion"
+      @guardar="onGuardar"
+      @cancelar="cerrarFormulario"
       @toggle-menu="toggleMenu"
-      @guardar-rol="guardarRol"
+      @update-permission="handlePermissionChange"
     />
 
-    <!-- Modal Confirmación -->
-    <ConfirmacionModal
-      :show="modalActivarDesactivar"
-      :title="rolActual.Estado?.IdEstado === 1 ? '¿Desactivar Rol?' : '¿Activar Rol?'"
-      :confirmText="rolActual.Estado?.IdEstado === 1 ? 'Sí, Desactivar' : 'Sí, Activar'"
-      cancelText="Cancelar"
-      :confirmButtonClass="rolActual.Estado?.IdEstado === 1 ? 'bg-gradient-to-r from-red-500 to-rose-600 hover:from-rose-600 hover:to-red-500' : 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-emerald-600 hover:to-green-500'"
-      :iconComponent="AlertTriangle"
-      iconClass="h-10 w-10 text-orange-500"
-      @confirm="confirmarActivacionDesactivacion"
-      @cancel="modalActivarDesactivar = false"
-    >
-      ¿Está seguro de {{ rolActual.Estado?.IdEstado === 1 ? 'desactivar' : 'activar' }} el rol
-      <span class="font-semibold text-gray-800">{{ rolActual.nombre }}</span>?
-    </ConfirmacionModal>
+    <!-- Notificación -->
+    <Transition name="slide-up">
+      <div v-if="notificacion.visible" class="fixed bottom-6 right-6 bg-gradient-to-r from-orange-500 to-red-600 text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-2 z-50 font-semibold">
+        <CheckCircle class="h-5 w-5" />
+        {{ notificacion.mensaje }}
+      </div>
+    </Transition>
 
-    <!-- Toast -->
-    <div
-      v-if="showToast"
-      class="fixed top-6 right-6 bg-green-500 text-white px-6 py-4 rounded-2xl shadow-xl flex items-center gap-3 z-50 animate-slide-in"
-    >
-      <CheckCircle class="h-5 w-5" />
-      <span class="font-semibold">{{ toastMessage }}</span>
-    </div>
+    <!-- Modal Confirmación -->
+    <ModalConfirmacion
+      :show="modalConfirmacion.visible"
+      :mensaje="modalConfirmacion.accion"
+      :nombreUsuario="modalConfirmacion.nombre"
+      @confirmar="onConfirmarCambioEstado"
+      @cancelar="cerrarModalConfirmacion"
+    />
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
-import {
-  AlertTriangle, CheckCircle
-} from 'lucide-vue-next';
-import ConfirmacionModal from '../Modals/ConfirmacionModal.vue';
-import RolHeader from './RolHeader.vue';
-import RolFilters from './RolFilters.vue';
-import RolList from './RolList.vue';
-import RolPagination from './RolPagination.vue';
-import RolFormModal from './RolFormModal.vue';
+import { ref, reactive, onMounted, shallowRef } from 'vue';
+import { Shield, TrendingUp, Plus, CheckCircle } from 'lucide-vue-next';
+
 import { 
   listarRoles as apiListarRoles, 
   DeleteROl, 
@@ -95,174 +165,230 @@ import {
   listarRolMenus
 } from '@/Server/rol';
 
-// --- Estado Reactivo ---
-const roles = ref([]);
+import FiltroRol from './FiltroRol.vue';
+import RolCard from './RolCard.vue';
+import RegistrarRol from './RegistrarRol.vue';
+import Paginado from '@/views/Components/Modals/Paginado.vue';
+import ModalConfirmacion  from '@/views/Components/Modals/ModalConfirmacion.vue';
+
+// --- Estado ---
+const cargandoInicial = ref(true);
+const cargando = ref(false);
+const guardando = ref(false);
+const showModal = ref(false);
+const rolSeleccionado = ref(null);
+const roles = shallowRef([]);
 const menus = ref([]);
-const filtros = ref({
-  nombre: '',
-  estado: 'Todos'
-});
-const statusOptions = [
-  { value: "Todos", label: "Todos", color: "bg-gray-500" },
-  { value: "Activo", label: "Activo", color: "bg-green-500" },
-  { value: "Inactivo", label: "Inactivo", color: "bg-red-500" }
-];
-
-const mostrarModal = ref(false);
-const modalActivarDesactivar = ref(false);
-const esEdicion = ref(false);
-const showToast = ref(false);
-const toastMessage = ref('');
-const paginaActual = ref(1);
-const itemsPorPagina = ref(6);
 const permisoExpandido = ref(null);
+const cargandoDatosEdicion = ref(false);
 
-const rolActual = ref({
-  IdRol: null,
-  nombre: '',
-  Estado: { IdEstado: 1 }
+const paginacion = reactive({
+  paginaActual: 1,
+  totalPaginas: 1,
+  total: 0
 });
 
+const filtros = reactive({
+  search: '',
+  estado: '-1',
+  limite: 8
+});
+
+const notificacion = reactive({
+  visible: false,
+  mensaje: ''
+});
+
+const modalConfirmacion = reactive({
+  visible: false,
+  nombre: '',
+  accion: '',
+  id: null
+});
+
+// Estado para RegistrarRol
 const menusSeleccionados = ref([]);
 const permisosSeleccionados = ref({}); 
 const permisosPorMenu = ref({});
+const cachePermisosPorMenu = new Map();
 
-// --- Propiedades Computadas ---
-const rolesActivos = computed(() => roles.value.filter(r => r.Estado.IdEstado === 1).length);
+let debounceTimer = null;
+let worker = null;
 
-const rolesFiltrados = computed(() => {
-  let resultado = roles.value;
-
-  if (filtros.value.nombre) {
-    resultado = resultado.filter(rol => 
-      rol.Nombre.toLowerCase().includes(filtros.value.nombre.toLowerCase())
-    );
-  }
-
-  if (filtros.value.estado !== 'Todos') {
-    const estadoId = filtros.value.estado === 'Activo' ? 1 : 2;
-    resultado = resultado.filter(rol => rol.Estado.IdEstado === estadoId);
-  }
-
-  return resultado;
-});
-
-const totalPaginas = computed(() => {
-  const total = Math.ceil(rolesFiltrados.value.length / itemsPorPagina.value);
-  return total > 0 ? total : 1;
-});
-
-const rolesPaginados = computed(() => {
-  if (paginaActual.value > totalPaginas.value) {
-    paginaActual.value = totalPaginas.value;
-  }
-  const inicio = (paginaActual.value - 1) * itemsPorPagina.value;
-  const fin = inicio + itemsPorPagina.value;
-  return rolesFiltrados.value.slice(inicio, fin);
-});
-
-const formValido = computed(() => {
-  return rolActual.value.nombre.trim() !== '' && menusSeleccionados.value.length > 0 && Object.values(permisosSeleccionados.value).some(p => p.length > 0);
-});
-
-const paginacionInfo = computed(() => {
-  const total = rolesFiltrados.value.length;
-  const inicio = total === 0 ? 0 : (paginaActual.value - 1) * itemsPorPagina.value + 1;
-  const fin = Math.min(inicio + itemsPorPagina.value - 1, total);
-  return `Mostrando ${inicio}-${fin} de ${total} roles`;
-});
-
-const visiblePages = computed(() => {
-  const pages = [];
-  for (let i = 1; i <= totalPaginas.value; i++) {
-    pages.push(i);
-  }
-  return pages;
-});
-
-// --- Métodos ---
-const showToastMessage = (message) => {
-  toastMessage.value = message;
-  showToast.value = true;
-  setTimeout(() => {
-    showToast.value = false;
-  }, 3000);
-};
-
-const listarRolesAPI = async () => {
+// --- Métodos de Carga ---
+const cargarRoles = async () => {
   try {
-    roles.value = await apiListarRoles();
-  } catch (error) {
-    console.error("Error al cargar roles:", error);
-    showToastMessage("Error al cargar los roles.");
+    cargando.value = true;
+     const estadoParam = filtros.estado === '-1' ? undefined : filtros.estado;
+    
+    const resp = await apiListarRoles(
+      filtros.search || undefined,
+      estadoParam,
+      paginacion.paginaActual,
+      filtros.limite
+    );
+
+    roles.value = resp.data || [];
+    paginacion.total = parseInt(resp.total) || 0;
+    paginacion.totalPaginas = Math.ceil(paginacion.total / filtros.limite);
+    
+  } catch (err) {
+    console.error('Error al cargar roles:', err);
+    mostrarNotificacion('Error al cargar roles');
+  } finally {
+    cargando.value = false;
+    cargandoInicial.value = false;
   }
 };
 
-const listarMenusAPI = async () => {
+const cargarMenusBase = async () => {
   try {
     menus.value = await listarMenus();
-  } catch (error) {
-    console.error("Error al cargar menús:", error);
-    showToastMessage("Error al cargar los menús.");
+  } catch (err) {
+    console.error('Error al cargar menús:', err);
   }
 };
 
-const limpiarFormularioModal = () => {
-  rolActual.value = { IdRol: null, nombre: '', Estado: { IdEstado: 1 } };
+// --- Métodos de Acción ---
+const onSearchChange = (val) => {
+  filtros.search = val;
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => {
+    paginacion.paginaActual = 1;
+    cargarRoles();
+  }, 400);
+};
+
+const onEstadoChange = (val) => {
+  filtros.estado = val;
+  paginacion.paginaActual = 1;
+  cargarRoles();
+};
+
+const onLimiteChange = (val) => {
+  filtros.limite = val;
+  paginacion.paginaActual = 1;
+  cargarRoles();
+};
+
+const onCambiarPagina = (page) => {
+  paginacion.paginaActual = page;
+  cargarRoles();
+};
+
+const togglePermisos = (rolId) => {
+  permisoExpandido.value = permisoExpandido.value === rolId ? null : rolId;
+};
+
+// --- Gestión de Formulario ---
+const abrirFormularioNuevo = () => {
+  rolSeleccionado.value = null;
+  limpiarFormulario();
+  showModal.value = true;
+};
+
+const abrirFormularioEditar = async (rol) => {
+  rolSeleccionado.value = { ...rol };
+  limpiarFormulario();
+  showModal.value = true;
+  cargandoDatosEdicion.value = true;
+
+  try {
+    const idRol = rol.idrol || rol.IdRol;
+    const asociaciones = await listarRolMenus(idRol);
+    
+    const menusMap = new Map();
+    const permisosAgrupados = {};
+
+    for (const item of asociaciones) {
+      if (item.menu) {
+        const menuId = item.menu.IdMenu;
+        if (!menusMap.has(menuId)) {
+          menusMap.set(menuId, item.menu);
+          permisosAgrupados[menuId] = [];
+        }
+        if (item.Permiso) {
+          permisosAgrupados[menuId].push(item.Permiso.IdPermiso);
+        }
+      }
+    }
+
+    const menusDelRol = Array.from(menusMap.values());
+    menusSeleccionados.value = menusDelRol;
+    permisosSeleccionados.value = { ...permisosAgrupados };
+    
+    await cargarPermisosParaMenusEnParalelo(menusDelRol);
+  } catch (err) {
+    console.error("Error al cargar detalles:", err);
+    mostrarNotificacion("Error al cargar los detalles del rol.");
+  } finally {
+    cargandoDatosEdicion.value = false;
+  }
+};
+
+const limpiarFormulario = () => {
   menusSeleccionados.value = [];
   permisosSeleccionados.value = {};
   permisosPorMenu.value = {};
 };
 
-const abrirModalRegistro = () => {
-  esEdicion.value = false;
-  limpiarFormularioModal();
-  mostrarModal.value = true;
+const cerrarFormulario = () => {
+  showModal.value = false;
+  rolSeleccionado.value = null;
 };
 
-const abrirModalEdicion = async (rol) => {
-  esEdicion.value = true;
-  limpiarFormularioModal();
-  rolActual.value = { IdRol: rol.IdRol, nombre: rol.Nombre, Estado: rol.Estado };
-
+const onGuardar = async (formData) => {
+  guardando.value = true;
   try {
-    const asociaciones = await listarRolMenus(rol.IdRol);
+    const isEdit = !!rolSeleccionado.value;
+    const idRol = rolSeleccionado.value?.idrol || rolSeleccionado.value?.IdRol;
     
-    const menusDelRol = obtenerMenusDelRol(asociaciones);
-    menusSeleccionados.value = menusDelRol;
+    const respuesta = isEdit 
+      ? await updateRol(idRol, formData.nombre, permisosSeleccionados.value)
+      : await addRol(formData.nombre, permisosSeleccionados.value);
 
-    const permisosAgrupados = agruparPermisosPorMenu(asociaciones);
-
-    for (const menu of menusDelRol) {
-      await cargarPermisosParaMenu(menu);
-      const permisosExistentes = permisosAgrupados[menu.IdMenu]?.permisos || [];
-      permisosSeleccionados.value[menu.IdMenu] = permisosExistentes.map(p => p.IdPermiso);
-    }
-    
-    mostrarModal.value = true;
-  } catch (error) {
-    console.error("Error al obtener detalles del rol:", error);
-    showToastMessage("Error al cargar los detalles del rol.");
+    mostrarNotificacion(respuesta?.message || (isEdit ? 'Rol actualizado' : 'Rol registrado'));
+    cerrarFormulario();
+    await cargarRoles();
+  } catch (err) {
+    console.error(err);
+    mostrarNotificacion('Error al guardar');
+  } finally {
+    guardando.value = false;
   }
 };
 
-const cerrarModal = () => {
-  mostrarModal.value = false;
+// --- Lógica de Selección de Permisos (desde Rol.vue original) ---
+const handlePermissionChange = ({ menuId, permisoId, checked }) => {
+  const currentPermisos = permisosSeleccionados.value[menuId] || [];
+  if (checked) {
+    if (!currentPermisos.includes(permisoId)) {
+      permisosSeleccionados.value[menuId] = [...currentPermisos, permisoId];
+    }
+  } else {
+    permisosSeleccionados.value[menuId] = currentPermisos.filter(id => id !== permisoId);
+  }
 };
 
-const cargarPermisosParaMenu = async (menu) => {
-  if (!permisosPorMenu.value[menu.IdMenu]) {
+const cargarPermisosParaMenusEnParalelo = async (menusArray) => {
+  const promesas = menusArray.map(async (menu) => {
+    const menuId = menu.IdMenu;
+    if (cachePermisosPorMenu.has(menuId)) {
+      permisosPorMenu.value[menuId] = cachePermisosPorMenu.get(menuId);
+      return;
+    }
     try {
-      permisosPorMenu.value[menu.IdMenu] = await listarpermisoMenu(menu.IdMenu);
-    } catch (error) {
-      console.error(`Error al cargar permisos para ${menu.Nombre}:`, error);
-      showToastMessage(`No se pudieron cargar los permisos para ${menu.Nombre}.`);
-      permisosPorMenu.value[menu.IdMenu] = [];
+      const permisos = await listarpermisoMenu(menuId);
+      cachePermisosPorMenu.set(menuId, permisos);
+      permisosPorMenu.value[menuId] = permisos;
+    } catch (err) {
+      permisosPorMenu.value[menuId] = [];
     }
-  }
+  });
+  await Promise.all(promesas);
 };
 
-const toggleMenu = (menu) => {
+const toggleMenu = async (menu) => {
   const index = menusSeleccionados.value.findIndex(m => m.IdMenu === menu.IdMenu);
   if (index > -1) {
     menusSeleccionados.value.splice(index, 1);
@@ -270,126 +396,74 @@ const toggleMenu = (menu) => {
   } else {
     menusSeleccionados.value.push(menu);
     permisosSeleccionados.value[menu.IdMenu] = [];
-    cargarPermisosParaMenu(menu);
+    await cargarPermisosParaMenuSingle(menu);
   }
 };
 
-const guardarRol = async () => {
-  if (!formValido.value) {
-    showToastMessage('Complete todos los campos requeridos.');
+const cargarPermisosParaMenuSingle = async (menu) => {
+  const menuId = menu.IdMenu;
+  if (permisosPorMenu.value[menuId]) return;
+  if (cachePermisosPorMenu.has(menuId)) {
+    permisosPorMenu.value[menuId] = cachePermisosPorMenu.get(menuId);
     return;
   }
-
   try {
-    if (esEdicion.value) {
-      
-      await updateRol(rolActual.value.IdRol, rolActual.value.nombre, permisosSeleccionados.value);
-
-     
-      showToastMessage('Rol actualizado exitosamente');
-    } else {
-      await addRol(rolActual.value.nombre, permisosSeleccionados.value);
-      showToastMessage('Rol creado exitosamente');
-    }
-    await listarRolesAPI();
-    cerrarModal();
-  } catch (error) {
-    console.error("Error al guardar el rol:", error);
-    showToastMessage("Error al guardar el rol.");
+    const permisos = await listarpermisoMenu(menuId);
+    cachePermisosPorMenu.set(menuId, permisos);
+    permisosPorMenu.value[menuId] = permisos;
+  } catch (err) {
+    permisosPorMenu.value[menuId] = [];
   }
 };
 
-const togglePermisos = (rolId) => {
-  permisoExpandido.value = permisoExpandido.value === rolId ? null : rolId;
+// --- Confirmación de Cambio de Estado ---
+const abrirModalConfirmacion = (rol) => {
+  const estadoActual = rol.Estado || rol.estado;
+  modalConfirmacion.id = rol.idrol || rol.IdRol;
+  modalConfirmacion.nombre = rol.Nombre || rol.nombre;
+  modalConfirmacion.accion = estadoActual === 1 ? 'Desactivar' : 'Activar';
+  modalConfirmacion.visible = true;
 };
 
-const abrirModalActivarDesactivar = (rol) => {
-  rolActual.value = { IdRol: rol.IdRol, nombre: rol.Nombre, Estado: rol.Estado };
-  modalActivarDesactivar.value = true;
+const cerrarModalConfirmacion = () => {
+  modalConfirmacion.visible = false;
 };
 
-const confirmarActivacionDesactivacion = async () => {
+const onConfirmarCambioEstado = async () => {
+  const id = modalConfirmacion.id;
+  cerrarModalConfirmacion();
+  if (!id) return;
   try {
-    await DeleteROl(rolActual.value.IdRol);
-    const accion = rolActual.value.Estado.IdEstado === 1 ? 'desactivado' : 'activado';
-    showToastMessage(`Rol ${accion} exitosamente`);
-    await listarRolesAPI();
-  } catch (error) {
-    console.error("Error al cambiar estado del rol:", error);
-    showToastMessage("Error al cambiar el estado del rol.");
+    const resp = await DeleteROl(id);
+    mostrarNotificacion(resp?.message || 'Estado actualizado');
+    await cargarRoles();
+  } catch (err) {
+    console.error(err);
+    mostrarNotificacion('Error al cambiar el estado');
   }
-  modalActivarDesactivar.value = false;
 };
 
-const contarPermisos = (rolMenus) => {
-  return rolMenus?.length || 0;
+const mostrarNotificacion = (mensaje) => {
+  notificacion.mensaje = mensaje;
+  notificacion.visible = true;
+  setTimeout(() => {
+    notificacion.visible = false;
+  }, 3000);
 };
 
-const obtenerMenusDelRol = (rolMenus) => {
-  if (!rolMenus) return [];
-  const menusMap = new Map();
-  rolMenus.forEach(item => {
-    if (item.menu) {
-      menusMap.set(item.menu.IdMenu, item.menu);
-    }
-  });
-  return Array.from(menusMap.values());
-};
-
-const agruparPermisosPorMenu = (rolMenus) => {
-  if (!rolMenus) return {};
-  return rolMenus.reduce((acc, rolMenu) => {
-    if (rolMenu.menu && rolMenu.Permiso) {
-      if (!acc[rolMenu.menu.IdMenu]) {
-        acc[rolMenu.menu.IdMenu] = {
-          menu: rolMenu.menu,
-          permisos: []
-        };
-      }
-      acc[rolMenu.menu.IdMenu].permisos.push(rolMenu.Permiso);
-    }
-    return acc;
-  }, {});
-};
-
-// --- Ciclo de Vida ---
-onMounted(() => {
-  listarRolesAPI();
-  listarMenusAPI();
+// --- Lifecycle ---
+onMounted(async () => {
+  await Promise.all([
+    cargarRoles(),
+    cargarMenusBase()
+  ]);
 });
 </script>
 
 <style scoped>
-@keyframes slide-in {
-  from {
-    transform: translateX(100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
-}
+.fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
 
-.animate-slide-in {
-  animation: slide-in 0.3s ease-out;
-}
-
-/* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: linear-gradient(to bottom, #fdba74, #f97316);
-  border-radius: 10px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(to bottom, #f97316, #ea580c);
-}
+.slide-up-enter-active, .slide-up-leave-active { transition: all 0.3s ease; }
+.slide-up-enter-from, .slide-up-leave-to { opacity: 0; transform: translateY(20px); }
 </style>

@@ -1,9 +1,8 @@
 import { Request, Response } from "express";
-import { Estado } from "../entities/Estado";
 import { Unidadmedida } from "../entities/UnidadMedida";
-import { verifyEstado } from "./Estado.controllers";
 import { HttpError } from "../utils/error.handler";
 import { verifyCategoriaMedida } from "./CategoriaMedida.controllers";
+import { AppDataSource } from "../db";
 
 export const createMediada = async ({ Nombre, Cantidad, Abreviatura, estado, IdCategoria }:{ Nombre:string, Cantidad:number, Abreviatura:string, estado: number, IdCategoria:string }) => {
   
@@ -20,7 +19,6 @@ export const createMediada = async ({ Nombre, Cantidad, Abreviatura, estado, IdC
     unidadmedida.Cantidad=Cantidad;
     unidadmedida.Abreviatura=Abreviatura;
     unidadmedida.FechaRegistro=new Date();
-    unidadmedida.Estado = await verifyEstado({EstadoId:estado});
     unidadmedida.Categoria = await verifyCategoriaMedida({UnidadMedidaId:IdCategoria})
     
     
@@ -40,7 +38,7 @@ export const updateMediada = async ({ Idmedida,Nombre, Cantidad, Abreviatura, es
     unidadmedida.Nombre=Nombre;
     unidadmedida.Cantidad=Cantidad;
     unidadmedida.Abreviatura=Abreviatura;
-    unidadmedida.Estado = await verifyEstado({EstadoId:estado});
+    unidadmedida.Estado = estado;
     
     
     await unidadmedida.save();
@@ -54,9 +52,7 @@ export const createUnidadMedida = async (req: Request, res: Response) => {
   try {
     const { RegistroUnidadmedida } = req.body;
 
-    const estado = await Estado.findOneBy({ IdEstado: 1 });
-
-    if (!estado) return res.status(404).json({ message: "Estado no encontrado" });
+   
 
     const result = await Unidadmedida.createQueryBuilder("Unidadmedida")
       .select("MAX(Unidadmedida.IdUnidadMedida)", "maxId")
@@ -71,7 +67,6 @@ export const createUnidadMedida = async (req: Request, res: Response) => {
     unidadmedida.Cantidad=RegistroUnidadmedida.Cantidad;
     unidadmedida.Abreviatura=RegistroUnidadmedida.Abreviatura;
     unidadmedida.FechaRegistro=new Date();
-    unidadmedida.Estado = estado;
     
     
     await unidadmedida.save();
@@ -86,32 +81,26 @@ export const createUnidadMedida = async (req: Request, res: Response) => {
 
 export const deleteUnidadMedida = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
-
-    const unidadmedida = await Unidadmedida.findOne({
-      where: { IdUnidadMedida: Number(id)  },
-      relations: ['Estado']
-    });
-
-    if (!unidadmedida) {
-      return res.status(404).json({ message: "Unidad de medida no encontrado" });
-    }
-    
-    const esActivo = unidadmedida.Estado?.IdEstado === 1;
-    const nuevoEstadoId = esActivo ? 2 : 1; 
-    const mensajeAccion = esActivo ? 'eliminaron' : 'habilitaron';
-
-    const nuevoEstado = await verifyEstado({ EstadoId: nuevoEstadoId });
-
-    if (!nuevoEstado) {
-      return res.status(500).json({ message: "No se pudo obtener el estado requerido." });
-    }
-
-    unidadmedida.Estado = nuevoEstado;
-    await unidadmedida.save();
-
-    return res.json({ message: `Se ${mensajeAccion} los datos de la  Unidad de medida correctamente` });
-
+     const { id } = req.params;
+      
+        const result = await AppDataSource.query(
+        `UPDATE unidadmedida
+         SET estado = CASE WHEN estado = 1 THEN 0 ELSE 1 END
+         WHERE IdUnidadMedida = $1
+         RETURNING estado AS estado`,
+        [id]
+      );
+      
+          // ✅ aquí está el cambio
+          if (result.length === 0) {
+            return res.status(404).json({ message: "Insumo no encontrado" });
+          }
+      const nuevoEstado = Number(result[0][0].estado);
+          const mensajeAccion = nuevoEstado === 1 ? "habilitaron" : "eliminaron";
+      
+          return res.json({
+            message: `Se ${mensajeAccion} los datos del insumo correctamente`,
+          });
   } catch (error) {
     console.error("Error al cambiar el estado del Unidadmedida:", error);
     if (error instanceof Error) {
@@ -138,7 +127,6 @@ export const getUnidadMedida = async (req: Request, res: Response) => {
     const { id } = req.params;
     const unidadmedida = await Unidadmedida.findOne({
         where: { IdUnidadMedida: Number(id) },
-        relations: ['Estado']
     });
 
     if (!unidadmedida) return res.status(404).json({ message: "Unidad de medida no encontrado" });

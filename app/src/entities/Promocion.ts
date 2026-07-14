@@ -1,18 +1,13 @@
 
 import { BaseEntity, Check, OneToMany, Column, Entity, PrimaryColumn, OneToOne, ManyToOne, JoinColumn } from "typeorm";
 import bcrypt from "bcryptjs";
-import { Estado } from "./Estado";
 import { Tipopromocion } from "./Tipopromocion";
 import { Promocionproducto } from "./PromocionProducto";
-import { Ingrediente } from "./Ingrediente";
 import { Detalleventa } from "./DetalleVenta";
 import { Rango } from "./Rango";
-import { Imagen } from "./Imagen";
 import { Detallepedido } from "./DetallePedido";
-import { Detalledistribucion } from "./Detalledistribucion";
 
 @Entity()
-//@Check(`"Estado" IN (0, 1)`)
 export class Promocion extends BaseEntity {
   @PrimaryColumn({ name: 'idpromocion', type: "varchar", length: 100 })
   IdPromocion: string;
@@ -20,18 +15,26 @@ export class Promocion extends BaseEntity {
   @Column({ name: 'nombre', type: "varchar", length: 100 })
   Nombre: string;
 
-  @Column({ name: 'descripcion', type: "varchar", length: 255 })
+  @Column({ name: 'descripcion', type: "text", nullable:true })
   Descripcion: string;
+  
+   @Column({ name: "preciopromocion", type: "numeric", precision: 10, scale: 2, default:0 })
+  Preciopromocion: number; 
 
   @Column({ name: "fecharegistro", type: "date" })
   FechaRegistro: Date;
 
   @Column({ name: "fechaactualizacion", type: "date", nullable: true })
   Fechaactualizacion: Date;
+   
+  @Column({ name: "limiteuso", type: "integer", nullable: true })
+  LimiteUso: number;
+  
+  @Column({ name: "tipodescuento", type: "varchar", length: 20 , nullable: true })
+  TipoDescuento: string; // 'porcentaje' | 'monto'
 
-  @ManyToOne(() => Estado, (estado) => estado.Promocion)
-  @JoinColumn({ name: "idestado" })
-  Estado: Estado;
+  @Column({ name: "estado", type: "integer",default: 1}) 
+  Estado: number; 
 
   @ManyToOne(() => Tipopromocion, (tipopromocion) => tipopromocion.Promocion)
   @JoinColumn({ name: "idtipopromocion" })
@@ -42,10 +45,9 @@ export class Promocion extends BaseEntity {
 
   @OneToOne(() => Rango, (rango) => rango.Promocion)
   Rango: Rango;
-
-  @OneToOne(() => Imagen, (rango) => rango.Promocion)
-  @JoinColumn({ name: "idimagen" })
-  Imagen: Imagen;
+ 
+  @Column({ name: "imagen", type: "varchar", length: 255, nullable: true })
+  Imagen: string;  
 
   @OneToMany(() => Detalleventa, (detalleventa) => detalleventa.Promocion)
   Detalleventa: Detalleventa[];

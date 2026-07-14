@@ -13,6 +13,7 @@ exports.Pago = void 0;
 const typeorm_1 = require("typeorm");
 const MetodoPago_1 = require("./MetodoPago");
 const Venta_1 = require("./Venta");
+const Pedido_1 = require("./Pedido");
 let Pago = class Pago extends typeorm_1.BaseEntity {
 };
 exports.Pago = Pago;
@@ -42,10 +43,15 @@ __decorate([
     __metadata("design:type", MetodoPago_1.Metodopago)
 ], Pago.prototype, "Metodopago", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => Venta_1.Venta, (venta) => venta.Pago),
+    (0, typeorm_1.ManyToOne)(() => Venta_1.Venta, (venta) => venta.Pago, { nullable: true }),
     (0, typeorm_1.JoinColumn)({ name: "idventa" }),
     __metadata("design:type", Venta_1.Venta)
 ], Pago.prototype, "Venta", void 0);
+__decorate([
+    (0, typeorm_1.ManyToOne)(() => Pedido_1.Pedido, (pedido) => pedido.Pago, { nullable: true }),
+    (0, typeorm_1.JoinColumn)({ name: "idpedido" }),
+    __metadata("design:type", Pedido_1.Pedido)
+], Pago.prototype, "Pedido", void 0);
 exports.Pago = Pago = __decorate([
     (0, typeorm_1.Entity)()
     //@Check(`"Estado" IN (0, 1)`)

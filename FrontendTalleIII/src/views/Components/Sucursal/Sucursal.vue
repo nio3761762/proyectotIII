@@ -1,450 +1,357 @@
-
 <template>
-  <div class="min-h-screen space-y-8">
-    <!-- VISTA PRINCIPAL: LISTA DE SUCURSALES -->
-    <div v-if="!modoEdicion">
-      <SucursalHeader
-        :sucursalesActivas="sucursalesActivas"
-        :totalSucursales="sucursales.length"
-      />
-      <SucursalFilters
-        v-model="filtros"
-        :statusOptions="statusOptions"
-        @nueva-sucursal="iniciarModoEdicion()"
-      />
-      <SucursalList
-        :sucursales="sucursalesPaginadas"
-        :sucursalExpandida="sucursalExpandida"
-        @toggle-detalles="toggleDetalles"
-        @editar="iniciarModoEdicion"
-        @asignar-usuarios="abrirModalAsignacion"
-        @cambiar-estado="abrirModalConfirmacion"
-      />
-      <SucursalPagination
-        v-if="totalPaginas > 0"
-        :totalPaginas="totalPaginas"
-        v-model:paginaActual="paginaActual"
-        :paginacionInfo="paginacionInfo"
-        :visiblePages="visiblePages"
-      />
-    </div>
+  <div class="min-h-screen">
+    <div class="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-orange-400/5 to-red-500/5 rounded-full blur-3xl pointer-events-none"></div>
+    <div class="absolute bottom-0 left-0 w-80 h-80 bg-gradient-to-tr from-red-400/5 to-orange-500/5 rounded-full blur-2xl pointer-events-none"></div>
 
-    <!-- VISTA DE EDICIÓN/REGISTRO -->
-    <SucursalForm
-      v-else
-      ref="sucursalForm"
-      :sucursalEditada="sucursalEditada"
-      :esNuevaSucursal="esNuevaSucursal"
-      :errors="errors"
-      :departamentos="departamentos"
-      :ciudades="ciudades"
-      :distritos="distritos"
-      :barrios="barrios"
-      v-model:selectedDepartamento="selectedDepartamento"
-      v-model:selectedCiudad="selectedCiudad"
-      v-model:selectedDistrito="selectedDistrito"
-      v-model:selectedBarrio="selectedBarrio"
-      @update:sucursalEditada="sucursalEditada = $event"
-      @update:errors="errors = $event"
-      @cancelar="cancelarModoEdicion"
-      @guardar="guardarSucursal"
+    <!-- Loading -->
+    <Transition name="fade" mode="out-in">
+      <div v-if="cargandoInicial" class="flex items-center justify-center py-20">
+        <div class="text-center">
+          <div class="w-20 h-20 mx-auto relative mb-6">
+            <div class="absolute inset-0 rounded-full border-4 border-orange-200 animate-pulse"></div>
+            <div class="absolute inset-0 rounded-full border-4 border-transparent border-t-orange-500 border-r-red-500 animate-spin"></div>
+            <div class="absolute inset-0 flex items-center justify-center">
+              <div class="p-3 bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl shadow-lg">
+                <Building2 class="h-6 w-6 text-white" />
+              </div>
+            </div>
+          </div>
+          <h3 class="text-lg font-bold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent mb-1">Cargando Sucursales</h3>
+          <p class="text-gray-500 text-sm">Preparando datos...</p>
+          <div class="mt-4 w-40 mx-auto h-1 bg-gray-200 rounded-full overflow-hidden">
+            <div class="h-full bg-gradient-to-r from-orange-500 to-red-500 rounded-full animate-pulse"></div>
+          </div>
+        </div>
+      </div>
+
+      <div v-else>
+        <!-- Formulario -->
+        <RegistrarSucursal
+          v-if="modoEdicion"
+          :sucursal="sucursalSeleccionada"
+          :guardando="guardando"
+          @guardar="onGuardar"
+          @cancelar="cerrarFormulario"
+        />
+
+        <!-- Listado -->
+        <div v-else>
+
+          <!-- Header -->
+          <div class="relative bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl border border-white/50 p-8">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center space-x-4">
+                <div class="p-3 bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl shadow-lg">
+                  <Building2 class="h-8 w-8 text-white" />
+                </div>
+                <div>
+                  <h1 class="text-4xl font-bold bg-gradient-to-r from-orange-600 via-red-600 to-orange-700 bg-clip-text text-transparent">
+                    Gestión de Sucursales
+                  </h1>
+                  <p class="text-gray-600 mt-1 font-medium">Administra todas las sucursales</p>
+                </div>
+              </div>
+              <div class="hidden md:flex items-center space-x-6">
+                <div class="text-center">
+                  <div class="text-2xl font-bold text-gray-800">{{ paginacion.total ?? 0 }}</div>
+                  <div class="text-sm text-gray-500">Total</div>
+                </div>
+                <div class="p-2 bg-green-100 rounded-xl">
+                  <TrendingUp class="h-6 w-6 text-green-600" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Filtros -->
+          <div class="mt-6">
+            <FiltrosSucursal
+              v-model:search="filtros.search"
+              v-model:estado="filtros.estado"
+              v-model:limite="filtros.limite"
+              @update:search="onSearchChange"
+              @update:estado="onEstadoChange"
+              @update:limite="onLimiteChange"
+            >
+              <template #acciones>
+                <button
+                  @click="abrirFormularioNuevo"
+                  class="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white rounded-2xl px-6 py-2 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 flex items-center gap-2"
+                >
+                  <Plus class="h-4 w-4" /> Nueva Sucursal
+                </button>
+              </template>
+            </FiltrosSucursal>
+          </div>
+
+          <!-- Cards -->
+          <div class="relative mt-6">
+            <Transition name="fade">
+              <div v-if="cargando" class="absolute inset-0 bg-white/50 backdrop-blur-sm flex items-center justify-center rounded-3xl z-10">
+                <div class="animate-spin rounded-full h-10 w-10 border-4 border-orange-500 border-t-transparent"></div>
+              </div>
+            </Transition>
+
+            <div v-if="!cargando && sucursales.length === 0" class="bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl border border-white/50 p-16 text-center">
+              <div class="p-4 bg-gradient-to-br from-orange-100 to-red-100 rounded-full w-20 h-20 mx-auto mb-4 flex items-center justify-center">
+                <Building2 class="h-10 w-10 text-orange-500" />
+              </div>
+              <h3 class="text-xl font-bold text-gray-700 mb-2">No se encontraron sucursales</h3>
+              <p class="text-gray-500">Intenta cambiar los filtros o registra una nueva sucursal.</p>
+            </div>
+
+            <div v-else class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+              <SucursalCard
+                v-for="s in sucursales"
+                :key="s.idsucursal"
+                :sucursal="s"
+                @editar="abrirFormularioEditar"
+                @asignarUsuario="abrirModalAsignacion"
+                @gestionarHornos="abrirModalHornos"
+                @gestionarGastos="abrirModalGastos"
+                @toggleEstado="abrirModalConfirmacion"
+              />
+            </div>
+
+            <Paginado
+              :paginaActual="paginacion.paginaActual"
+              :totalPaginas="paginacion.totalPaginas"
+              :total="paginacion.total"
+              :limite="filtros.limite"
+              @update:paginaActual="onCambiarPagina"
+            />
+          </div>
+        </div>
+      </div>
+    </Transition>
+
+    <!-- Notificación -->
+    <Transition name="slide-up">
+      <div v-if="notificacion.visible" class="fixed bottom-6 right-6 bg-gradient-to-r from-orange-500 to-red-600 text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-2 z-50">
+        <CheckCircle class="h-5 w-5" />
+        {{ notificacion.mensaje }}
+      </div>
+    </Transition>
+
+    <!-- Modal Confirmación -->
+    <ModalConfirmacion
+      :show="modalConfirmacion.visible"
+      :mensaje="modalConfirmacion.accion"
+      :nombreUsuario="modalConfirmacion.nombre"
+      @confirmar="onConfirmar"
+      @cancelar="cerrarModalConfirmacion"
     />
 
-    <!-- MODAL DE CONFIRMACIÓN -->
-    <ConfirmacionModal
-      :show="modalConfirmacion"
-      :title="sucursalParaAccion?.Estado.IdEstado === 1 ? '¿Desactivar Sucursal?' : '¿Activar Sucursal?'"
-      :confirmText="sucursalParaAccion?.Estado.IdEstado === 1 ? 'Sí, Desactivar' : 'Sí, Activar'"
-      cancelText="Cancelar"
-      :confirmButtonClass="sucursalParaAccion?.Estado.IdEstado === 1 ? 'bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700' : 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-emerald-600 hover:to-green-500'"
-      :iconComponent="AlertTriangle"
-      iconClass="h-8 w-8 text-orange-600"
-      @confirm="confirmarAccion"
-      @cancel="cerrarModalConfirmacion"
-    >
-      ¿Está seguro de que desea {{ sucursalParaAccion?.Estado.IdEstado === 1 ? 'desactivar' : 'activar' }} la sucursal
-      <span class="font-semibold text-gray-900 bg-gradient-to-r from-orange-100 to-red-100 px-2 py-1 rounded-lg">{{ sucursalParaAccion?.Nombre }}</span>?
-    </ConfirmacionModal>
-
-    <!-- MODAL ASIGNAR USUARIOS -->
-    <AsignarUsuarioModal
-      :show="modalAsignarUsuarios"
-      :sucursal="sucursalParaAccion"
-      :usuariosDisponibles="usuariosDisponibles"
-      :usuariosAsignados="usuariosAsignados"
+    <!-- Modal Asignar Usuario -->
+    <AsignarUsuario
+      :show="modalAsignacion.visible"
+      :sucursal="modalAsignacion.sucursal"
+      :empleadosDisponibles="modalAsignacion.empleados"
+      :empleadosAsignados="modalAsignacion.asignados"
       @close="cerrarModalAsignacion"
-      @toggle-asignacion="toggleAsignacionUsuario"
+      @toggle-asignacion="toggleAsignacion"
       @guardar="guardarAsignacion"
     />
 
-    <!-- Success Toast -->
-    <div v-if="showSuccessToast" class="fixed top-6 right-6 bg-green-500 text-white py-4 rounded-2xl shadow-xl flex items-center gap-3 z-50 animate-slide-in">
-      <CheckCircle class="h-5 w-5" />
-      <span class="font-semibold">{{ successMessage }}</span>
-    </div>
+    <!-- Modal Gestionar Hornos -->
+    <GestionHornos
+      :show="modalHornos.visible"
+      :sucursal="modalHornos.sucursal"
+      @close="cerrarModalHornos"
+      @updated="mostrarNotificacion"
+    />
+
+    <!-- Modal Gestionar Gastos -->
+    <GestionGastos
+      :show="modalGastos.visible"
+      :sucursal="modalGastos.sucursal"
+      @close="cerrarModalGastos"
+      @updated="mostrarNotificacion"
+    />
   </div>
 </template>
 
-<style scoped>
-@keyframes slide-in { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-.animate-slide-in { animation: slide-in 0.3s ease-out; }
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: linear-gradient(to bottom, #fdba74, #f97316); border-radius: 10px; }
-::-webkit-scrollbar-thumb:hover { background: linear-gradient(to bottom, #f97316, #ea580c); }
-</style>
-
 <script setup>
-import { ref, computed, onMounted, watch, nextTick, reactive } from 'vue';
-import {
-  AlertTriangle, CheckCircle
-} from 'lucide-vue-next';
-import ConfirmacionModal from '../Modals/ConfirmacionModal.vue';
-import SucursalHeader from './SucursalHeader.vue';
-import SucursalFilters from './SucursalFilters.vue';
-import SucursalList from './SucursalList.vue';
-import SucursalPagination from './SucursalPagination.vue';
-import SucursalForm from './SucursalForm.vue';
-import AsignarUsuarioModal from './AsignarUsuarioModal.vue';
-import { getDepartamento, getCiudad, getDistrito, getBarrio } from '@/Server/Direccion';
+import { ref, reactive, onMounted } from 'vue';
+import { Building2, TrendingUp, Plus, CheckCircle } from 'lucide-vue-next';
 import { listarSucursales, addSucursal, UpdateSucursal, DelSucursal } from '@/Server/api';
-import { listarUsuarios, usuariosSinSucursal, listarUsuarioAsignado, asignarUsuarioASucursal } from '@/Server/Usuario';
+import { getEmpleadosSinSucursal, listarEmpleadosAsignadosSucursal, asignarEmpleadosSucursal } from '@/Server/EmpleadoSucursal';
 
-// --- State  ---
-const sucursales = ref([]);
-const usuariosDisponibles = ref([]);
-const usuariosAsignadosOriginal = ref([]);
+import FiltrosSucursal  from './FiltrosSucursal.vue';
+import SucursalCard     from './SucursalCard.vue';
+import RegistrarSucursal from './RegistrarSucursal.vue';
+import AsignarUsuario   from './AsignarUsuario.vue';
+import GestionHornos    from './GestionHornos.vue';
+import GestionGastos    from './GestionGastos.vue';
+import Paginado         from '@/views/Components/Modals/Paginado.vue';
+import ModalConfirmacion from '@/views/Components/Modals/ModalConfirmacion.vue';
 
-const modoEdicion = ref(false);
-const esNuevaSucursal = ref(true);
-const modalConfirmacion = ref(false);
-const modalAsignarUsuarios = ref(false);
-const showSuccessToast = ref(false);
-const successMessage = ref('');
-const sucursalExpandida = ref(null);
-const isPreloading = ref(false);
+// ── Estado ────────────────────────────────────────────────────────────────────
+const cargandoInicial    = ref(true);
+const cargando           = ref(false);
+const guardando          = ref(false);
+const modoEdicion        = ref(false);
+const sucursalSeleccionada = ref(null);
+const sucursales         = ref([]);
 
-const filtros = ref({ nombre: "", estado: "Todos" });
-const statusOptions = [
-  { value: "Todos", label: "Todas", color: "bg-gray-500" },
-  { value: "Activo", label: "Activas", color: "bg-green-500" },
-  { value: "Inactivo", label: "Inactivas", color: "bg-red-500" }
-];
+const paginacion = reactive({ paginaActual: 1, totalPaginas: 1, total: 0 });
+const filtros    = reactive({ search: '', estado: '-1', limite: 8 });
+const notificacion = reactive({ visible: false, mensaje: '' });
+const modalConfirmacion = reactive({ visible: false, nombre: '', accion: '', sucursal: null });
+const modalAsignacion   = reactive({ visible: false, sucursal: null, empleados: [], asignados: [], asignadosOriginal: [] });
+const modalHornos       = reactive({ visible: false, sucursal: null });
+const modalGastos       = reactive({ visible: false, sucursal: null });
 
-const paginaActual = ref(1);
-const itemsPerPage = 6;
+let debounceTimer = null;
 
-const sucursalEditada = ref(null);
-const sucursalParaAccion = ref(null);
-const mensajeModal = ref("");
-const usuariosAsignados = ref([]);
-
-// --- State for address ---
-const departamentos = ref([]);
-const ciudades = ref([]);
-const distritos = ref([]);
-const barrios = ref([]);
-
-const selectedDepartamento = ref(null);
-const selectedCiudad = ref(null);
-const selectedDistrito = ref(null);
-const selectedBarrio = ref(null);
-
-const errors = reactive({
-    nombre: '',
-    nro: '',
-    celular: '',
-    horaEntrada: '',
-    horaSalida: '',
-    departamento: '',
-    ciudad: '',
-    distrito: '',
-    barrio: '',
-    direccion: ''
-});
-
-const sucursalForm = ref(null);
-
-// --- Computed Properties ---
-const sucursalesActivas = computed(() => sucursales.value.filter(s => s.Estado.IdEstado === 1).length);
-
-const sucursalesFiltradas = computed(() => {
-  let res = sucursales.value;
-  if (filtros.value.nombre) {
-    const nombreLower = filtros.value.nombre.toLowerCase();
-    res = res.filter(s => s.Nombre.toLowerCase().includes(nombreLower));
-  }
-  if (filtros.value.estado !== 'Todos') {
-    const estadoId = filtros.value.estado === 'Activo' ? 1 : 2;
-    res = res.filter(s => s.Estado.IdEstado === estadoId);
-  }
-  return res;
-});
-
-const totalPaginas = computed(() => Math.ceil(sucursalesFiltradas.value.length / itemsPerPage));
-const sucursalesPaginadas = computed(() => {
-  const start = (paginaActual.value - 1) * itemsPerPage;
-  return sucursalesFiltradas.value.slice(start, start + itemsPerPage);
-});
-
-const paginacionInfo = computed(() => {
-  const total = sucursalesFiltradas.value.length;
-  const inicio = total === 0 ? 0 : (paginaActual.value - 1) * itemsPerPage + 1;
-  const fin = Math.min(inicio + itemsPerPage - 1, total);
-  return `Mostrando ${inicio}-${fin} de ${total} sucursales`;
-});
-
-const visiblePages = computed(() => {
-  const pages = [];
-  for (let i = 1; i <= totalPaginas.value; i++) { pages.push(i); }
-  return pages;
-});
-
-// --- Methods ---
-const mostrarNotificacion = (mensaje) => {
-  successMessage.value = mensaje;
-  showSuccessToast.value = true;
-  setTimeout(() => { showSuccessToast.value = false; }, 3000);
-};
-
-const cargarDatos = async () => {
+// ── API ────────────────────────────────────────────────────────────────────────
+const cargarSucursales = async () => {
   try {
-    sucursales.value = await listarSucursales();
-  } catch (error) {
-    console.error('Error al cargar sucursales:', error);
-    mostrarNotificacion('Error al cargar sucursales.');
-  }
-};
-
-// --- Methods for address ---
-const cargarDepartamentos = async () => {
-  try {
-    departamentos.value = await getDepartamento();
-  } catch (error) {
-    console.error('Error al cargar departamentos:', error);
-  }
-};
-
-const cargarCiudades = async () => {
-  if (!selectedDepartamento.value) {
-    ciudades.value = [];
-    return;
-  }
-  try {
-    ciudades.value = await getCiudad(selectedDepartamento.value);
-    if (!isPreloading.value) {
-        distritos.value = [];
-        barrios.value = [];
-        selectedCiudad.value = null;
-        selectedDistrito.value = null;
-        selectedBarrio.value = null;
-    }
-  } catch (error) {
-    console.error('Error al cargar ciudades:', error);
-  }
-};
-
-const cargarDistritos = async () => {
-  if (!selectedCiudad.value) {
-    distritos.value = [];
-    return;
-  }
-  try {
-    distritos.value = await getDistrito(selectedCiudad.value);
-    if (!isPreloading.value) {
-        barrios.value = [];
-        selectedDistrito.value = null;
-        selectedBarrio.value = null;
-    }
-  } catch (error) {
-    console.error('Error al cargar distritos:', error);
-  }
-};
-
-const cargarBarrios = async () => {
-  if (!selectedDistrito.value) {
-    barrios.value = [];
-    return;
-  }
-  try {
-    barrios.value = await getBarrio(selectedDistrito.value);
-    if (isPreloading.value) {
-        selectedBarrio.value = null;
-    }
-  } catch (error) {
-    console.error('Error al cargar barrios:', error);
-  }
-};
-
-const toggleDetalles = (id) => {
-  sucursalExpandida.value = sucursalExpandida.value === id ? null : id;
-};
-
-const getCleanSucursal = () => ({
-  IdSucursal: null,
-  Datos: { IdDatos: 1 },
-  Nombre: '',
-  Celular: '',
-  Nro: '',
-  Central: 2,
-  Horario: { IdHorario: null, HoraEntrada: '08:00', HoraSalida: '18:00' },
-  Direccion: { IdDireccion: null, Referencia: '', Direccion: '', IdBarrio: null, UbicacionGPS: '' },
-});
-
-const iniciarModoEdicion = async (sucursal = null) => {
-  modoEdicion.value = true;
-  if (sucursal) {
-    isPreloading.value = true;
-    esNuevaSucursal.value = false;
-    sucursalEditada.value = JSON.parse(JSON.stringify(sucursal));
-    sucursalEditada.value.Central = sucursalEditada.value.Central ? 1 : 2;
-    
-    selectedDepartamento.value = sucursal.Direccion.Barrio.Distrito.Ciudad.Departamento.IdDepto;
-    await cargarCiudades();
-    selectedCiudad.value = sucursal.Direccion.Barrio.Distrito.Ciudad.IdCiudad;
-    await cargarDistritos();
-    selectedDistrito.value = sucursal.Direccion.Barrio.Distrito.IdDistrito;
-    await cargarBarrios();
-    selectedBarrio.value = sucursal.Direccion.Barrio.IdBarrio;
-    
-    await nextTick();
-    isPreloading.value = false;
-  } else {
-    esNuevaSucursal.value = true;
-    sucursalEditada.value = getCleanSucursal();
-    selectedDepartamento.value = null;
-    selectedCiudad.value = null;
-    selectedDistrito.value = null;
-    selectedBarrio.value = null;
-  }
-};
-
-const cancelarModoEdicion = () => {
-  modoEdicion.value = false;
-  sucursalEditada.value = null;
-  Object.keys(errors).forEach(key => errors[key] = '');
-};
-
-const guardarSucursal = async () => {
-  if (sucursalForm.value && !sucursalForm.value.validateForm()) {
-    return;
-  }
-  try {
-    const payload = {
-      ...sucursalEditada.value,
-      IdBarrio: selectedBarrio.value,
-      Direccion: sucursalEditada.value.Direccion.Direccion,
-      Referencia: sucursalEditada.value.Direccion.Referencia,
-      UbicacionGPS: sucursalEditada.value.Direccion.UbicacionGPS,
-      Entrada: sucursalEditada.value.Horario.HoraEntrada,
-      Salida: sucursalEditada.value.Horario.HoraSalida,
-      id: sucursalEditada.value.IdSucursal,
-    };
-    const response = esNuevaSucursal.value ? await addSucursal(payload) : await UpdateSucursal(payload);
-    await cargarDatos();
-    cancelarModoEdicion();
-    mostrarNotificacion(response.message);
-  } catch (error) {
-    console.error("Error al guardar sucursal:", error);
-    mostrarNotificacion('Error al guardar la sucursal.');
-  }
-};
-
-const abrirModalConfirmacion = (sucursal) => {
-  sucursalParaAccion.value = sucursal;
-  mensajeModal.value = sucursal.Estado.IdEstado === 1 ? "Desactivar" : "Activar";
-  modalConfirmacion.value = true;
-};
-
-const cerrarModalConfirmacion = () => {
-  modalConfirmacion.value = false;
-  sucursalParaAccion.value = null;
-};
-
-const confirmarAccion = async () => {
-  if (!sucursalParaAccion.value) return;
-  try {
-    const response = await DelSucursal(sucursalParaAccion.value.IdSucursal);
-    await cargarDatos();
-    mostrarNotificacion(response.message);
-  } catch (error) {
-    console.error("Error al cambiar estado:", error);
-    mostrarNotificacion('Error al cambiar el estado.');
+    cargando.value = true;
+    const estadoParam = filtros.estado === '-1' ? undefined : filtros.estado;
+    const resp = await listarSucursales(filtros.search || undefined, estadoParam, paginacion.paginaActual, filtros.limite);
+    sucursales.value        = resp.data      ?? [];
+    paginacion.total        = resp.total     ?? 0;
+    paginacion.totalPaginas = resp.totalPages ?? resp.totalPaginas
+      ?? (sucursales.value.length === filtros.limite ? paginacion.paginaActual + 1 : paginacion.paginaActual);
+  } catch (err) {
+    console.error(err);
+    mostrarNotificacion('Error al cargar sucursales');
   } finally {
-    cerrarModalConfirmacion();
+    cargando.value        = false;
+    cargandoInicial.value = false;
   }
 };
 
-const abrirModalAsignacion = async (sucursal) => {
-  sucursalParaAccion.value = sucursal;
+// ── Filtros ────────────────────────────────────────────────────────────────────
+const onSearchChange = (val) => {
+  filtros.search = val;
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => { paginacion.paginaActual = 1; cargarSucursales(); }, 400);
+};
+const onEstadoChange = (val) => { filtros.estado = val; paginacion.paginaActual = 1; cargarSucursales(); };
+const onLimiteChange = (val) => { filtros.limite = val; paginacion.paginaActual = 1; cargarSucursales(); };
+const onCambiarPagina = (page) => { paginacion.paginaActual = page; cargarSucursales(); };
+
+// ── Formulario ─────────────────────────────────────────────────────────────────
+const abrirFormularioNuevo  = () => { sucursalSeleccionada.value = null; modoEdicion.value = true; };
+const abrirFormularioEditar = (s) => { sucursalSeleccionada.value = { ...s }; modoEdicion.value = true; };
+const cerrarFormulario      = () => { modoEdicion.value = false; sucursalSeleccionada.value = null; };
+
+const onGuardar = async (data) => {
+  guardando.value = true;
   try {
-    const [todos, asignados] = await Promise.all([
-      usuariosSinSucursal(),
-      listarUsuarioAsignado(sucursal.IdSucursal)
-    ]);
+    const resp = data.idsucursal
+      ? await UpdateSucursal({ ...data, id: data.idsucursal })
+      : await addSucursal(data);
+    mostrarNotificacion(resp?.message ?? 'Sucursal guardada');
+    cerrarFormulario();
+    await cargarSucursales();
+  } catch (err) {
+    console.error(err);
+    mostrarNotificacion('Error al guardar');
+  } finally {
+    guardando.value = false;
+  }
+};
 
-    const usuariosYaAsignados = asignados[0]?.Usuariosucursal
-      .filter(us => us.Estado.IdEstado === 1 && us.Usuario)
-      .map(us => us.Usuario) || [];
+// ── Modal confirmación ─────────────────────────────────────────────────────────
+const abrirModalConfirmacion = (s) => {
+  modalConfirmacion.sucursal = s;
+  modalConfirmacion.nombre   = s.nombre;
+  modalConfirmacion.accion   = s.estado === 1 ? 'Desactivar' : 'Activar';
+  modalConfirmacion.visible  = true;
+};
+const cerrarModalConfirmacion = () => { modalConfirmacion.visible = false; modalConfirmacion.sucursal = null; };
+const onConfirmar = async () => {
+  const s = modalConfirmacion.sucursal;
+  cerrarModalConfirmacion(); 
+  if (!s) return;
+  try {
+    const resp = await DelSucursal(s.idsucursal);
+    mostrarNotificacion(resp?.message ?? 'Estado actualizado');
+    await cargarSucursales();
+  } catch (err) { mostrarNotificacion('Error al cambiar estado'); }
+};
 
-    const todosUnicos = [...todos, ...usuariosYaAsignados].reduce((acc, u) => {
-      if (u && !acc.some(x => x.IdUsuario === u.IdUsuario)) {
-        acc.push(u);
-      }
+// ── Modal asignación ───────────────────────────────────────────────────────────
+const abrirModalAsignacion = async (s) => {
+  try {
+    const [todos, respAsignados] = await Promise.all([
+      getEmpleadosSinSucursal(),
+      listarEmpleadosAsignadosSucursal(s.idsucursal)
+    ]); 
+
+    const yaAsignados = respAsignados?.empleados?.filter(e => e.estado === 1) ?? [];
+
+    const unicos = [...todos, ...yaAsignados].reduce((acc, e) => {
+      const id = e.idempleado;
+      if (id && !acc.some(x => x.idempleado === id)) acc.push(e);
       return acc;
     }, []);
 
-    usuariosDisponibles.value = todosUnicos;
-    usuariosAsignados.value = usuariosYaAsignados.map(u => ({ id: u.IdUsuario }));
-    usuariosAsignadosOriginal.value = [...usuariosAsignados.value];
-
-    modalAsignarUsuarios.value = true;
-  } catch (error) {
-    console.error("Error al abrir modal de asignación:", error);
-    mostrarNotificacion("Error al cargar datos de usuarios.");
+    Object.assign(modalAsignacion, {
+      visible:           true,
+      sucursal:          s,
+      empleados:         unicos,
+      asignados:         yaAsignados.map(e => ({ id: e.idempleado })),
+      asignadosOriginal: yaAsignados.map(e => ({ id: e.idempleado })),
+    });
+  } catch (err) { 
+    console.error(err);
+    mostrarNotificacion('Error al cargar empleados'); 
   }
 };
-
 const cerrarModalAsignacion = () => {
-  modalAsignarUsuarios.value = false;
-  sucursalParaAccion.value = null;
-  usuariosDisponibles.value = [];
-  usuariosAsignados.value = [];
-  usuariosAsignadosOriginal.value = [];
+  Object.assign(modalAsignacion, { visible: false, sucursal: null, empleados: [], asignados: [], asignadosOriginal: [] });
 };
-
-const toggleAsignacionUsuario = (idUsuario) => {
-  const index = usuariosAsignados.value.findIndex(u => u.id === idUsuario);
-  if (index > -1) {
-    usuariosAsignados.value.splice(index, 1);
-  } else {
-    usuariosAsignados.value.push({ id: idUsuario });
-  }
+const toggleAsignacion = (id) => {
+  const idx = modalAsignacion.asignados.findIndex(u => u.id === id);
+  if (idx > -1) modalAsignacion.asignados.splice(idx, 1);
+  else modalAsignacion.asignados.push({ id });
 };
-
 const guardarAsignacion = async () => {
-  if (!sucursalParaAccion.value) return;
+  const s = modalAsignacion.sucursal;
+  const asignados = [...modalAsignacion.asignados];
+  cerrarModalAsignacion();
   try {
-    const response = await asignarUsuarioASucursal(sucursalParaAccion.value.IdSucursal, usuariosAsignados.value);
-    mostrarNotificacion(response.message);
-  } catch (error) {
-    console.error("Error al guardar asignación:", error);
-    mostrarNotificacion("Error al guardar la asignación.");
-  } finally {
-    cerrarModalAsignacion();
-  }
+    const resp = await asignarEmpleadosSucursal(s.idsucursal, asignados);
+    mostrarNotificacion(resp?.message ?? 'Asignación guardada');
+  } catch (err) { mostrarNotificacion('Error al guardar asignación'); }
 };
 
-// --- Lifecycle Hook ---
-onMounted(() => {
-    cargarDatos();
-    cargarDepartamentos();
-});
+// ── Modal Hornos ───────────────────────────────────────────────────────────────
+const abrirModalHornos = (s) => {
+  modalHornos.sucursal = s;
+  modalHornos.visible = true;
+};
+const cerrarModalHornos = () => {
+  modalHornos.visible = false;
+  modalHornos.sucursal = null;
+};
 
-// --- Watchers ---
-watch(filtros, () => { paginaActual.value = 1; }, { deep: true });
-watch(selectedDepartamento, cargarCiudades);
-watch(selectedCiudad, cargarDistritos);
-watch(selectedDistrito, cargarBarrios);
+// ── Modal Gastos ───────────────────────────────────────────────────────────────
+const abrirModalGastos = (s) => {
+  modalGastos.sucursal = s;
+  modalGastos.visible = true;
+};
+const cerrarModalGastos = () => {
+  modalGastos.visible = false;
+  modalGastos.sucursal = null;
+};
 
+// ── Utilidades ─────────────────────────────────────────────────────────────────
+const mostrarNotificacion = (mensaje) => {
+  notificacion.mensaje = mensaje; notificacion.visible = true;
+  setTimeout(() => { notificacion.visible = false; }, 3000);
+};
+
+onMounted(cargarSucursales);
 </script>
+
+<style scoped>
+.fade-enter-active, .fade-leave-active { transition: opacity 0.2s; }
+.fade-enter-from, .fade-leave-to       { opacity: 0; }
+.slide-up-enter-active, .slide-up-leave-active { transition: all 0.3s ease; }
+.slide-up-enter-from, .slide-up-leave-to       { opacity: 0; transform: translateY(16px); }
+</style>

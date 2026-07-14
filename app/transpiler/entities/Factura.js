@@ -37,6 +37,14 @@ __decorate([
     __metadata("design:type", String)
 ], Factura.prototype, "Aprobado", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ name: "nombrefacturacion", type: "varchar", length: 150, nullable: true }),
+    __metadata("design:type", String)
+], Factura.prototype, "NombreFacturacion", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: "nitcifacturacion", type: "varchar", length: 50, nullable: true }),
+    __metadata("design:type", String)
+], Factura.prototype, "NitCiFacturacion", void 0);
+__decorate([
     (0, typeorm_1.OneToOne)(() => Venta_1.Venta, (venta) => venta.Factura),
     (0, typeorm_1.JoinColumn)({ name: "idventa" }),
     __metadata("design:type", Venta_1.Venta)

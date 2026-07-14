@@ -31,7 +31,7 @@ __decorate([
     __metadata("design:type", Number)
 ], Menu.prototype, "Visible", void 0);
 __decorate([
-    (0, typeorm_1.OneToOne)(() => Icono_1.Icono, (icono) => icono.Menu),
+    (0, typeorm_1.OneToOne)(() => Icono_1.Icono, (icono) => icono.Menu, { nullable: true }),
     (0, typeorm_1.JoinColumn)({ name: "idicono" }),
     __metadata("design:type", Icono_1.Icono)
 ], Menu.prototype, "Icono", void 0);

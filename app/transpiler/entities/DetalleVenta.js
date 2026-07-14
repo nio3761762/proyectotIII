@@ -14,7 +14,7 @@ const typeorm_1 = require("typeorm");
 const Venta_1 = require("./Venta");
 const Producto_1 = require("./Producto");
 const Promocion_1 = require("./Promocion");
-const Presentacionproducto_1 = require("./Presentacionproducto");
+const ProductoMedida_1 = require("./ProductoMedida");
 let Detalleventa = class Detalleventa extends typeorm_1.BaseEntity {
 };
 exports.Detalleventa = Detalleventa;
@@ -31,10 +31,6 @@ __decorate([
     __metadata("design:type", Number)
 ], Detalleventa.prototype, "Precio", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: "modo", type: "integer", nullable: true }),
-    __metadata("design:type", Number)
-], Detalleventa.prototype, "Modo", void 0);
-__decorate([
     (0, typeorm_1.ManyToOne)(() => Venta_1.Venta, (venta) => venta.Detalleventa),
     (0, typeorm_1.JoinColumn)({ name: "idventa" }),
     __metadata("design:type", Venta_1.Venta)
@@ -45,17 +41,17 @@ __decorate([
     __metadata("design:type", Producto_1.Producto)
 ], Detalleventa.prototype, "Producto", void 0);
 __decorate([
+    (0, typeorm_1.ManyToOne)(() => ProductoMedida_1.Productomedida, (producto) => producto.Detalleventa, { nullable: true }),
+    (0, typeorm_1.JoinColumn)({ name: "idproductomedida" }),
+    __metadata("design:type", ProductoMedida_1.Productomedida)
+], Detalleventa.prototype, "Productomedida", void 0);
+__decorate([
     (0, typeorm_1.ManyToOne)(() => Promocion_1.Promocion, (promocion) => promocion.Detalleventa, { nullable: true }),
     (0, typeorm_1.JoinColumn)({ name: "idpromocion" }),
     __metadata("design:type", Promocion_1.Promocion)
 ], Detalleventa.prototype, "Promocion", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => Presentacionproducto_1.Presentacionproducto, (paquete) => paquete.Detalleventa, { nullable: true }),
-    (0, typeorm_1.JoinColumn)({ name: "idpaquete" }),
-    __metadata("design:type", Presentacionproducto_1.Presentacionproducto)
-], Detalleventa.prototype, "Paquete", void 0);
-__decorate([
-    (0, typeorm_1.Column)({ name: 'descuento', type: "numeric", precision: 10, scale: 2, nullable: true }),
+    (0, typeorm_1.Column)({ name: 'descuento', type: "numeric", precision: 10, scale: 2, default: 0 }),
     __metadata("design:type", Number)
 ], Detalleventa.prototype, "Descuento", void 0);
 exports.Detalleventa = Detalleventa = __decorate([

@@ -11,10 +11,9 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Promocionproducto = void 0;
 const typeorm_1 = require("typeorm");
-const Estado_1 = require("./Estado");
 const Promocion_1 = require("./Promocion");
 const Producto_1 = require("./Producto");
-const Presentacionproducto_1 = require("./Presentacionproducto");
+const ProductoMedida_1 = require("./ProductoMedida");
 let Promocionproducto = class Promocionproducto extends typeorm_1.BaseEntity {
 };
 exports.Promocionproducto = Promocionproducto;
@@ -31,26 +30,28 @@ __decorate([
     __metadata("design:type", Number)
 ], Promocionproducto.prototype, "Descuento", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ name: "precio", type: "numeric", precision: 10, scale: 2, default: 0 }),
+    __metadata("design:type", Number)
+], Promocionproducto.prototype, "Precio", void 0);
+__decorate([
     (0, typeorm_1.ManyToOne)(() => Producto_1.Producto, (producto) => producto.Promocionproducto, { nullable: true }),
     (0, typeorm_1.JoinColumn)({ name: "idproducto" }),
     __metadata("design:type", Producto_1.Producto)
 ], Promocionproducto.prototype, "Producto", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => Presentacionproducto_1.Presentacionproducto, (presentacion) => presentacion.Promocionproducto, { nullable: true }),
-    (0, typeorm_1.JoinColumn)({ name: "idpaquete" }),
-    __metadata("design:type", Presentacionproducto_1.Presentacionproducto)
-], Promocionproducto.prototype, "Paquete", void 0);
+    (0, typeorm_1.ManyToOne)(() => ProductoMedida_1.Productomedida, (producto) => producto.Promocionproducto, { nullable: true }),
+    (0, typeorm_1.JoinColumn)({ name: "idproductomedida" }),
+    __metadata("design:type", ProductoMedida_1.Productomedida)
+], Promocionproducto.prototype, "Productomedida", void 0);
 __decorate([
     (0, typeorm_1.ManyToOne)(() => Promocion_1.Promocion, (promocion) => promocion.Promocionproducto),
     (0, typeorm_1.JoinColumn)({ name: "idpromocion" }),
     __metadata("design:type", Promocion_1.Promocion)
 ], Promocionproducto.prototype, "Promocion", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => Estado_1.Estado, (estado) => estado.Promocionproducto),
-    (0, typeorm_1.JoinColumn)({ name: "idestado" }),
-    __metadata("design:type", Estado_1.Estado)
+    (0, typeorm_1.Column)({ name: "estado", type: "integer", default: 1 }),
+    __metadata("design:type", Number)
 ], Promocionproducto.prototype, "Estado", void 0);
 exports.Promocionproducto = Promocionproducto = __decorate([
     (0, typeorm_1.Entity)()
-    //@Check(`"Estado" IN (0, 1)`)
 ], Promocionproducto);

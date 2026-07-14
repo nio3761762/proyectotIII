@@ -1,8 +1,8 @@
 <template>
   <div class="relative">
     <!-- Background decorations -->
-    <div class="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-orange-400/10 to-red-500/10 rounded-full blur-2xl"></div>
-    <div class="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-red-400/10 to-orange-500/10 rounded-full blur-xl"></div>
+    <div class="absolute top-0 right-0 w-32 h-32 bg-linear-to-br from-orange-400/10 to-red-500/10 rounded-full blur-2xl"></div>
+    <div class="absolute bottom-0 left-0 w-24 h-24 bg-linear-to-tr from-red-400/10 to-orange-500/10 rounded-full blur-xl"></div>
 
     <!-- Header Container -->
     <div class="relative bg-white/80 backdrop-blur-sm shadow-xl border-b border-white/50 p-4 md:p-6">
@@ -10,8 +10,8 @@
         <!-- Left Section - Logo and Brand -->
         <div class="flex items-center gap-4">
           <div class="relative group">
-            <div class="absolute inset-0 bg-gradient-to-r from-orange-500/20 to-red-500/20 rounded-2xl blur opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-            <div class="relative w-12 h-12 md:w-16 md:h-16 bg-gradient-to-br from-orange-100 to-red-100 rounded-2xl shadow-lg flex items-center justify-center overflow-hidden">
+            <div class="absolute inset-0 bg-linear-to-r from-orange-500/20 to-red-500/20 rounded-2xl blur opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            <div class="relative w-12 h-12 md:w-16 md:h-16 bg-linear-to-br from-orange-100 to-red-100 rounded-2xl shadow-lg flex items-center justify-center overflow-hidden">
               <img
                 src="./../assets/LogoMasasCorir.png"
                 alt="Logo Masas C'ori"
@@ -21,7 +21,7 @@
           </div>
           
           <div>
-            <h1 class="text-xl md:text-3xl font-bold bg-gradient-to-r from-orange-600 via-red-600 to-orange-700 bg-clip-text text-transparent">
+            <h1 class="text-xl md:text-3xl font-bold bg-linear-to-r from-orange-600 via-red-600 to-orange-700 bg-clip-text text-transparent">
               Masas C'ori
             </h1>
             <p class="text-xs md:text-sm text-gray-600 font-medium">Sistema de Gestión</p>
@@ -30,15 +30,15 @@
 
         <!-- Center Section - Quick Actions (Hidden on mobile) -->
         <!-- <div class="hidden lg:flex items-center gap-3">
-          <button class="p-3 rounded-2xl bg-gradient-to-r from-blue-100 to-indigo-100 hover:from-blue-200 hover:to-indigo-200 transition-all duration-300 shadow-md hover:shadow-lg group">
+          <button class="p-3 rounded-2xl bg-linear-to-r from-blue-100 to-indigo-100 hover:from-blue-200 hover:to-indigo-200 transition-all duration-300 shadow-md hover:shadow-lg group">
             <Bell class="h-5 w-5 text-blue-600 group-hover:scale-110 transition-transform" />
           </button>
           
-          <button class="p-3 rounded-2xl bg-gradient-to-r from-green-100 to-emerald-100 hover:from-green-200 hover:to-emerald-200 transition-all duration-300 shadow-md hover:shadow-lg group">
+          <button class="p-3 rounded-2xl bg-linear-to-r from-green-100 to-emerald-100 hover:from-green-200 hover:to-emerald-200 transition-all duration-300 shadow-md hover:shadow-lg group">
             <MessageSquare class="h-5 w-5 text-green-600 group-hover:scale-110 transition-transform" />
           </button>
           
-          <button class="p-3 rounded-2xl bg-gradient-to-r from-purple-100 to-pink-100 hover:from-purple-200 hover:to-pink-200 transition-all duration-300 shadow-md hover:shadow-lg group">
+          <button class="p-3 rounded-2xl bg-linear-to-r from-purple-100 to-pink-100 hover:from-purple-200 hover:to-pink-200 transition-all duration-300 shadow-md hover:shadow-lg group">
             <Settings class="h-5 w-5 text-purple-600 group-hover:scale-110 transition-transform" />
           </button>
         </div> -->
@@ -49,15 +49,31 @@
           <div class="hidden sm:block text-right">
             <div class="flex items-center justify-end gap-2 mb-1">
               <Shield class="h-4 w-4 text-orange-500" />
-              <span class="text-sm font-bold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">
-                {{ usuario?.usuario?.Rolusuario?.[0]?.Rol?.Nombre|| 'Sin rol' }}
-                <!-- {{ usuario }} -->
+              
+              <!-- Role Selector Minimalist -->
+              <div v-if="sessionStore.roles.length > 1" class="relative inline-block group">
+                <select
+                  :value="sessionStore.rolSeleccionado?.IdRol"
+                  @change="(e) => onRoleSelect(e.target.value)"
+                  class="appearance-none bg-transparent border-b-2 border-orange-200 hover:border-orange-500 text-sm font-bold text-orange-600 py-0 px-1 pr-5 focus:outline-none focus:border-red-600 cursor-pointer transition-all duration-300"
+                >
+                  <option v-for="role in sessionStore.roles" :key="role.IdRol" :value="role.IdRol">
+                    {{ role.Nombre }}
+                  </option>
+                </select>
+                <ChevronDown class="absolute right-0 top-1/2 -translate-y-1/2 h-3 w-3 text-orange-500 pointer-events-none group-hover:scale-110 transition-transform" />
+              </div>
+
+              <!-- Static text if only one role -->
+              <span v-else class="text-sm font-bold bg-linear-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">
+                {{ sessionStore.rolSeleccionado?.Nombre || 'Sin rol' }}
               </span>
             </div>
+            
             <div class="flex items-center justify-end gap-2">
               <User class="h-3 w-3 text-gray-500" />
               <span class="text-xs text-gray-700 font-medium">
-              {{ usuario?.usuario?.Persona?.Nombre }} {{ usuario?.usuario?.Persona?.ApellidoPaterno }} 
+                {{ sessionStore.usuario?.Persona?.NombreCompleto }} 
               </span>
             </div>
           </div>
@@ -69,14 +85,14 @@
               class="relative group"
             >
               <!-- Avatar Container -->
-              <div class="w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-gradient-to-br from-gray-200 to-gray-300 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 overflow-hidden border-2 border-white group-hover:border-orange-200">
+              <div class="w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-linear-to-br from-gray-200 to-gray-300 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 overflow-hidden border-2 border-white group-hover:border-orange-200">
                 <img
-                  v-if="usuario?.usuario?.Persona?.Imagen?.Url"
-                  :src="usuario.usuario.Persona.Imagen.Url"
+                  v-if="sessionStore.usuario?.Persona?.Imagen"
+                  :src="sessionStore.usuario.Persona.Imagen"
                   alt="Foto de perfil"
                   class="w-full h-full object-cover"
                 />
-                <div v-else class="w-full h-full flex items-center justify-center bg-gradient-to-br from-orange-100 to-red-100">
+                <div v-else class="w-full h-full flex items-center justify-center bg-linear-to-br from-orange-100 to-red-100">
                   <User class="h-6 w-6 md:h-8 md:w-8 text-orange-600" />
                 </div>
               </div>
@@ -85,9 +101,9 @@
               <div class="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white rounded-full shadow-lg animate-pulse"></div>
 
               <!-- Notification Badge -->
-              <div class="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-r from-red-500 to-rose-600 text-white text-xs font-bold rounded-full flex items-center justify-center shadow-lg">
+              <!-- <div class="absolute -top-1 -right-1 w-5 h-5 bg-linear-to-r from-red-500 to-rose-600 text-white text-xs font-bold rounded-full flex items-center justify-center shadow-lg">
                 3
-              </div>
+              </div> -->
             </button>
 
             <!-- Dropdown Menu -->
@@ -95,29 +111,29 @@
               v-if="showMenu"
               class="absolute right-0 mt-3 w-72 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/50 z-50 overflow-hidden animate-fade-in"
             >
-              <!-- User Info Header -->
-              <div class="bg-gradient-to-r from-orange-50 to-red-50 p-6 border-b border-orange-100">
+    
+              <div class="bg-linear-to-r from-orange-50 to-red-50 p-6 border-b border-orange-100">
                 <div class="flex items-center gap-4">
-                  <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-gray-200 to-gray-300 shadow-lg overflow-hidden border-2 border-white">
+                  <div class="w-16 h-16 rounded-2xl bg-linear-to-br from-gray-200 to-gray-300 shadow-lg overflow-hidden border-2 border-white">
                     <img
-                      v-if="usuario?.usuario?.Persona?.Imagen?.Url"
-                      :src="usuario.usuario.Persona.Imagen.Url"
+                      v-if="sessionStore.usuario?.Persona?.Imagen"
+                      :src="sessionStore.usuario.Persona.Imagen"
                       alt="Foto de perfil"
                       class="w-full h-full object-cover"
                     />
-                    <div v-else class="w-full h-full flex items-center justify-center bg-gradient-to-br from-orange-100 to-red-100">
+                    <div v-else class="w-full h-full flex items-center justify-center bg-linear-to-br from-orange-100 to-red-100">
                       <User class="h-8 w-8 text-orange-600" />
                     </div>
                   </div>
                   
                   <div class="flex-1">
                     <h3 class="font-bold text-gray-800 text-lg">
-                        {{ usuario?.usuario?.Persona?.Nombre }} {{ usuario?.usuario?.Persona?.ApellidoPaterno }} 
+                        {{ sessionStore.usuario?.Persona?.NombreCompleto }} 
                     </h3>
                     <div class="flex items-center gap-2 mt-1">
                       <Shield class="h-4 w-4 text-orange-500" />
-                      <span class="text-sm font-semibold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">
-                         {{ usuario?.usuario?.Rolusuario?.[0]?.Rol?.Nombre|| 'Sin rol' }}
+                      <span class="text-sm font-semibold bg-linear-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">
+                         {{ sessionStore.rolSeleccionado?.Nombre || 'Sin rol' }}
                       </span>
                     </div>
                     <div class="flex items-center gap-2 mt-1">
@@ -132,9 +148,9 @@
               <div class="p-3 space-y-1">
                 <button
                   @click="navigateToProfile"
-                  class="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 transition-all duration-300 group"
+                  class="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-linear-to-r hover:from-blue-50 hover:to-indigo-50 transition-all duration-300 group"
                 >
-                  <div class="w-10 h-10 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-xl flex items-center justify-center group-hover:shadow-md transition-all duration-300">
+                  <div class="w-10 h-10 bg-linear-to-br from-blue-100 to-indigo-100 rounded-xl flex items-center justify-center group-hover:shadow-md transition-all duration-300">
                     <User class="h-5 w-5 text-blue-600" />
                   </div>
                   <div class="flex-1 text-left">
@@ -144,11 +160,11 @@
                   <ChevronRight class="h-4 w-4 text-gray-400 group-hover:text-blue-600 transition-colors" />
                 </button>
 
-                <button
+                <!-- <button
                   @click="openSettings"
-                  class="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-gradient-to-r hover:from-purple-50 hover:to-pink-50 transition-all duration-300 group"
+                  class="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-linear-to-r hover:from-purple-50 hover:to-pink-50 transition-all duration-300 group"
                 >
-                  <div class="w-10 h-10 bg-gradient-to-br from-purple-100 to-pink-100 rounded-xl flex items-center justify-center group-hover:shadow-md transition-all duration-300">
+                  <div class="w-10 h-10 bg-linear-to-br from-purple-100 to-pink-100 rounded-xl flex items-center justify-center group-hover:shadow-md transition-all duration-300">
                     <Settings class="h-5 w-5 text-purple-600" />
                   </div>
                   <div class="flex-1 text-left">
@@ -156,13 +172,13 @@
                     <div class="text-xs text-gray-500">Preferencias del sistema</div>
                   </div>
                   <ChevronRight class="h-4 w-4 text-gray-400 group-hover:text-purple-600 transition-colors" />
-                </button>
+                </button> -->
 
-                <button
+                <!-- <button
                   @click="viewNotifications"
-                  class="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-gradient-to-r hover:from-green-50 hover:to-emerald-50 transition-all duration-300 group"
+                  class="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-linear-to-r hover:from-green-50 hover:to-emerald-50 transition-all duration-300 group"
                 >
-                  <div class="w-10 h-10 bg-gradient-to-br from-green-100 to-emerald-100 rounded-xl flex items-center justify-center group-hover:shadow-md transition-all duration-300 relative">
+                  <div class="w-10 h-10 bg-linear-to-br from-green-100 to-emerald-100 rounded-xl flex items-center justify-center group-hover:shadow-md transition-all duration-300 relative">
                     <Bell class="h-5 w-5 text-green-600" />
                     <div class="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></div>
                   </div>
@@ -171,16 +187,16 @@
                     <div class="text-xs text-gray-500">3 nuevas notificaciones</div>
                   </div>
                   <ChevronRight class="h-4 w-4 text-gray-400 group-hover:text-green-600 transition-colors" />
-                </button>
+                </button> -->
 
-                <!-- Divider -->
+         
                 <div class="border-t border-gray-100 my-2"></div>
 
                 <button
-                  @click="logout"
-                  class="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-gradient-to-r hover:from-red-50 hover:to-rose-50 transition-all duration-300 group"
+                  @click="CerrarSesion"
+                  class="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-linear-to-r hover:from-red-50 hover:to-rose-50 transition-all duration-300 group"
                 >
-                  <div class="w-10 h-10 bg-gradient-to-br from-red-100 to-rose-100 rounded-xl flex items-center justify-center group-hover:shadow-md transition-all duration-300">
+                  <div class="w-10 h-10 bg-linear-to-br from-red-100 to-rose-100 rounded-xl flex items-center justify-center group-hover:shadow-md transition-all duration-300">
                     <LogOut class="h-5 w-5 text-red-600" />
                   </div>
                   <div class="flex-1 text-left">
@@ -199,13 +215,25 @@
       <div class="sm:hidden mt-4 pt-4 border-t border-gray-100/50">
         <div class="flex items-center gap-3">
           <Shield class="h-4 w-4 text-orange-500" />
-          <span class="text-sm font-bold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">
-              {{ usuario?.usuario?.Rolusuario?.[0]?.Rol?.Nombre|| 'Sin rol' }}
+          <span class="text-sm font-bold bg-linear-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">
+              {{ sessionStore.rolSeleccionado?.Nombre || 'Sin rol' }}
           </span>
           <span class="text-xs text-gray-500">•</span>
           <span class="text-xs text-gray-700 font-medium">
-              {{ usuario?.usuario?.Persona?.Nombre }} {{ usuario?.usuario?.Persona?.ApellidoPaterno }} 
+              {{ sessionStore.usuario?.Persona?.NombreCompleto }} 
           </span>
+        </div>
+        <!-- Role Selector Mobile -->
+        <div v-if="sessionStore.roles.length > 1" class="mt-3">
+          <select
+            :value="sessionStore.rolSeleccionado?.IdRol"
+            @change="(e) => onRoleSelect(e.target.value)"
+            class="w-full bg-linear-to-r from-orange-50 to-red-50 border border-orange-200 text-orange-700 text-sm font-bold rounded-xl px-4 py-2 cursor-pointer focus:outline-none"
+          >
+            <option v-for="role in sessionStore.roles" :key="role.IdRol" :value="role.IdRol">
+              {{ role.Nombre }}
+            </option>
+          </select>
         </div>
       </div>
     </div>
@@ -231,11 +259,16 @@
 <script setup>
 import { RolUsuario } from '@/Server/Usuario'
 import { ref, onMounted, onUnmounted, defineProps } from 'vue'
+import { useRouter } from 'vue-router'
 import {
   User, Shield, Bell, MessageSquare, Settings, ChevronRight,
-  LogOut, CheckCircle
+  LogOut, CheckCircle, ChevronDown
 } from 'lucide-vue-next'
 import { logout, stopTokenRefreshTimer } from '@/Server/Autapi'
+import { useSessionStore } from '@/stores/sessionStore'
+
+const sessionStore = useSessionStore()
+const router = useRouter()
 
 // Props
 const props = defineProps({
@@ -245,21 +278,29 @@ const props = defineProps({
       Persona: {
         Nombre: 'Usuario',
         ApellidoPaterno: 'Demo',
-        Imagen: { Url: null },
+        Imagen:  null ,
         Rolpersona: [{ Rol: { Nombre: '' } }]
       }
     })
   }
 })
 
-const usuario = ref({})
-const obtenerRol = async (id) =>{
+const onRoleSelect = async (roleId) => {
+  const role = sessionStore.roles.find(r => r.IdRol === roleId)
+  if (role) {
+    await sessionStore.seleccionarRol(role)
+    showToastMessage(`Cambiado al rol: ${role.Nombre}`)
+  }
+}
+
+const CerrarSesion = async () =>{
     try {
-    const response = await RolUsuario(id);
-    usuario.value = response;
-    console.log(usuario.value)
+    await logout();
+    stopTokenRefreshTimer();
+    sessionStore.resetSession();
+    router.push('/login');
   } catch (error) {
-    console.error('Error al cargar usuarios:', error);
+    console.error('Error al cerrar sesion:', error);
   }
 }
 // Reactive data
@@ -286,7 +327,7 @@ const showToastMessage = (message) => {
 }
 
 const navigateToProfile = () => {
-  console.log('Navigating to profile...')
+
   // Si tienes Vue Router configurado:
   // this.$router.push('/home/perfil')
   showToastMessage('Navegando al perfil...')
@@ -294,32 +335,15 @@ const navigateToProfile = () => {
 }
 
 const openSettings = () => {
-  console.log('Opening settings...')
   showToastMessage('Abriendo configuración...')
   closeMenu()
 }
 
 const viewNotifications = () => {
-  console.log('Viewing notifications...')
   showToastMessage('Mostrando notificaciones...')
   closeMenu()
 }
 
-const logout = async () => {
-  console.log('Logging out...')
-  try {
-    await logout(); // Call the logout function from Autapi.js
-    stopTokenRefreshTimer(); // Stop the token refresh timer
-    showToastMessage('Cerrando sesión...');
-    closeMenu();
-    setTimeout(() => {
-      window.location.href = '/login'; // Redirect to login page
-    }, 2000);
-  } catch (error) {
-    console.error('Error during logout:', error);
-    showToastMessage('Error al cerrar sesión.');
-  }
-}
 
 const handleClickOutside = (event) => {
   if (menuContainer.value && !menuContainer.value.contains(event.target)) {
@@ -330,13 +354,11 @@ const handleClickOutside = (event) => {
 // Lifecycle
 onMounted(async ()  => {
   const usuarioStr = localStorage.getItem('usuario');
-  console.log(usuarioStr)
    if (usuarioStr) {
     const usuarios = JSON.parse(usuarioStr); // convertir string a objeto
-    console.log(usuarios);
-    obtenerRol(usuarios.IdUsuario);  // ahora sí accedes al IdUsuario
+    await sessionStore.cargarUsuarioYRoles(usuarios.IdUsuario);
   } else {
-    console.log("No hay usuario en localStorage");
+    
   }
   document.addEventListener('click', handleClickOutside)
 })

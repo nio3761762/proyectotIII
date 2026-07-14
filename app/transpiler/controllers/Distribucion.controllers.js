@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createDistribucion = exports.ObtenerCLienteDestino = exports.verifyDistribucion = exports.deleteDistribucion = exports.updateDistribucion = exports.getDistribucion = exports.getDistribuciones = void 0;
+exports.anularDistribucion = exports.createDistribucion = exports.ObtenerCLienteDestino = exports.verifyDistribucion = exports.deleteDistribucion = exports.updateDistribucion = exports.getDistribucion = exports.getDistribucionesSucursal = exports.getDistribuciones = void 0;
 const Distribucion_1 = require("../entities/Distribucion");
 const error_handler_1 = require("../utils/error.handler");
 const idGenerator_1 = require("../utils/idGenerator");
@@ -14,7 +14,9 @@ const Persona_controllers_1 = require("./Persona.controllers");
 const Celular_controllers_1 = require("./Celular.controllers");
 const Documento_controllers_1 = require("./Documento.controllers");
 const Entrega_1 = require("../entities/Entrega");
-const DIreccion_1 = require("../entities/DIreccion");
+const typeorm_1 = require("typeorm");
+const Pedido_1 = require("../entities/Pedido");
+const SucursalProducto_controllers_1 = require("./SucursalProducto.controllers");
 const getDistribuciones = async (req, res) => {
     try {
         const distribuciones = await Distribucion_1.Distribucion.find({
@@ -24,6 +26,7 @@ const getDistribuciones = async (req, res) => {
                 "Detalledistribucion.Producto",
                 "Detalledistribucion.Paquete",
                 "Pedido",
+                "Pedido.Venta.Sucursal",
                 "Sucursal"
             ]
         });
@@ -36,6 +39,39 @@ const getDistribuciones = async (req, res) => {
     }
 };
 exports.getDistribuciones = getDistribuciones;
+const getDistribucionesSucursal = async (req, res) => {
+    try {
+        const { fecha, idsucursal } = req.query;
+        const query = Distribucion_1.Distribucion.createQueryBuilder("distribucion")
+            .leftJoinAndSelect("distribucion.Estado", "Estado")
+            .leftJoinAndSelect("distribucion.Detalledistribucion", "Detalledistribucion")
+            .leftJoinAndSelect("Detalledistribucion.Producto", "Producto")
+            .leftJoinAndSelect("Detalledistribucion.Paquete", "Paquete")
+            .leftJoinAndSelect("distribucion.Pedido", "Pedido")
+            .leftJoinAndSelect("Pedido.Venta", "Venta")
+            .leftJoinAndSelect("Venta.Persona", "Persona")
+            .leftJoin("Venta.Sucursal", "VentaSucursal")
+            .leftJoinAndSelect("distribucion.Sucursal", "Sucursal")
+            .where("distribucion.FechaDistribucion = :fecha", { fecha });
+        if (idsucursal === 'Cocina') {
+            query.andWhere("distribucion.Origen = 'Cocina'");
+        }
+        else if (idsucursal !== 'TODOS') {
+            query.andWhere(new typeorm_1.Brackets(qb => {
+                qb.where("VentaSucursal.IdSucursal = :idsucursal", { idsucursal })
+                    .orWhere("Venta.IdVenta IS NULL");
+            }));
+        }
+        const distribuciones = await query.getMany();
+        return res.json(distribuciones);
+    }
+    catch (error) {
+        if (error instanceof Error) {
+            return res.status(500).json({ message: error.message });
+        }
+    }
+};
+exports.getDistribucionesSucursal = getDistribucionesSucursal;
 const getDistribucion = async (req, res) => {
     try {
         const { id } = req.params;
@@ -100,25 +136,72 @@ const updateDistribucion = async (req, res) => {
             if (d.IdDetalleDistribucion)
                 incomingDetalleIds.add(d.IdDetalleDistribucion);
         });
-        // Eliminar detalles que ya no existen
+        // Eliminar detalles que ya no existen y restaurar su stock
         for (const existingDetalle of existingDetalles) {
             if (!incomingDetalleIds.has(existingDetalle.IdDetalleDistribucion)) {
                 await (0, Detalledistribucion_controllers_1.deleteDetalledistribucionAndRestoreStock)({
                     Iddetalle: existingDetalle.IdDetalleDistribucion,
+                    SucursalId: reservas.IdSucursal
                 });
             }
         }
         // Actualizar o insertar cada detalle
-        for (const detalle of detalles) {
-            await (0, Detalledistribucion_controllers_1.updateDetalledistribucion)({
-                Iddetalle: detalle.IdDetalleDistribucion,
-                IdProducto: detalle.IdProducto || "",
-                Cantidad: detalle.Cantidad,
-                IdPaquete: detalle.IdPaquete || "",
-                IdVenta: distribucion.IdDistribucion,
-                Precio: detalle.Precio,
-                Modo: detalle.Modo
-            });
+        if (detalles) {
+            for (const detalle of detalles) {
+                // Buscar el detalle existente para comparar cantidades
+                const detalleExistente = existingDetalles.find(d => d.IdDetalleDistribucion === detalle.IdDetalleDistribucion);
+                await (0, Detalledistribucion_controllers_1.updateDetalledistribucion)({
+                    Iddetalle: detalle.IdDetalleDistribucion,
+                    IdProducto: detalle.IdProducto || "",
+                    Cantidad: detalle.Cantidad,
+                    IdPaquete: detalle.IdPaquete || "",
+                    IdVenta: distribucion.IdDistribucion,
+                    Precio: detalle.Precio,
+                    Modo: detalle.Modo
+                });
+                // Calcular la diferencia de stock
+                if (detalleExistente) {
+                    // Si existe, calcular la diferencia entre nueva y anterior
+                    const cantidadAnterior = detalleExistente.Cantidad;
+                    const cantidadNueva = detalle.Cantidad;
+                    const diferencia = cantidadNueva - cantidadAnterior;
+                    // Si diferencia > 0: se agregaron unidades, decrementar stock
+                    // Si diferencia < 0: se quitaron unidades, incrementar stock (restaurar)
+                    if (diferencia !== 0) {
+                        if (detalle.IdProducto) {
+                            await (0, SucursalProducto_controllers_1.DecrementProducto)({
+                                SucursalId: reservas.IdSucursal,
+                                ProductoId: detalle.IdProducto,
+                                Cantidad: diferencia
+                            });
+                        }
+                        else {
+                            await (0, SucursalProducto_controllers_1.DecrementPaquete)({
+                                SucursalId: reservas.IdSucursal,
+                                PaqueteId: detalle.IdPaquete,
+                                Cantidad: diferencia
+                            });
+                        }
+                    }
+                }
+                else {
+                    // Si es un detalle nuevo, decrementar el stock por la cantidad completa
+                    if (detalle.IdProducto) {
+                        await (0, SucursalProducto_controllers_1.DecrementProducto)({
+                            SucursalId: reservas.IdSucursal,
+                            ProductoId: detalle.IdProducto,
+                            Cantidad: detalle.Cantidad
+                        });
+                    }
+                    else {
+                        await (0, SucursalProducto_controllers_1.DecrementPaquete)({
+                            SucursalId: reservas.IdSucursal,
+                            PaqueteId: detalle.IdPaquete,
+                            Cantidad: detalle.Cantidad
+                        });
+                    }
+                }
+            }
         }
         return res.status(201).json({ message: "Se actualizó correctamente" });
     }
@@ -156,6 +239,7 @@ exports.verifyDistribucion = verifyDistribucion;
 const ObtenerCLienteDestino = async (req, res) => {
     try {
         const { id } = req.params;
+        console.log(id);
         const result = await Distribucion_1.Distribucion.findOne({
             where: { IdDistribucion: id },
             relations: ['Pedido', 'Pedido.Venta', 'Pedido.Venta.Persona', 'Entrega']
@@ -163,39 +247,42 @@ const ObtenerCLienteDestino = async (req, res) => {
         if (!result) {
             return res.status(404).json({ message: "Distribucion no encontrada" });
         }
+        if (!result.Entrega) {
+            return res.status(404).json({ message: "La distribución no tiene entrega asociada" });
+        }
         const entrega = await Entrega_1.Entrega.findOne({
             where: { IdEntrega: result.Entrega.IdEntrega },
-            relations: ['Direccion', 'Direccion.Barrio', 'Tipoentrega']
+            relations: ['Direccion', 'Direccion.Barrio', 'Direccion.Sucursal', 'Tipoentrega']
         });
         if (!entrega) {
-            return res.status(404).json({ message: "entrega no encontrada" });
+            return res.status(404).json({ message: "Entrega no encontrada" });
         }
-        const resultSucursal = await DIreccion_1.Direccion.findOne({
-            where: { IdDireccion: entrega.Direccion.IdDireccion },
-            relations: ['Sucursal']
-        });
-        if (!resultSucursal) {
-            return res.status(404).json({ message: "Direccion no encontrada" });
+        if (!entrega.Direccion) {
+            return res.status(404).json({ message: "La entrega no tiene dirección asociada" });
         }
         return res.json({
-            IdCliente: result?.Pedido?.Venta?.Persona?.IdPersona,
+            IdCliente: result?.Pedido?.Venta?.Persona?.IdPersona || null,
+            Nombre: result?.Pedido?.Venta?.Persona?.Nombre || null,
+            ApellidoPaterno: result?.Pedido?.Venta?.Persona?.ApellidoPaterno || null,
+            ApellidoMaterno: result?.Pedido?.Venta?.Persona?.ApellidoMaterno || null,
             EntregaId: entrega.IdEntrega,
-            direccion: entrega.Direccion.Direccion,
-            fecha: entrega.FechaEntrega,
-            hora: entrega.HoraEntrega,
-            barrioId: entrega.Direccion.Barrio.IdBarrio,
+            direccion: entrega.Direccion.Direccion || null,
+            fecha: entrega.FechaEntrega || null,
+            hora: entrega.HoraEntrega || null,
+            barrioId: entrega.Direccion.Barrio?.IdBarrio || null,
             DireccionId: entrega.Direccion.IdDireccion,
-            referencia: entrega.Direccion.Referencia,
-            ubicacion: entrega.Direccion.Ubicacion,
-            costoEnvio: entrega.CostoEntrega,
-            tipo: entrega.Tipoentrega.IdTipoEntrega,
-            IdSucursal: resultSucursal?.Sucursal?.IdSucursal
+            referencia: entrega.Direccion.Referencia || null,
+            ubicacion: entrega.Direccion.Ubicacion || null,
+            costoEnvio: entrega.CostoEntrega || 0,
+            tipo: entrega.Tipoentrega?.IdTipoEntrega || null,
+            IdSucursal: entrega.Direccion.Sucursal?.IdSucursal || null
         });
     }
     catch (error) {
         if (error instanceof Error) {
-            return res.status(500).json({ message: error.message });
+            return res.status(500).json({ message: "Error al obtener cliente destino", error: error.message });
         }
+        return res.status(500).json({ message: "Error al obtener cliente destino" });
     }
 };
 exports.ObtenerCLienteDestino = ObtenerCLienteDestino;
@@ -211,7 +298,7 @@ const createDistribucion = async (req, res) => {
         nuevoPedido.FechaDistribucion = fechaLocal;
         nuevoPedido.HoraDistribucion = fechaHoraActual.toTimeString().slice(0, 8);
         nuevoPedido.Estado = await (0, Estado_controllers_1.verifyEstado)({ EstadoId: 6 });
-        nuevoPedido.Origen = (reservas.IdSucursal === 'TODOS') ? 'Cocina' : reservas.IdSucursal;
+        nuevoPedido.Origen = reservas.IdSucursal;
         if (reservas.DestinoFInal !== 'TODOS')
             nuevoPedido.Sucursal = await (0, Sucursal_controllers_1.verifySucursal)({ SucursalId: reservas.DestinoFInal });
         if (reservas.Nombre) {
@@ -255,6 +342,12 @@ const createDistribucion = async (req, res) => {
                     Modo: producto.Modo
                 });
             }
+            for (const producto of detalles) {
+                if (producto.IdProducto)
+                    await (0, SucursalProducto_controllers_1.DecrementProducto)({ SucursalId: reservas.IdSucursal, ProductoId: producto.IdProducto, Cantidad: producto.Cantidad });
+                else
+                    await (0, SucursalProducto_controllers_1.DecrementPaquete)({ SucursalId: reservas.IdSucursal, PaqueteId: producto.IdPaquete, Cantidad: producto.Cantidad });
+            }
         }
         return res.status(201).json({ message: "Se registró correctamente" });
     }
@@ -289,3 +382,48 @@ const DataPersona = async (personaData) => {
     }
     return persona.IdPersona;
 };
+const anularDistribucion = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const distribucion = await Distribucion_1.Distribucion.findOne({
+            where: { IdDistribucion: id },
+            relations: ["Pedido", "Entrega", "Detalledistribucion"]
+        });
+        if (!distribucion) {
+            return res.status(404).json({ message: "Distribucion not found" });
+        }
+        // Assuming state 5 is "Anulado". Please verify.
+        const estadoAnulado = await (0, Estado_controllers_1.verifyEstado)({ EstadoId: 5 });
+        distribucion.Estado = estadoAnulado;
+        if (distribucion.Pedido) {
+            const pedido = await Pedido_1.Pedido.findOne({ where: { IdPedido: distribucion.Pedido.IdPedido } });
+            if (pedido) {
+                pedido.Estado = estadoAnulado;
+                await pedido.save();
+            }
+        }
+        if (distribucion.Entrega) {
+            const entrega = await Entrega_1.Entrega.findOne({ where: { IdEntrega: distribucion.Entrega.IdEntrega } });
+            if (entrega) {
+                entrega.Estado = estadoAnulado;
+                await entrega.save();
+            }
+        }
+        if (distribucion.Detalledistribucion) {
+            for (const detalle of distribucion.Detalledistribucion) {
+                await (0, Detalledistribucion_controllers_1.deleteDetalledistribucionAndRestoreStock)({
+                    Iddetalle: detalle.IdDetalleDistribucion,
+                    SucursalId: distribucion.Origen // Usar el origen de la distribución
+                });
+            }
+        }
+        await distribucion.save();
+        return res.status(200).json({ message: "Distribucion anulada correctamente" });
+    }
+    catch (error) {
+        if (error instanceof Error) {
+            return res.status(500).json({ message: error.message });
+        }
+    }
+}; //
+exports.anularDistribucion = anularDistribucion;

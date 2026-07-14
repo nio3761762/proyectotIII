@@ -28,18 +28,7 @@ export const listarPagoVenta = async (id) => {
     console.error('Error al obtener los pagos de la venta:', error);
     throw error;
   }
-};
-
-export const listarMetodo = async () => {
-  try {
-    const response = await API.get(`getmetodopago`);
-    return response.data;
-  } catch (error) {
-    console.error('Error al obtener los métodos de pago:', error);
-    throw error;
-  }
-};
-
+}
 
 export const listarPago = async () => {
   try {

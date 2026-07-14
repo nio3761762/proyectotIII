@@ -2,7 +2,9 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const Factura_controllers_1 = require("../controllers/Factura.controllers");
+const verifyToken_1 = require("../middleware/verifyToken");
 const router = (0, express_1.Router)();
+router.use(verifyToken_1.authMiddleware);
 router.post('/factura', Factura_controllers_1.createFactura);
 router.put('/insertarEnlaceFactura/:id', Factura_controllers_1.insertarEnlaceFactura);
 router.get('/ObtenerFactura/:id', Factura_controllers_1.ObtenerFactura);

@@ -14,7 +14,6 @@ const typeorm_1 = require("typeorm");
 const Comprobante_1 = require("./Comprobante");
 const Proveedor_1 = require("./Proveedor");
 const DetalleCompra_1 = require("./DetalleCompra");
-const Estado_1 = require("./Estado");
 let Compra = class Compra extends typeorm_1.BaseEntity {
 };
 exports.Compra = Compra;
@@ -27,9 +26,17 @@ __decorate([
     __metadata("design:type", String)
 ], Compra.prototype, "NroComprobante", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ name: "preciototal", type: "numeric", precision: 10, scale: 2, default: 0 }),
+    __metadata("design:type", Number)
+], Compra.prototype, "PrecioTotal", void 0);
+__decorate([
     (0, typeorm_1.Column)({ name: "fechacompra", type: "date" }),
     __metadata("design:type", Date)
 ], Compra.prototype, "FechaCompra", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'descripcion', type: "text", nullable: true }),
+    __metadata("design:type", String)
+], Compra.prototype, "Descripcion", void 0);
 __decorate([
     (0, typeorm_1.Column)({ name: "horacompra", type: "time", nullable: true }),
     __metadata("design:type", String)
@@ -49,11 +56,9 @@ __decorate([
     __metadata("design:type", Array)
 ], Compra.prototype, "Detallecompra", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => Estado_1.Estado, (estado) => estado.Compra, { nullable: true }),
-    (0, typeorm_1.JoinColumn)({ name: "idestado" }),
-    __metadata("design:type", Estado_1.Estado)
+    (0, typeorm_1.Column)({ name: "estado", type: "integer", default: 1 }),
+    __metadata("design:type", Number)
 ], Compra.prototype, "Estado", void 0);
 exports.Compra = Compra = __decorate([
     (0, typeorm_1.Entity)()
-    //@Check(`"Estado" IN (0, 1)`)
 ], Compra);

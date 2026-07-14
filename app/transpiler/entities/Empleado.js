@@ -11,73 +11,56 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Empleado = void 0;
 const typeorm_1 = require("typeorm");
-const Users_1 = require("./Users");
-const Envio_1 = require("./Envio");
-const venta_1 = require("./venta");
+const Persona_1 = require("./Persona");
+const EmpleadoSucursal_1 = require("./EmpleadoSucursal");
+const Salario_1 = require("./Salario");
+const EmpleadoCargo_1 = require("./EmpleadoCargo");
+const Transferencia_1 = require("./Transferencia");
+const ProduccionEmpleado_1 = require("./ProduccionEmpleado");
 let Empleado = class Empleado extends typeorm_1.BaseEntity {
 };
 exports.Empleado = Empleado;
 __decorate([
-    (0, typeorm_1.PrimaryColumn)({ type: "integer" }),
-    __metadata("design:type", Number)
-], Empleado.prototype, "Id_Empleado", void 0);
-__decorate([
-    (0, typeorm_1.Column)({ type: "varchar", length: 8 }),
+    (0, typeorm_1.PrimaryColumn)({ name: "idempleado", type: "varchar", length: 150 }),
     __metadata("design:type", String)
-], Empleado.prototype, "Usuario_Id", void 0);
+], Empleado.prototype, "IdEmpleado", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: "varchar", length: 50 }),
-    __metadata("design:type", String)
-], Empleado.prototype, "Nombres", void 0);
+    (0, typeorm_1.OneToOne)(() => Persona_1.Persona, (persona) => persona.Empleado),
+    (0, typeorm_1.JoinColumn)({ name: "idpersona" }),
+    __metadata("design:type", Persona_1.Persona)
+], Empleado.prototype, "Persona", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: "varchar", length: 100 }),
-    __metadata("design:type", String)
-], Empleado.prototype, "Apellidos", void 0);
+    (0, typeorm_1.OneToMany)(() => EmpleadoCargo_1.EmpleadoCargo, (ec) => ec.Empleado),
+    __metadata("design:type", Array)
+], Empleado.prototype, "EmpleadoCargos", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: "varchar", length: 100 }),
-    __metadata("design:type", String)
-], Empleado.prototype, "Direccion", void 0);
-__decorate([
-    (0, typeorm_1.Column)({ type: "integer" }),
-    __metadata("design:type", Number)
-], Empleado.prototype, "Telefono", void 0);
-__decorate([
-    (0, typeorm_1.Column)({ type: "integer" }),
-    __metadata("design:type", Number)
-], Empleado.prototype, "CI", void 0);
-__decorate([
-    (0, typeorm_1.Column)({ type: "varchar", length: 50 }),
-    __metadata("design:type", String)
-], Empleado.prototype, "CorreoElectronico", void 0);
-__decorate([
-    (0, typeorm_1.Column)({ type: "date" }),
+    (0, typeorm_1.Column)({ name: "fechaingreso", type: "date" }),
     __metadata("design:type", Date)
-], Empleado.prototype, "FechaNacimiento", void 0);
+], Empleado.prototype, "FechaIngreso", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: "decimal", precision: 10, scale: 2 }),
-    __metadata("design:type", Number)
-], Empleado.prototype, "Salario", void 0);
+    (0, typeorm_1.Column)({ name: "Fechasalida", type: "date", nullable: true }),
+    __metadata("design:type", Date)
+], Empleado.prototype, "FechaSalida", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: "varchar", length: 255 }),
-    __metadata("design:type", String)
-], Empleado.prototype, "Imagen", void 0);
-__decorate([
-    (0, typeorm_1.Column)({ type: "integer" }),
+    (0, typeorm_1.Column)({ name: "estado", type: "integer", default: 1 }),
     __metadata("design:type", Number)
 ], Empleado.prototype, "Estado", void 0);
 __decorate([
-    (0, typeorm_1.OneToOne)(() => Users_1.Usuario, (usuario) => usuario.empleado),
-    (0, typeorm_1.JoinColumn)({ name: "Usuario_Id" }),
-    __metadata("design:type", Users_1.Usuario)
-], Empleado.prototype, "usuario", void 0);
-__decorate([
-    (0, typeorm_1.OneToOne)(() => Envio_1.Envio, (envio) => envio.empleado),
+    (0, typeorm_1.OneToMany)(() => EmpleadoSucursal_1.EmpleadoSucursal, (es) => es.Empleado),
     __metadata("design:type", Array)
-], Empleado.prototype, "envio", void 0);
+], Empleado.prototype, "EmpleadoSucursales", void 0);
 __decorate([
-    (0, typeorm_1.OneToMany)(() => venta_1.Venta, (venta) => venta.empleado),
+    (0, typeorm_1.OneToMany)(() => ProduccionEmpleado_1.ProduccionEmpleado, (es) => es.Empleado),
     __metadata("design:type", Array)
-], Empleado.prototype, "venta", void 0);
+], Empleado.prototype, "Produccion", void 0);
+__decorate([
+    (0, typeorm_1.OneToMany)(() => Transferencia_1.Transferencia, (es) => es.EmpleadoDestino),
+    __metadata("design:type", Array)
+], Empleado.prototype, "Transferencia", void 0);
+__decorate([
+    (0, typeorm_1.OneToMany)(() => Salario_1.Salario, (salario) => salario.Empleado),
+    __metadata("design:type", Array)
+], Empleado.prototype, "Salarios", void 0);
 exports.Empleado = Empleado = __decorate([
     (0, typeorm_1.Entity)()
 ], Empleado);

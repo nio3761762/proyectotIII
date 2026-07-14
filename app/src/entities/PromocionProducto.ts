@@ -1,39 +1,37 @@
 
 import { BaseEntity, Check, OneToMany, Column, Entity, PrimaryColumn, OneToOne, ManyToOne, JoinColumn } from "typeorm";
-import bcrypt from "bcryptjs";
-import { Estado } from "./Estado";
-import { Tipopromocion } from "./Tipopromocion";
 import { Promocion } from "./Promocion";
 import { Producto } from "./Producto";
-import { Unidadmedida } from "./UnidadMedida";
-import { Presentacionproducto } from "./Presentacionproducto";
+import { Productomedida } from "./ProductoMedida";
+
 
 @Entity()
-//@Check(`"Estado" IN (0, 1)`)
 export class Promocionproducto extends BaseEntity {
   @PrimaryColumn({ name: 'idpromocionproducto', type: "varchar", length: 100 })
   IdPromocionProducto: string;
 
   @Column({ name: 'cantidad', type: "integer" })
   Cantidad: number;
-
+   
   @Column({ name: 'descuento', type: "numeric", precision: 10, scale: 2 })
   Descuento: number;
+   
+  @Column({ name: "precio", type: "numeric", precision: 10, scale: 2, default:0 })
+  Precio: number;
 
-  @ManyToOne(() => Producto, (producto) => producto.Promocionproducto,{nullable:true})
+  @ManyToOne(() => Producto, (producto) => producto.Promocionproducto, {nullable:true})
   @JoinColumn({ name: "idproducto" })
   Producto: Producto;
 
-  @ManyToOne(() => Presentacionproducto, (presentacion) => presentacion.Promocionproducto,{nullable:true})
-  @JoinColumn({ name: "idpaquete" })
-  Paquete: Presentacionproducto;
-
+  @ManyToOne(() => Productomedida, (producto) => producto.Promocionproducto, {nullable:true})
+  @JoinColumn({ name: "idproductomedida" })
+  Productomedida: Productomedida;
+ 
   @ManyToOne(() => Promocion, (promocion) => promocion.Promocionproducto)
   @JoinColumn({ name: "idpromocion" })
   Promocion: Promocion;
 
-  @ManyToOne(() => Estado, (estado) => estado.Promocionproducto)
-  @JoinColumn({ name: "idestado" })
-  Estado: Estado;
+  @Column({ name: "estado", type: "integer",default: 1}) 
+  Estado: number; 
   
 }

@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const Olap_controllers_1 = require("../controllers/Olap.controllers");
 const router = (0, express_1.Router)();
+//router.use(authMiddleware);
 router.get("/Olap/test", Olap_controllers_1.testDetalleVenta);
 router.get("/Olap/daily_summary", Olap_controllers_1.getDailySummary);
 router.get("/Olap/summary", Olap_controllers_1.getOlapDataForDateAndBranch);

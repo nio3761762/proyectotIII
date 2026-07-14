@@ -1,290 +1,327 @@
 <template>
-  <div class="min-h-screen  p-6 space-y-8">
-    <!-- bg-gradient-to-br from-slate-50 via-orange-50/30 to-red-50/20 -->
-    <!-- VISTA PRINCIPAL: LISTA DE PRESENTACIONES -->
-    <div>
-      <PresentacionHeader @new-presentation="iniciarModoEdicion" />
+  <div class="min-h-screen">
+    <div class="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-orange-400/5 to-red-500/5 rounded-full blur-3xl pointer-events-none"></div>
+    <div class="absolute bottom-0 left-0 w-80 h-80 bg-gradient-to-tr from-red-400/5 to-orange-500/5 rounded-full blur-2xl pointer-events-none"></div>
 
-      <PresentacionFilters v-model="filtros.nombre" />
+    <Transition name="fade" mode="out-in">
+      <!-- Loading inicial -->
+      <div v-if="cargandoInicial" class="flex items-center justify-center py-20">
+        <div class="text-center">
+          <div class="relative mb-6">
+            <div class="w-20 h-20 mx-auto relative">
+              <div class="absolute inset-0 rounded-full border-4 border-orange-200 animate-pulse"></div>
+              <div class="absolute inset-0 rounded-full border-4 border-transparent border-t-orange-500 border-r-red-500 animate-spin"></div>
+              <div class="absolute inset-0 flex items-center justify-center">
+                <div class="p-3 bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl shadow-lg">
+                  <Package class="h-6 w-6 text-white" />
+                </div>
+              </div>
+            </div>
+          </div>
+          <h3 class="text-lg font-bold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent mb-1">Cargando Presentaciones</h3>
+          <p class="text-gray-500 text-sm">Preparando datos...</p>
+          <div class="mt-4 w-40 mx-auto h-1 bg-gray-200 rounded-full overflow-hidden">
+            <div class="h-full bg-gradient-to-r from-orange-500 to-red-500 rounded-full animate-pulse"></div>
+          </div>
+        </div>
+      </div>
 
-      <PresentacionList
-        :presentaciones="presentacionesPaginadas"
-        @edit="iniciarModoEdicion"
-        @toggle-status="abrirModalConfirmacion"
-      />
+      <!-- Contenido principal -->
+      <div v-else>
+        <!-- Header -->
+        <div class="relative bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl border border-white/50 p-8">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-4">
+              <div class="p-3 bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl shadow-lg">
+                <Package class="h-8 w-8 text-white" />
+              </div>
+              <div>
+                <h1 class="text-4xl font-bold bg-gradient-to-r from-orange-600 via-red-600 to-orange-700 bg-clip-text text-transparent">
+                  Gestión de Presentaciones
+                </h1>
+                <p class="text-gray-600 mt-1 font-medium">Administra las presentaciones de productos</p>
+              </div>
+            </div>
+            <div class="hidden md:flex items-center space-x-6">
+              <div class="text-center">
+                <div class="text-2xl font-bold text-gray-800">{{ paginacion.total ?? 0 }}</div>
+                <div class="text-sm text-gray-500">Total</div>
+              </div>
+              <div class="p-2 bg-orange-100 rounded-xl">
+                <TrendingUp class="h-6 w-6 text-orange-600" />
+              </div>
+            </div>
+          </div>
+        </div>
 
-      <PresentacionPagination
-        v-if="totalPaginas > 0"
-        :totalPaginas="totalPaginas"
-        :paginaActual="paginaActual"
-        :paginacionInfo="paginacionInfo"
-        :visiblePages="visiblePages"
-        @update:paginaActual="paginaActual = $event"
-      />
-    </div>
+        <!-- Filtros -->
+        <div class="mt-6">
+          <FiltrosPresentacion
+            v-model:search="filtros.search"
+            v-model:estado="filtros.estado"
+            v-model:limite="filtros.limite"
+            @update:search="onSearchChange"
+            @update:estado="onEstadoChange"
+            @update:limite="onLimiteChange"
+          >
+            <template #acciones>
+              <button
+                @click="abrirFormularioNuevo"
+                class="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white rounded-2xl px-6 py-2 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 flex items-center gap-2 font-bold"
+              >
+                <Plus class="h-4 w-4" />
+                Nueva Presentación
+              </button>
+            </template>
+          </FiltrosPresentacion>
+        </div>
 
-    <PresentacionFormModal
+        <!-- Cards -->
+        <div class="relative mt-6">
+          <Transition name="fade">
+            <div v-if="cargando" class="absolute inset-0 bg-white/50 backdrop-blur-sm flex items-center justify-center rounded-3xl z-10">
+              <div class="animate-spin rounded-full h-10 w-10 border-4 border-orange-500 border-t-transparent"></div>
+            </div>
+          </Transition>
+
+          <div v-if="!cargando && presentaciones.length === 0" class="bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl border border-white/50 p-16 text-center">
+            <div class="p-4 bg-gradient-to-br from-orange-100 to-red-100 rounded-full w-20 h-20 mx-auto mb-4 flex items-center justify-center">
+              <Package class="h-10 w-10 text-orange-500" />
+            </div>
+            <h3 class="text-xl font-bold text-gray-700 mb-2">No se encontraron presentaciones</h3>
+            <p class="text-gray-500">Intenta cambiar los filtros o registra una nueva presentación.</p>
+          </div>
+
+          <div v-else class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            <PresentacionCard
+              v-for="pres in presentaciones"
+              :key="pres.idpresentacion || pres.IdPresentacion"
+              :presentacion="pres"
+              @editar="abrirFormularioEditar"
+              @toggleEstado="abrirModalConfirmacion"
+            />
+          </div> 
+
+          <Paginado
+            :paginaActual="paginacion.paginaActual"
+            :totalPaginas="paginacion.totalPaginas"
+            :total="paginacion.total"
+            :limite="filtros.limite"
+            @update:paginaActual="onCambiarPagina"
+          />
+        </div>
+      </div>
+    </Transition>
+
+    <!-- Modal Registro/Edición -->
+    <RegistrarPresentacion
       :show="showModal"
-      :esNuevaPresentacion="esNuevaPresentacion"
-      :presentacion="presentacionEditada"
-      :errors="errors"
-      @update:presentacion="presentacionEditada = $event"
-      @close="cancelarModoEdicion"
-      @save="guardarPresentacion"
+      :presentacion="presentacionSeleccionada"
+      :guardando="guardando"
+      :presentacionesExistentes="presentaciones"
+      @guardar="onGuardar"
+      @cancelar="cerrarFormulario"
     />
 
-    <!-- MODAL DE CONFIRMACIÓN -->
-    <ConfirmacionModal
-      :show="modalAct"
-      :title="presentacionParaAccion?.estadoActual === 1 ? '¿Desactivar Presentación?' : '¿Activar Presentación?'"
-      :confirmText="`Sí, ${mensajeModal}`"
-      cancelText="Cancelar"
-      :confirmButtonClass="presentacionParaAccion?.estadoActual === 1 ? 'bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-red-500' : 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-emerald-600 hover:to-green-500'"
-      :iconComponent="AlertTriangle"
-      iconClass="h-10 w-10 text-orange-500"
-      @confirm="confirmar"
-      @cancel="cerrarModalConfirmacion"
-    >
-      ¿Está seguro de que desea {{ mensajeModal.toLowerCase() }} la presentación
-      <span class="font-semibold text-gray-900 bg-gradient-to-r from-orange-100 to-red-100 px-2 py-1 rounded-lg">
-        {{ presentacionParaAccion?.nombre }}
-      </span>?
-    </ConfirmacionModal>
-    
-    <!-- Success Toast -->
-    <div
-      v-if="showSuccessToast"
-      class="fixed top-6 right-6 bg-green-500 text-white px-6 py-4 rounded-2xl shadow-xl flex items-center gap-3 z-50 animate-slide-in"
-    >
-      <CheckCircle class="h-5 w-5" />
-      <span class="font-semibold">{{ successMessage }}</span>
-    </div>
+    <!-- Notificación -->
+    <Transition name="slide-up">
+      <div v-if="notificacion.visible" class="fixed bottom-6 right-6 bg-gradient-to-r from-orange-500 to-red-600 text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-2 z-50 font-semibold">
+        <CheckCircle class="h-5 w-5" />
+        {{ notificacion.mensaje }}
+      </div>
+    </Transition>
+
+    <!-- Modal Confirmación (Estándar de Usuario) -->
+    <ModalConfirmacion
+      :show="modalConfirmacion.visible"
+      :mensaje="modalConfirmacion.accion"
+      :nombreUsuario="modalConfirmacion.nombre"
+      @confirmar="onConfirmarCambioEstado"
+      @cancelar="cerrarModalConfirmacion"
+    />
   </div>
 </template>
 
-<style scoped>
-@keyframes slide-in {
-  from {
-    transform: translateX(100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
-}
-
-.animate-slide-in {
-  animation: slide-in 0.3s ease-out;
-}
-</style>
-
 <script setup>
-import { ref, computed, onMounted, reactive, watch } from 'vue'
-import { AlertTriangle, CheckCircle } from 'lucide-vue-next'; // Only import what's needed here
+import { ref, reactive, onMounted } from 'vue';
+import { Package, TrendingUp, Plus, CheckCircle } from 'lucide-vue-next';
 
-import ConfirmacionModal from '../Modals/ConfirmacionModal.vue';
-import PresentacionHeader from './PresentacionHeader.vue';
-import PresentacionFilters from './PresentacionFilters.vue';
-import PresentacionList from './PresentacionList.vue';
-import PresentacionPagination from './PresentacionPagination.vue';
-import PresentacionFormModal from './PresentacionFormModal.vue';
+import { 
+  listarPresentaciones, 
+  registrarPresentacion, 
+  updatePresentacion, 
+  deletePresentacion 
+} from '@/Server/Presentacion';
 
-import { listarPresentaciones, registrarPresentacion, updatePresentacion, deletePresentacion } from '@/Server/Presentacion';
-import { useAlertStore } from '@/stores/alertStore';
+import FiltrosPresentacion from './FiltrosPresentacion.vue';
+import PresentacionCard from './PresentacionCard.vue';
+import RegistrarPresentacion from './RegistrarPresentacion.vue';
+import Paginado from '@/views/Components/Modals/Paginado.vue';
+import ModalConfirmacion  from '@/views/Components/Modals/ModalConfirmacion.vue';
 
-// --- State ---
-const presentaciones = ref([]);
-const alertStore = useAlertStore();
+// --- Estado ---
+const cargandoInicial = ref(true);
+const cargando = ref(false);
+const guardando = ref(false);
 const showModal = ref(false);
-const esNuevaPresentacion = ref(true);
-const modalAct = ref(false);
-const showSuccessToast = ref(false);
-const successMessage = ref('');
-const filtros = ref({
-  nombre: "",
+const presentacionSeleccionada = ref(null);
+const presentaciones = ref([]);
+
+const paginacion = reactive({
+  paginaActual: 1,
+  totalPaginas: 1,
+  total: 0
 });
 
-const paginaActual = ref(1);
-const itemsPerPage = 6;
-
-const presentacionEditada = ref({
-  IdPresentacion: null,
-  Nombre: "",
+const filtros = reactive({
+  search: '',
+  estado: '-1',
+  limite: 8
 });
 
-const presentacionParaAccion = ref(null);
-const mensajeModal = ref("");
+const notificacion = reactive({
+  visible: false,
+  mensaje: ''
+});
 
-// Validation errors
-const errors = reactive({
+const modalConfirmacion = reactive({
+  visible: false,
   nombre: '',
+  accion: '',
+  id: null
 });
 
-const validateField = (field, value, allPresentaciones = [], isEditing = false, currentPresentacionId = null) => {
-  let error = '';
-  switch (field) {
-    case 'nombre':
-      if (!value) error = 'El nombre es requerido.';
-      else if (value.length > 50) error = 'El nombre no puede tener más de 50 caracteres.';
-      else if (!/^[a-zA-Z\s]*$/.test(value)) error = 'El nombre solo puede contener letras y espacios.';
-      else {
-        const lowerCaseValue = value.toLowerCase();
-        const isDuplicate = allPresentaciones.some(pres => {
-          // Exclude current presentation if editing
-          if (isEditing && pres.IdPresentacion === currentPresentacionId) {
-            return false;
-          }
-          return pres.Nombre.toLowerCase() === lowerCaseValue;
-        });
-        if (isDuplicate) error = 'Ya existe una presentación con este nombre.';
-      }
-      break;
-    default:
-      break;
-  }
-  return error;
-};
+let debounceTimer = null;
 
-const validateForm = () => {
-  errors.nombre = validateField('nombre', presentacionEditada.value.Nombre, presentaciones.value, !esNuevaPresentacion.value, presentacionEditada.value.IdPresentacion);
-  return Object.values(errors).every(error => !error);
-};
-
-const nombreError = computed(() => {
-  return validateField('nombre', presentacionEditada.value.Nombre, presentaciones.value, !esNuevaPresentacion.value, presentacionEditada.value.IdPresentacion);
-});
-
-watch(nombreError, (newError) => {
-  errors.nombre = newError;
-});
-
-// --- Computed properties ---
-const presentacionesFiltradas = computed(() => {
-  let filtradas = presentaciones.value;
-  if (filtros.value.nombre) {
-    const nombreLower = filtros.value.nombre.toLowerCase();
-    filtradas = filtradas.filter(p => p.Nombre.toLowerCase().includes(nombreLower));
-  }
-  return filtradas;
-});
-
-const totalPaginas = computed(() => {
-  return Math.ceil(presentacionesFiltradas.value.length / itemsPerPage)
-});
-
-const presentacionesPaginadas = computed(() => {
-  const start = (paginaActual.value - 1) * itemsPerPage;
-  const end = start + itemsPerPage;
-  return presentacionesFiltradas.value.slice(start, end);
-});
-
-const paginacionInfo = computed(() => {
-  const total = presentacionesFiltradas.value.length;
-  const inicio = total === 0 ? 0 : (paginaActual.value - 1) * itemsPerPage + 1;
-  const fin = Math.min(inicio + itemsPerPage - 1, total);
-  return `Mostrando ${inicio}-${fin} de ${total} presentaciones`;
-});
-
-const visiblePages = computed(() => {
-  const pages = [];
-  for (let i = 1; i <= totalPaginas.value; i++) {
-    pages.push(i);
-  }
-  return pages;
-});
-
-// --- Methods ---
-const mostrarNotificacion = (mensaje) => {
-  successMessage.value = mensaje;
-  showSuccessToast.value = true;
-  setTimeout(() => {
-    showSuccessToast.value = false;
-  }, 1000);
-};
-
-const ListarPresentaciones = async () => {
+// --- Métodos ---
+const cargarPresentaciones = async () => {
   try {
-    const response = await listarPresentaciones();
-    presentaciones.value = response;
-  } catch (error) {
-    console.error('Error al cargar presentaciones:', error);
+    cargando.value = true;
+    const estadoParam = filtros.estado === '-1' ? undefined : filtros.estado;
+    
+    const resp = await listarPresentaciones(
+      filtros.search || undefined,
+      estadoParam,
+      paginacion.paginaActual,
+      filtros.limite
+    );
+
+    presentaciones.value = resp.data || [];
+    paginacion.total = parseInt(resp.total) || 0;
+    paginacion.totalPaginas = Math.ceil(paginacion.total / filtros.limite);
+    
+  } catch (err) {
+    console.error('Error al cargar presentaciones:', err);
+    mostrarNotificacion('Error al cargar presentaciones');
+  } finally {
+    cargando.value = false;
+    cargandoInicial.value = false;
   }
 };
 
-const guardarPresentacion = async () => {
-  if (!validateForm()) {
-    return;
-  }
-  try {
-    let response = '';
-    if (esNuevaPresentacion.value) {
-      response = await registrarPresentacion(presentacionEditada.value);
-    } else {
-      response = await updatePresentacion(presentacionEditada.value);
-    }
-    cancelarModoEdicion();
-    await ListarPresentaciones();
-    mostrarNotificacion(response.message);
-    alertStore.fetchAlerts();
-  } catch (error) {
-    console.error('Error al guardar la presentación:', error);
-  }
-}
+const onSearchChange = (val) => {
+  filtros.search = val;
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => {
+    paginacion.paginaActual = 1;
+    cargarPresentaciones();
+  }, 400);
+};
 
-const confirmar = async () => {
-  if (presentacionParaAccion.value) {
-    try {
-      const response = await deletePresentacion(presentacionParaAccion.value.id);
-      mostrarNotificacion(response.message);
-      await ListarPresentaciones();
-    } catch (error) {
-      console.error('Error al cambiar el estado de la presentación:', error);
-    }
-  }
-  cerrarModalConfirmacion();
-}
+const onEstadoChange = (val) => {
+  filtros.estado = val;
+  paginacion.paginaActual = 1;
+  cargarPresentaciones();
+};
 
-const iniciarModoEdicion = (presentacion = null) => {
-  if (presentacion) {
-    esNuevaPresentacion.value = false;
-    presentacionEditada.value = JSON.parse(JSON.stringify(presentacion));
-  } else {
-    esNuevaPresentacion.value = true;
-    resetPresentacionEditada();
-  }
+const onLimiteChange = (val) => {
+  filtros.limite = val;
+  paginacion.paginaActual = 1;
+  cargarPresentaciones();
+};
+
+const onCambiarPagina = (page) => {
+  paginacion.paginaActual = page;
+  cargarPresentaciones();
+};
+
+const abrirFormularioNuevo = () => {
+  presentacionSeleccionada.value = null;
   showModal.value = true;
-  // Clear errors when opening the modal
-  Object.keys(errors).forEach(key => errors[key] = '');
-}
+};
 
-const cancelarModoEdicion = () => {
+const abrirFormularioEditar = (p) => {
+  presentacionSeleccionada.value = { ...p };
+  showModal.value = true;
+};
+
+const cerrarFormulario = () => {
   showModal.value = false;
-  resetPresentacionEditada();
-  // Clear errors when closing the modal
-  Object.keys(errors).forEach(key => errors[key] = '');
-}
+  presentacionSeleccionada.value = null;
+};
 
-const resetPresentacionEditada = () => {
-  presentacionEditada.value = {
-    IdPresentacion: null,
-    Nombre: "",
+const onGuardar = async (data) => {
+  guardando.value = true;
+  try {
+    const isEdit = !!(data.IdPresentacion || data.idpresentacion);
+    const respuesta = isEdit 
+      ? await updatePresentacion(data) 
+      : await registrarPresentacion(data);
+
+    mostrarNotificacion(respuesta?.message || (isEdit ? 'Presentación actualizada' : 'Presentación registrada'));
+    cerrarFormulario();
+    await cargarPresentaciones();
+  } catch (err) {
+    console.error(err);
+    mostrarNotificacion('Error al guardar');
+  } finally {
+    guardando.value = false;
   }
-}
+};
 
-const abrirModalConfirmacion = (id, nombre, estadoActual) => {
-  presentacionParaAccion.value = { id, nombre, estadoActual };
-  mensajeModal.value = estadoActual === 1 ? "Desactivar" : "Activar";
-  modalAct.value = true;
-}
+const abrirModalConfirmacion = (p) => {
+  const estadoActual = p.Estado || p.estado;
+  modalConfirmacion.id = p.IdPresentacion || p.idpresentacion;
+  modalConfirmacion.nombre = p.Nombre || p.nombre;
+  modalConfirmacion.accion = estadoActual === 1 ? 'Desactivar' : 'Activar';
+  modalConfirmacion.visible = true;
+};
 
 const cerrarModalConfirmacion = () => {
-  modalAct.value = false;
-  presentacionParaAccion.value = null;
-}
+  modalConfirmacion.visible = false;
+};
 
-// --- Lifecycle Hook ---
-onMounted(async () => {
-  await ListarPresentaciones();
+const onConfirmarCambioEstado = async () => {
+  const id = modalConfirmacion.id;
+  cerrarModalConfirmacion();
+  if (!id) return;
+  try {
+    const resp = await deletePresentacion(id);
+    mostrarNotificacion(resp?.message || 'Estado actualizado');
+    await cargarPresentaciones();
+  } catch (err) {
+    console.error(err);
+    mostrarNotificacion('Error al cambiar el estado');
+  }
+};
+
+const mostrarNotificacion = (mensaje) => {
+  notificacion.mensaje = mensaje;
+  notificacion.visible = true;
+  setTimeout(() => {
+    notificacion.visible = false;
+  }, 3000);
+};
+
+onMounted(() => {
+  cargarPresentaciones();
 });
 </script>
+
+<style scoped>
+.fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
+
+.slide-up-enter-active, .slide-up-leave-active { transition: all 0.3s ease; }
+.slide-up-enter-from, .slide-up-leave-to { opacity: 0; transform: translateY(20px); }
+</style>

@@ -1,7 +1,13 @@
 
 <script setup>
+import { onMounted } from 'vue';
 import { RouterView } from 'vue-router'
 import AlertDisplay from '@/views/Components/AlertDisplay.vue'
+
+
+
+onMounted(() => {
+});
 </script>
 
 <template>

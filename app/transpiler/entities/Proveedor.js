@@ -13,7 +13,6 @@ exports.Proveedor = void 0;
 const typeorm_1 = require("typeorm");
 const TipoProveedor_1 = require("./TipoProveedor");
 const Persona_1 = require("./Persona");
-const Estado_1 = require("./Estado");
 const Compra_1 = require("./Compra");
 let Proveedor = class Proveedor extends typeorm_1.BaseEntity {
 };
@@ -27,6 +26,14 @@ __decorate([
     __metadata("design:type", String)
 ], Proveedor.prototype, "RazonSocial", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ name: 'nit', type: "integer", nullable: true }),
+    __metadata("design:type", Number)
+], Proveedor.prototype, "Nit", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: "estado", type: "integer", default: 1 }),
+    __metadata("design:type", Number)
+], Proveedor.prototype, "Estado", void 0);
+__decorate([
     (0, typeorm_1.ManyToOne)(() => TipoProveedor_1.Tipoproveedor, (tipoproveedor) => tipoproveedor.Proveedor),
     (0, typeorm_1.JoinColumn)({ name: "idtipoproveedor" }),
     __metadata("design:type", TipoProveedor_1.Tipoproveedor)
@@ -36,11 +43,6 @@ __decorate([
     (0, typeorm_1.JoinColumn)({ name: "idpersona" }),
     __metadata("design:type", Persona_1.Persona)
 ], Proveedor.prototype, "Persona", void 0);
-__decorate([
-    (0, typeorm_1.ManyToOne)(() => Estado_1.Estado, (estado) => estado.Proveedor),
-    (0, typeorm_1.JoinColumn)({ name: "idestado" }),
-    __metadata("design:type", Estado_1.Estado)
-], Proveedor.prototype, "Estado", void 0);
 __decorate([
     (0, typeorm_1.OneToMany)(() => Compra_1.Compra, (compra) => compra.Proveedor),
     __metadata("design:type", Array)

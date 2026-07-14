@@ -1,9 +1,10 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
+const verifyToken_1 = require("../middleware/verifyToken");
 const Comision_controllers_1 = require("../controllers/Comision.controllers");
 const router = (0, express_1.Router)();
-//router.use(authMiddleware)
+router.use(verifyToken_1.authMiddleware);
 router.post("/AddComision", Comision_controllers_1.createComision);
 router.put('/uptComision/:id', Comision_controllers_1.updateComision);
 router.delete('/DelComision/:id', Comision_controllers_1.deleteComision);

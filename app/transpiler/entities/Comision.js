@@ -11,15 +11,17 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Comision = void 0;
 const typeorm_1 = require("typeorm");
-const Estado_1 = require("./Estado");
-const Producto_1 = require("./Producto");
 let Comision = class Comision extends typeorm_1.BaseEntity {
 };
 exports.Comision = Comision;
 __decorate([
     (0, typeorm_1.PrimaryColumn)({ name: 'idcomision', type: "varchar", length: 100 }),
-    __metadata("design:type", Number)
+    __metadata("design:type", String)
 ], Comision.prototype, "IdComision", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'nombre', type: "varchar", length: 255, nullable: true }),
+    __metadata("design:type", String)
+], Comision.prototype, "Nombre", void 0);
 __decorate([
     (0, typeorm_1.Column)({ name: 'cantidad', type: "integer" }),
     __metadata("design:type", Number)
@@ -29,14 +31,12 @@ __decorate([
     __metadata("design:type", Number)
 ], Comision.prototype, "Porcentaje", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => Producto_1.Producto, (producto) => producto.Comision),
-    (0, typeorm_1.JoinColumn)({ name: "idproducto" }),
-    __metadata("design:type", Producto_1.Producto)
-], Comision.prototype, "Producto", void 0);
+    (0, typeorm_1.Column)({ name: 'preciocomision', type: "numeric", precision: 10, scale: 2 }),
+    __metadata("design:type", Number)
+], Comision.prototype, "Preciocomision", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => Estado_1.Estado, (estado) => estado.Comision),
-    (0, typeorm_1.JoinColumn)({ name: "idestado" }),
-    __metadata("design:type", Estado_1.Estado)
+    (0, typeorm_1.Column)({ name: "estado", type: "integer", default: 1 }),
+    __metadata("design:type", Number)
 ], Comision.prototype, "Estado", void 0);
 exports.Comision = Comision = __decorate([
     (0, typeorm_1.Entity)()

@@ -1,19 +1,23 @@
-import "reflect-metadata"
-import app from "./app"
-import { AppDataSource } from "./db"
+import "reflect-metadata";
+import dotenv from "dotenv";
+import app from "./app";
+import { AppDataSource } from "./db";
 
-async function main(){
-try {
+// Cargar variables del .env
+dotenv.config();
+
+async function main() {
+  try {
     await AppDataSource.initialize();
-    console.log('Database connected')
-//el servidor estara ejecutandose en el puerto 3000
-    app.listen(3000)
-    console.log('Server is listening on port ,', 3000)
-    } catch (error) {
-        console.log(error)
-    }
+  
+
+    const PORT = process.env.PORT;
+
+    app.listen(PORT);
+   
+  } catch (error) {
+  
+  }
 }
 
-main()
-
-
+main();

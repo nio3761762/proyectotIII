@@ -11,8 +11,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Presentacion = void 0;
 const typeorm_1 = require("typeorm");
-const Presentacionproducto_1 = require("./Presentacionproducto");
-const Estado_1 = require("./Estado");
+const ProductoMedida_1 = require("./ProductoMedida");
 let Presentacion = class Presentacion extends typeorm_1.BaseEntity {
 };
 exports.Presentacion = Presentacion;
@@ -33,13 +32,16 @@ __decorate([
     __metadata("design:type", Date)
 ], Presentacion.prototype, "FechaActualizacion", void 0);
 __decorate([
-    (0, typeorm_1.OneToMany)(() => Presentacionproducto_1.Presentacionproducto, (paquete) => paquete.Presentacion),
-    __metadata("design:type", Array)
-], Presentacion.prototype, "Presentacionproducto", void 0);
+    (0, typeorm_1.Column)({ name: 'abreviatura', type: 'varchar', length: 100, nullable: true }),
+    __metadata("design:type", String)
+], Presentacion.prototype, "Abreviatura", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => Estado_1.Estado, (estado) => estado.Presentacion),
-    (0, typeorm_1.JoinColumn)({ name: "idestado" }),
-    __metadata("design:type", Estado_1.Estado)
+    (0, typeorm_1.OneToMany)(() => ProductoMedida_1.Productomedida, (productomedida) => productomedida.Presentacion),
+    __metadata("design:type", Array)
+], Presentacion.prototype, "Productomedida", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: "estado", type: "integer", default: 1 }),
+    __metadata("design:type", Number)
 ], Presentacion.prototype, "Estado", void 0);
 exports.Presentacion = Presentacion = __decorate([
     (0, typeorm_1.Entity)()

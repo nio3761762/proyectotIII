@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.IncrementPromocion = exports.IncrementPaquete = exports.IncrementProducto = exports.DecrementPromocion = exports.DecrementPaquete = exports.DecrementProducto = exports.getProductoPromocion = exports.getUniquePackagesWithSummedQuantities = exports.getAllPaquetsWithSummedQuantities = exports.getAllProductsWithSummedQuantities = exports.ObtenerSucursalproducto = exports.getProductosBySucursal = exports.verifyProductosucursal = exports.IncrementProductoCantidad = exports.IncrementProductosucursal = exports.createSucursalProducto = void 0;
+exports.IncrementarProductosEnSucursal = exports.IncrementPromocion = exports.IncrementPaquete = exports.IncrementProducto = exports.DecrementPromocion = exports.DecrementPaquete = exports.DecrementProducto = exports.getProductoPromocion = exports.getUniquePackagesWithSummedQuantities = exports.getAllPaquetsWithSummedQuantities = exports.getAllProductsWithSummedQuantities = exports.ObtenerSucursalproducto = exports.getProductosBySucursal = exports.verifyProductosucursal = exports.IncrementProductoCantidad = exports.IncrementProductosucursal = exports.createSucursalProducto = void 0;
 const error_handler_1 = require("../utils/error.handler");
 const ProductoSucursal_1 = require("../entities/ProductoSucursal");
 const Producto_controllers_1 = require("./Producto.controllers");
@@ -9,6 +9,17 @@ const idGenerator_1 = require("../utils/idGenerator");
 const Presentacionproducto_1 = require("../entities/Presentacionproducto");
 const Promocion_1 = require("../entities/Promocion");
 const Presentacionproducto_controllers_1 = require("./Presentacionproducto.controllers");
+const Productostock_controllers_1 = require("./Productostock.controllers");
+const updateStockAlert = (productoSucursal) => {
+    if (productoSucursal.Cantidad <= productoSucursal.StockMinimo) {
+        if (!productoSucursal.FechaAlertaStock) {
+            productoSucursal.FechaAlertaStock = new Date();
+        }
+    }
+    else {
+        productoSucursal.FechaAlertaStock = null;
+    }
+};
 const createSucursalProducto = async ({ SucursalId, ProductoId, stockminimo }) => {
     const nuevoId = await (0, idGenerator_1.generarIdSecuencial)('PS');
     const productosucursal = new ProductoSucursal_1.Productosucursal();
@@ -38,22 +49,23 @@ const IncrementProductosucursal = async (req, res) => {
     try {
         const { id } = req.params;
         const { RegistroProducto } = req.body;
+        let nuevaCantidad = 0;
         const existProductosucursal = await (0, exports.verifyProductosucursal)({ ProductosucursalId: id });
         if (typeof RegistroProducto.Cantidad === 'number' && !isNaN(RegistroProducto.Cantidad)) {
-            const nuevaCantidad = existProductosucursal.Cantidad + RegistroProducto.Cantidad;
+            nuevaCantidad = existProductosucursal.Cantidad + RegistroProducto.Cantidad;
+            console.log("entrda de cantidad", nuevaCantidad);
             if (nuevaCantidad < 0)
                 return res.status(404).json({ message: "La cantidad no puede ser menor que cero" });
-            existProductosucursal.Cantidad = nuevaCantidad;
         }
         if (existProductosucursal.Paquete) {
             const cantidaproducto = await ProductoSucursal_1.Productosucursal.findOne({
                 where: { Producto: { IdProducto: existProductosucursal.Paquete.Producto.IdProducto }, Sucursal: { IdSucursal: existProductosucursal.Sucursal.IdSucursal } },
                 relations: ["Producto", "Sucursal"]
             });
-            console.log(cantidaproducto);
             if (!cantidaproducto)
                 return res.status(404).json({ message: "No existe dicha relacion" });
             cantidaproducto.Cantidad = cantidaproducto.Cantidad - (RegistroProducto.Cantidad * existProductosucursal.Paquete.Cantidad);
+            updateStockAlert(cantidaproducto);
             await cantidaproducto.save();
             existProductosucursal.Fecha = new Date();
             await existProductosucursal.save();
@@ -62,6 +74,10 @@ const IncrementProductosucursal = async (req, res) => {
             if (RegistroProducto.IdProducto)
                 existProductosucursal.Producto = await (0, Producto_controllers_1.verifyProducto)({ ProductoId: RegistroProducto.IdProducto });
             existProductosucursal.Fecha = new Date();
+            const differiencia = RegistroProducto.Cantidad - existProductosucursal.Cantidad;
+            await (0, Productostock_controllers_1.updateProductostock)({ sucursalId: existProductosucursal.Sucursal.IdSucursal, productoId: RegistroProducto.IdProducto, cantidad: differiencia });
+            existProductosucursal.Cantidad = nuevaCantidad;
+            updateStockAlert(existProductosucursal);
             await existProductosucursal.save();
         }
         return res.status(200).json({ message: "Actualizacion de stock exitos" });
@@ -92,17 +108,22 @@ const IncrementProductoCantidad = async (req, res) => {
             });
             if (!cantidaproducto)
                 return res.status(404).json({ message: "No existe dicha relacion" });
-            cantidaproducto.Cantidad = ((existProductosucursal.Cantidad * existProductosucursal.Paquete.Cantidad) + cantidaproducto.Cantidad) - (RegistroProducto.Cantidad * existProductosucursal.Paquete.Cantidad);
+            cantidaproducto.Cantidad = ((cantidaproducto.Cantidad) - (RegistroProducto.Cantidad * existProductosucursal.Paquete.Cantidad));
+            updateStockAlert(cantidaproducto);
             await cantidaproducto.save();
-            existProductosucursal.Cantidad = RegistroProducto.Cantidad;
+            existProductosucursal.Cantidad = existProductosucursal.Cantidad + RegistroProducto.Cantidad;
             existProductosucursal.Fecha = new Date();
+            updateStockAlert(existProductosucursal);
             await existProductosucursal.save();
         }
         else {
             if (RegistroProducto.IdProducto)
                 existProductosucursal.Producto = await (0, Producto_controllers_1.verifyProducto)({ ProductoId: RegistroProducto.IdProducto });
+            const differiencia = RegistroProducto.Cantidad - existProductosucursal.Cantidad;
             existProductosucursal.Cantidad = RegistroProducto.Cantidad;
             existProductosucursal.Fecha = new Date();
+            await (0, Productostock_controllers_1.updateProductostock)({ sucursalId: existProductosucursal.Sucursal.IdSucursal, productoId: RegistroProducto.IdProducto, cantidad: differiencia });
+            updateStockAlert(existProductosucursal);
             await existProductosucursal.save();
         }
         return res.status(200).json({ message: "Actualizacion de stock exitos" });
@@ -352,6 +373,7 @@ const DecrementProducto = async ({ SucursalId, ProductoId, Cantidad }) => {
     if (existProductosucursal.Cantidad - Cantidad < 0)
         throw new error_handler_1.HttpError(404, `La cantidad del Stock es insuficiente`);
     existProductosucursal.Cantidad -= Cantidad;
+    updateStockAlert(existProductosucursal);
     await existProductosucursal.save();
     return existProductosucursal;
 };
@@ -380,6 +402,7 @@ const DecrementPaquete = async ({ SucursalId, Cantidad, PaqueteId }) => {
     if (existProductosucursal.Cantidad - (Cantidad) < 0)
         throw new error_handler_1.HttpError(404, `La cantidad del Stock es insuficiente`);
     existProductosucursal.Cantidad -= (Cantidad);
+    updateStockAlert(existProductosucursal);
     await existProductosucursal.save();
     return existProductosucursal;
 };
@@ -425,6 +448,7 @@ const DecrementPromocion = async ({ SucursalId, Cantidad, PromocionId, }) => {
             }
             cantidadSumar = promotion.Cantidad * Cantidad;
             existProductosucursal.Cantidad -= cantidadSumar;
+            updateStockAlert(existProductosucursal);
             await existProductosucursal.save();
         }
         else if (promotion.Producto) {
@@ -441,6 +465,7 @@ const DecrementPromocion = async ({ SucursalId, Cantidad, PromocionId, }) => {
             // Incrementar stock
             cantidadSumar = promotion.Cantidad * Cantidad;
             existProductosucursal.Cantidad -= cantidadSumar;
+            updateStockAlert(existProductosucursal);
             await existProductosucursal.save();
         }
         else {
@@ -463,6 +488,7 @@ const IncrementProducto = async ({ SucursalId, ProductoId, Cantidad }) => {
         throw new error_handler_1.HttpError(404, `El Producto de la sucursal con ID ${SucursalId} no existe.`);
     }
     existProductosucursal.Cantidad += Cantidad;
+    updateStockAlert(existProductosucursal);
     await existProductosucursal.save();
     return existProductosucursal;
 };
@@ -488,6 +514,7 @@ const IncrementPaquete = async ({ SucursalId, Cantidad, PaqueteId }) => {
         throw new error_handler_1.HttpError(404, `El Producto de la sucursal con ID ${SucursalId} no existe.`);
     }
     existProductosucursal.Cantidad += (Cantidad);
+    updateStockAlert(existProductosucursal);
     await existProductosucursal.save();
     return existProductosucursal;
 };
@@ -522,6 +549,7 @@ const IncrementPromocion = async ({ SucursalId, Cantidad, PromocionId }) => {
             }
             cantidadSumar = promotion.Cantidad * Cantidad;
             existProductosucursal.Cantidad += cantidadSumar;
+            updateStockAlert(existProductosucursal);
             await existProductosucursal.save();
         }
         else if (promotion.Producto) {
@@ -538,6 +566,7 @@ const IncrementPromocion = async ({ SucursalId, Cantidad, PromocionId }) => {
             // Incrementar stock
             cantidadSumar = promotion.Cantidad * Cantidad;
             existProductosucursal.Cantidad += cantidadSumar;
+            updateStockAlert(existProductosucursal);
             await existProductosucursal.save();
         }
         else {
@@ -548,3 +577,27 @@ const IncrementPromocion = async ({ SucursalId, Cantidad, PromocionId }) => {
     return existPromocion;
 };
 exports.IncrementPromocion = IncrementPromocion;
+const IncrementarProductosEnSucursal = async ({ SucursalId, ProductoId, Cantidad }) => {
+    const existProductosucursal = await ProductoSucursal_1.Productosucursal.findOne({
+        where: [
+            { Sucursal: { IdSucursal: SucursalId }, Producto: { IdProducto: ProductoId } },
+            { Sucursal: { IdSucursal: SucursalId }, Paquete: { IdPaquete: ProductoId } }
+        ],
+        relations: ['Sucursal', 'Producto', 'Paquete', 'Paquete.Producto']
+    });
+    if (!existProductosucursal) {
+        throw new error_handler_1.HttpError(404, `El Producto de la sucursal con ID ${SucursalId} no existe.`);
+    }
+    if (existProductosucursal.Paquete) {
+        existProductosucursal.Cantidad += Cantidad;
+        Cantidad = Cantidad * existProductosucursal.Paquete.Cantidad;
+    }
+    else {
+        existProductosucursal.Cantidad += Cantidad;
+    }
+    await (0, Productostock_controllers_1.updateProductostock)({ sucursalId: SucursalId, productoId: ProductoId, cantidad: Cantidad });
+    updateStockAlert(existProductosucursal);
+    await existProductosucursal.save();
+    return existProductosucursal;
+};
+exports.IncrementarProductosEnSucursal = IncrementarProductosEnSucursal;

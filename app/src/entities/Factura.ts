@@ -16,11 +16,17 @@ export class Factura extends BaseEntity {
     @Column({ name: "fechaemicion", type: "date" })
     FechaEmicion: Date;
 
-     @Column({ name: "horaemicion", type: "time" })
+    @Column({ name: "horaemicion", type: "time" })
     HoraEmicion: string;
 
     @Column({ name: "aprobado", type: "varchar", length: 10 })
     Aprobado: string;
+    
+    @Column({ name: "nombrefacturacion", type: "varchar", length: 150, nullable:true })
+    NombreFacturacion: string;
+
+    @Column({ name: "nitcifacturacion", type: "varchar", length: 50, nullable:true })
+    NitCiFacturacion: string;
 
     @OneToOne(() => Venta, (venta) => venta.Factura)
     @JoinColumn({ name: "idventa" })

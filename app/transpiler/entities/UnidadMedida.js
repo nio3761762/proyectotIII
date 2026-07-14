@@ -11,11 +11,9 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Unidadmedida = void 0;
 const typeorm_1 = require("typeorm");
-const Estado_1 = require("./Estado");
 const Ingrediente_1 = require("./Ingrediente");
-const ProductoMedida_1 = require("./ProductoMedida");
-const Presentacionproducto_1 = require("./Presentacionproducto");
 const CategoriaMedida_1 = require("./CategoriaMedida");
+const InsumoMedida_1 = require("./InsumoMedida");
 let Unidadmedida = class Unidadmedida extends typeorm_1.BaseEntity {
 };
 exports.Unidadmedida = Unidadmedida;
@@ -40,9 +38,8 @@ __decorate([
     __metadata("design:type", Date)
 ], Unidadmedida.prototype, "FechaRegistro", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => Estado_1.Estado, (estado) => estado.Unidadmedida),
-    (0, typeorm_1.JoinColumn)({ name: 'idestado' }),
-    __metadata("design:type", Estado_1.Estado)
+    (0, typeorm_1.Column)({ name: "estado", type: "integer", default: 1 }),
+    __metadata("design:type", Number)
 ], Unidadmedida.prototype, "Estado", void 0);
 __decorate([
     (0, typeorm_1.ManyToOne)(() => CategoriaMedida_1.Categoriamedida, (estado) => estado.Unidadmedida, { nullable: true }),
@@ -54,14 +51,9 @@ __decorate([
     __metadata("design:type", Array)
 ], Unidadmedida.prototype, "Ingrediente", void 0);
 __decorate([
-    (0, typeorm_1.OneToMany)(() => ProductoMedida_1.Productomedida, (productomedida) => productomedida.Unidadmedida),
+    (0, typeorm_1.OneToMany)(() => InsumoMedida_1.Insumomedida, (productomedida) => productomedida.Unidadmedida),
     __metadata("design:type", Array)
-], Unidadmedida.prototype, "Productomedida", void 0);
-__decorate([
-    (0, typeorm_1.OneToMany)(() => Presentacionproducto_1.Presentacionproducto, (paquete) => paquete.Unidadmedida),
-    __metadata("design:type", Array)
-], Unidadmedida.prototype, "Paquete", void 0);
+], Unidadmedida.prototype, "Insumomedida", void 0);
 exports.Unidadmedida = Unidadmedida = __decorate([
     (0, typeorm_1.Entity)()
-    //@Check(`'Estado' IN (0, 1)`)
 ], Unidadmedida);

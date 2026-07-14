@@ -6,7 +6,11 @@ import { verifyVenta } from "./Venta.controllers";
 import { generarIdSecuencial } from "../utils/idGenerator";
 import { Metodopago } from "../entities/MetodoPago";
 import { Venta } from "../entities/Venta";
-
+import { AppDataSource } from "../db";
+import { getFechaHoraBolivia } from "../utils/Fecha";
+import { QueryRunner } from "typeorm";
+import { Pedido } from "../entities/Pedido";
+const { fecha, hora } = getFechaHoraBolivia();
 export const getPagos = async (req: Request, res: Response) => {
     try {
         const Pagos = await Metodopago.find();
@@ -60,28 +64,48 @@ export const verifyPago = async ({ PagoId }: { PagoId: string }) => {
 };
 
 
-export const createPago = async ({
-  IdVenta , Monto, Cambio, IdMetodoPago
-}: {
-  IdVenta: string;
-  Monto: number;
-  Cambio: number;
-  IdMetodoPago: number;
-}) => {
-   const nuevoId = await generarIdSecuencial('PA'); 
-  console.log(IdVenta)
+export const createPago = async (
+  queryRunner: QueryRunner,
+ venta:Venta | null,
+  Monto: number,
+  Cambio: number,
+  IdMetodoPago: number,
+  pedido?: Pedido | null
+) => {
+ 
+  const nuevoId = await generarIdSecuencial('PA'); 
   const nuevoPago = new Pago();
   nuevoPago.IdPago = nuevoId;
-  nuevoPago.FechaPago = new Date();
+  nuevoPago.FechaPago = fecha;
+  nuevoPago.HoraPago = hora;
   nuevoPago.Metodopago = await verifyMetodoPago({MetodoPagoId:IdMetodoPago});
-  nuevoPago.Venta = await verifyVenta({VentaId:IdVenta});
-  nuevoPago.Monto = Monto,
-  nuevoPago.Cambio = Cambio, 
-  
-  await nuevoPago.save();
+  if(venta) nuevoPago.Venta = venta;
+  nuevoPago.Monto = Monto;
+  nuevoPago.Cambio = Cambio;
+  if(pedido) nuevoPago.Pedido = pedido;
 
- console.log("Simulación de Pago:", nuevoPago);
-return nuevoPago; // no guarda nada todavía
+  await queryRunner.manager.save(nuevoPago);
+
+};
+
+export const createPagoPedido = async (
+  queryRunner: QueryRunner,
+  pedido: Pedido,
+  Monto: number,
+  Cambio: number,
+  IdMetodoPago: number,
+) => {
+  const nuevoId = await generarIdSecuencial('PA'); 
+  const nuevoPago = new Pago();
+  nuevoPago.IdPago = nuevoId;
+  nuevoPago.FechaPago = fecha;
+  nuevoPago.HoraPago = hora;
+  nuevoPago.Metodopago = await verifyMetodoPago({MetodoPagoId:IdMetodoPago});
+  nuevoPago.Pedido = pedido;
+  nuevoPago.Monto = Monto;
+  nuevoPago.Cambio = Cambio; 
+
+  await queryRunner.manager.save(nuevoPago);
 };
 
 

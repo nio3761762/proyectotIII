@@ -215,19 +215,18 @@ const getProductosPaquete = async (req, res) => {
             },
             relations: ['Estado', 'Presentacion', 'Unidadmedida', 'Imagen', 'Productosucursal'],
         });
-        //'Productosucursal'
+        // Si no existe, devolver array vacío
         if (!productos.length) {
-            return res.status(404).json({ message: "Producto no encontrado" });
+            return res.json([]);
         }
-        // Comprimir: dejar solo los IDs de las relaciones pedidas
         const result = productos.map(p => ({
             ...p,
             Estado: p.Estado?.IdEstado ?? null,
             Presentacion: p.Presentacion?.IdPresentacion ?? null,
             Unidadmedida: p.Unidadmedida?.IdUnidadMedida ?? null,
-            IdImagen: p.Imagen.IdImagen ?? null,
-            Url: p.Imagen.Url ?? null,
-            StockMinimo: p.Productosucursal[0].StockMinimo ?? 0,
+            IdImagen: p.Imagen?.IdImagen ?? null,
+            Url: p.Imagen?.Url ?? null,
+            StockMinimo: p.Productosucursal?.[0]?.StockMinimo ?? 0,
         }));
         return res.json(result);
     }
@@ -327,6 +326,8 @@ const getUniqueProductsWithSummedQuantities = async (req, res) => {
                 'Producto.Subcategoria.Categoria',
                 'Producto.Imagen',
                 'Producto.Estado',
+                'Producto.Productomedida',
+                'Producto.Productomedida.Unidadmedida'
             ],
         });
         if (!allProductoSucursal.length) {

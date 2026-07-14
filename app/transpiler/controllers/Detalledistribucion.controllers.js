@@ -7,13 +7,34 @@ const idGenerator_1 = require("../utils/idGenerator");
 const error_handler_1 = require("../utils/error.handler");
 const Detalledistribucion_1 = require("../entities/Detalledistribucion");
 const Distribucion_controllers_1 = require("./Distribucion.controllers");
-const deleteDetalledistribucionAndRestoreStock = async ({ Iddetalle }) => {
+const deleteDetalledistribucionAndRestoreStock = async ({ Iddetalle, SucursalId }) => {
     const detalleToDelete = await Detalledistribucion_1.Detalledistribucion.findOne({
         where: { IdDetalleDistribucion: Iddetalle },
-        relations: ["Producto", "Paquete"]
+        relations: ["Producto", "Paquete", "Distribucion"]
     });
     if (!detalleToDelete) {
         throw new error_handler_1.HttpError(404, `El detalle de venta con ID ${Iddetalle} no existe.`);
+    }
+    // Restaurar el stock antes de eliminar el detalle
+    if (SucursalId) {
+        // Importar las funciones necesarias al inicio del archivo si no están
+        const { DecrementProducto, DecrementPaquete } = require("./SucursalProducto.controllers");
+        if (detalleToDelete.Producto) {
+            // Restaurar stock del producto (decrementar con valor negativo)
+            await DecrementProducto({
+                SucursalId: SucursalId,
+                ProductoId: detalleToDelete.Producto.IdProducto,
+                Cantidad: -detalleToDelete.Cantidad // Negativo para restaurar
+            });
+        }
+        else if (detalleToDelete.Paquete) {
+            // Restaurar stock del paquete (decrementar con valor negativo)
+            await DecrementPaquete({
+                SucursalId: SucursalId,
+                PaqueteId: detalleToDelete.Paquete.IdPaquete,
+                Cantidad: -detalleToDelete.Cantidad // Negativo para restaurar
+            });
+        }
     }
     await detalleToDelete.remove();
 };

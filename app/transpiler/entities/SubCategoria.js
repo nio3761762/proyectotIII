@@ -13,7 +13,7 @@ exports.Subcategoria = void 0;
 const typeorm_1 = require("typeorm");
 const Producto_1 = require("./Producto");
 const Categoria_1 = require("./Categoria");
-const Estado_1 = require("./Estado");
+const Insumo_1 = require("./Insumo");
 let Subcategoria = class Subcategoria extends typeorm_1.BaseEntity {
 };
 exports.Subcategoria = Subcategoria;
@@ -30,14 +30,17 @@ __decorate([
     __metadata("design:type", Array)
 ], Subcategoria.prototype, "Producto", void 0);
 __decorate([
+    (0, typeorm_1.OneToMany)(() => Insumo_1.Insumo, (producto) => producto.Subcategoria),
+    __metadata("design:type", Array)
+], Subcategoria.prototype, "Insumo", void 0);
+__decorate([
     (0, typeorm_1.ManyToOne)(() => Categoria_1.Categoria, (categoria) => categoria.Subcategoria),
     (0, typeorm_1.JoinColumn)({ name: "idcategoria" }),
     __metadata("design:type", Categoria_1.Categoria)
 ], Subcategoria.prototype, "Categoria", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => Estado_1.Estado, (estado) => estado.Subcategoria),
-    (0, typeorm_1.JoinColumn)({ name: "idestado" }),
-    __metadata("design:type", Estado_1.Estado)
+    (0, typeorm_1.Column)({ name: "estado", type: "integer", default: 1 }),
+    __metadata("design:type", Number)
 ], Subcategoria.prototype, "Estado", void 0);
 exports.Subcategoria = Subcategoria = __decorate([
     (0, typeorm_1.Entity)()

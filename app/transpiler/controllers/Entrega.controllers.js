@@ -1,7 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.obtenerDetalle = exports.obteneralCliente = exports.actualizarlaDireccion = exports.DevolucionEntrega = exports.AsignarRepartidor = exports.getEntregaSucursal = exports.getEntregas = exports.ObtenerDIreccionEntrega = exports.ObtenerEntrega = exports.getTipoEntrega = exports.verifyTipoEntrega = exports.updateEntrega = exports.createEntrega = void 0;
-const Entrega_1 = require("../entities/Entrega");
 const Sucursal_1 = require("../entities/Sucursal");
 const TipoEntrega_1 = require("../entities/TipoEntrega");
 const error_handler_1 = require("../utils/error.handler");
@@ -9,7 +8,6 @@ const idGenerator_1 = require("../utils/idGenerator");
 const Direccion_controllers_1 = require("./Direccion.controllers");
 const Estado_controllers_1 = require("./Estado.controllers");
 const Pedido_Controllers_1 = require("./Pedido.Controllers");
-const typeorm_1 = require("typeorm");
 const Distribucion_controllers_1 = require("./Distribucion.controllers");
 const Distribucion_1 = require("../entities/Distribucion");
 const Pedido_1 = require("../entities/Pedido");
@@ -20,16 +18,22 @@ const Venta_1 = require("../entities/Venta");
 const DIreccion_1 = require("../entities/DIreccion");
 const Sucursal_controllers_1 = require("./Sucursal.controllers");
 const Pago_controllers_1 = require("./Pago.controllers");
+const Entrega_1 = require("../entities/Entrega");
+const SucursalProducto_controllers_1 = require("./SucursalProducto.controllers");
 const createEntrega = async ({ BarrioId, Direccions, Referencia, Ubicacion, Costo, PedidoID, IdSucursal, Fecha, Hora, tipoe }) => {
     const nuevoId = await (0, idGenerator_1.generarIdSecuencial)('ENT');
     const nuevoEntrega = new Entrega_1.Entrega();
     nuevoEntrega.IdEntrega = nuevoId;
-    nuevoEntrega.Direccion = (tipoe === "TPE-E1") ? await cargarDireccion({ IdSucursal: IdSucursal }) : await (0, Direccion_controllers_1.createDireccion)({
-        BarrioId: BarrioId || "",
-        Direccions: Direccions || "",
-        Referencia: Referencia || "",
-        Ubicacion: Ubicacion || ""
-    });
+    if (IdSucursal !== 'TODOS')
+        nuevoEntrega.Direccion = await cargarDireccion({ IdSucursal: IdSucursal });
+    else
+        // if((tipoe === "TPE-E1" ) )
+        nuevoEntrega.Direccion = await (0, Direccion_controllers_1.createDireccion)({
+            BarrioId: BarrioId || "",
+            Direccions: Direccions || "",
+            Referencia: Referencia || "",
+            Ubicacion: Ubicacion || ""
+        });
     nuevoEntrega.CostoEntrega = Costo || 0.00;
     nuevoEntrega.FechaEntrega = parseLocalDate(Fecha);
     nuevoEntrega.HoraEntrega = normalizarHora(Hora);
@@ -57,53 +61,58 @@ const createEntrega = async ({ BarrioId, Direccions, Referencia, Ubicacion, Cost
 };
 exports.createEntrega = createEntrega;
 const updateEntrega = async ({ BarrioId, Direccions, Referencia, Ubicacion, Costo, PedidoID, EntregaId, DireccionId, IdSucursal, Fecha, Hora, tipoe }) => {
-    if (EntregaId) {
-        const nuevoEntrega = await Entrega_1.Entrega.findOne({
-            where: { IdEntrega: EntregaId },
-            relations: ["Direccion", "Direccion.Sucursal"]
-        });
-        if (!nuevoEntrega) {
-            throw new error_handler_1.HttpError(404, `El Entrega con ID ${EntregaId} no existe.`);
-        }
-        if (!nuevoEntrega?.Direccion?.Sucursal && IdSucursal === 'TODOS') {
-            if (tipoe !== "TPE-E1" && !DireccionId) {
-                nuevoEntrega.Direccion = await (0, Direccion_controllers_1.createDireccion)({
-                    BarrioId: BarrioId || "",
-                    Direccions: Direccions || "",
-                    Referencia: Referencia || "",
-                    Ubicacion: Ubicacion || ""
-                });
-            }
-            else
-                await (0, Direccion_controllers_1.updateDireccion)({ IdDireccion: DireccionId, BarrioId: BarrioId, Direccions: Direccions, Referencia: Referencia, Ubicacion: Ubicacion });
+    if (!EntregaId) {
+        return (0, exports.createEntrega)({ BarrioId, Direccions, Referencia, Ubicacion, Costo, PedidoID, IdSucursal, Fecha, Hora, tipoe });
+    }
+    const entrega = await Entrega_1.Entrega.findOne({
+        where: { IdEntrega: EntregaId },
+        relations: ["Direccion", "Direccion.Sucursal"]
+    });
+    if (!entrega) {
+        throw new error_handler_1.HttpError(404, `El Entrega con ID ${EntregaId} no existe.`);
+    }
+    const oldDireccionId = entrega.Direccion ? entrega.Direccion.IdDireccion : null;
+    const oldDireccionWasFromSucursal = !!entrega.Direccion?.Sucursal;
+    // Determine the new direccion
+    if (tipoe === "TPE-E1" && IdSucursal !== 'TODOS') {
+        // Case 1: Delivery to a Sucursal
+        entrega.Direccion = await cargarDireccion({ IdSucursal: IdSucursal });
+    }
+    else {
+        // Case 2: Delivery to a custom address
+        if (oldDireccionWasFromSucursal || !oldDireccionId) {
+            // If previous was a sucursal, or no direccion existed, create a new one
+            entrega.Direccion = await (0, Direccion_controllers_1.createDireccion)({
+                BarrioId: BarrioId || "",
+                Direccions: Direccions || "",
+                Referencia: Referencia || "",
+                Ubicacion: Ubicacion || ""
+            });
         }
         else {
-            nuevoEntrega.Direccion = (tipoe === "TPE-E1") ?
-                await cargarDireccion({ IdSucursal: IdSucursal }) :
-                await (0, Direccion_controllers_1.updateDireccion)({ IdDireccion: IdSucursal ? '' : DireccionId, BarrioId: BarrioId, Direccions: Direccions, Referencia: Referencia, Ubicacion: Ubicacion });
-        }
-        if (IdSucursal && tipoe === "TPE-E1") {
-            const direccion = await DIreccion_1.Direccion.findOne({
-                where: { IdDireccion: DireccionId },
-                relations: ["Sucursal"],
+            // If previous was a custom address, update it
+            await (0, Direccion_controllers_1.updateDireccion)({
+                IdDireccion: oldDireccionId,
+                BarrioId: BarrioId,
+                Direccions: Direccions,
+                Referencia: Referencia,
+                Ubicacion: Ubicacion
             });
-            if (direccion?.Sucursal) {
-                console.log('Ok');
-                //     throw new HttpError(400, "No se puede eliminar la dirección porque está asociada a una sucursal");
-            }
-            else {
-                await DIreccion_1.Direccion.delete({ IdDireccion: DireccionId });
-            }
+            // We don't need to re-assign entrega.Direccion because it's the same object being updated.
         }
-        nuevoEntrega.CostoEntrega = Costo;
-        nuevoEntrega.FechaEntrega = parseLocalDate(Fecha);
-        nuevoEntrega.HoraEntrega = normalizarHora(Hora);
-        nuevoEntrega.Tipoentrega = await (0, exports.verifyTipoEntrega)({ tipo: tipoe });
-        await nuevoEntrega.save();
-        return nuevoEntrega;
     }
-    else
-        return (0, exports.createEntrega)({ BarrioId: BarrioId, Direccions: Direccions, Referencia: Referencia, Ubicacion: Ubicacion, Costo: Costo, PedidoID: PedidoID, IdSucursal: IdSucursal, Fecha: Fecha, Hora: Hora, tipoe: tipoe });
+    // Update other fields
+    entrega.CostoEntrega = Costo;
+    entrega.FechaEntrega = parseLocalDate(Fecha);
+    entrega.HoraEntrega = normalizarHora(Hora);
+    entrega.Tipoentrega = await (0, exports.verifyTipoEntrega)({ tipo: tipoe });
+    // Save the Entrega with the new direccion reference
+    await entrega.save();
+    // Now it's safe to delete the old direccion if it was a custom one and has been replaced
+    if (oldDireccionId && oldDireccionId !== entrega.Direccion.IdDireccion && !oldDireccionWasFromSucursal) {
+        await DIreccion_1.Direccion.delete({ IdDireccion: oldDireccionId });
+    }
+    return entrega;
 };
 exports.updateEntrega = updateEntrega;
 const normalizarHora = (hora) => {
@@ -158,6 +167,7 @@ const ObtenerEntrega = async (req, res) => {
         const entrega = await Entrega_1.Entrega.findOne({
             where: [
                 { Pedido: { IdPedido: id } },
+                { Distribucion: { IdDistribucion: id } },
                 { IdEntrega: id }
             ],
             relations: ["Tipoentrega", "Direccion", "Direccion.Sucursal", "Direccion.Barrio"]
@@ -210,25 +220,30 @@ exports.getEntregas = getEntregas;
 const getEntregaSucursal = async (req, res) => {
     try {
         const { id, fecha } = req.params;
-        console.log("Fecha recibida:", fecha);
-        const fechaStr = fecha.split('T')[0] || fecha; // por si llega con hora
+        const fechaStr = fecha.split('T')[0];
         const inicioDia = new Date(`${fechaStr}T00:00:00`);
         const finDia = new Date(`${fechaStr}T23:59:59.999`);
-        let entregas = await Entrega_1.Entrega.find({
-            where: { FechaEntrega: (0, typeorm_1.Between)(inicioDia, finDia) },
-            relations: [
-                "Estado",
-                "Direccion",
-                "Pedido",
-                "Pedido.Tipopedido",
-                "Pedido.Venta.Persona",
-                "Pedido.Venta.Sucursal",
-                "Tipoentrega"
-            ]
+        const query = Entrega_1.Entrega.createQueryBuilder("entrega")
+            .leftJoinAndSelect("entrega.Estado", "estado")
+            .leftJoinAndSelect("entrega.Direccion", "direccion")
+            .leftJoinAndSelect("entrega.Pedido", "pedido")
+            .leftJoinAndSelect("pedido.Tipopedido", "tipopedido")
+            .leftJoinAndSelect("pedido.Venta", "venta")
+            .leftJoinAndSelect("venta.Persona", "persona")
+            .leftJoinAndSelect("venta.Sucursal", "sucursal")
+            .leftJoinAndSelect("entrega.Distribucion", "distribucion")
+            .leftJoinAndSelect("distribucion.Sucursal", "dissucursal")
+            .leftJoinAndSelect("entrega.Tipoentrega", "tipoentrega")
+            .where("entrega.FechaEntrega BETWEEN :inicio AND :fin", {
+            inicio: inicioDia,
+            fin: finDia
         });
-        const filtradas = entregas
-            .filter(e => id === "TODOS" || e.Pedido.Venta?.Sucursal.IdSucursal === id)
-            .map(e => ({
+        // 🔹 Filtro opcional por sucursal
+        if (id !== "TODOS") {
+            query.andWhere("(sucursal.IdSucursal = :id OR dissucursal.IdSucursal = :id)", { id });
+        }
+        const entregas = await query.getMany();
+        const resultado = entregas.map(e => ({
             IdEntrega: e.IdEntrega,
             FechaEntrega: e.FechaEntrega,
             HoraEntrega: e.HoraEntrega,
@@ -236,8 +251,8 @@ const getEntregaSucursal = async (req, res) => {
             NombreEstado: e.Estado?.Nombre,
             Costo: e.CostoEntrega,
             Direccion: e.Direccion?.IdDireccion,
-            NombreEntrega: e.Tipoentrega.Nombre,
-            IdtEntrega: e.Tipoentrega.IdTipoEntrega,
+            NombreEntrega: e.Tipoentrega?.Nombre,
+            IdtEntrega: e.Tipoentrega?.IdTipoEntrega,
             Pedido: {
                 IdPedido: e.Pedido?.IdPedido,
                 FechaRegistro: e.Pedido?.FechaRegistro,
@@ -245,14 +260,13 @@ const getEntregaSucursal = async (req, res) => {
                 NombreTipo: e.Pedido?.Tipopedido?.Nombre,
                 IdVenta: e.Pedido?.Venta?.IdVenta,
                 Persona: e.Pedido?.Venta?.Persona
-            }
+            },
+            Distribucion: e.Distribucion
         }));
-        return res.json(filtradas);
+        return res.json(resultado);
     }
     catch (error) {
-        if (error instanceof Error) {
-            return res.status(500).json({ message: error.message });
-        }
+        return res.status(500).json({ message: "Error al obtener entregas" });
     }
 };
 exports.getEntregaSucursal = getEntregaSucursal;
@@ -308,6 +322,8 @@ const DevolucionEntrega = async (req, res) => {
             venta.FechaVenta = new Date();
             venta.Estado = await (0, Estado_controllers_1.verifyEstado)({ EstadoId: 3 }); // por ejemplo: "En proceso"
             await venta.save();
+            // Importar funciones de stock
+            const { DecrementProducto, DecrementPaquete } = require("./SucursalProducto.controllers");
             let todosDevueltos = true;
             let todosEntregados = true;
             for (const detalle of detalles.item) {
@@ -321,6 +337,25 @@ const DevolucionEntrega = async (req, res) => {
                     IdSucursal: venta?.Sucursal?.IdSucursal || "",
                     Modo: detalle.Modo,
                 });
+                // Calcular cantidad devuelta y restaurar stock
+                const cantidadDevuelta = detalle.CantidadOriginal - detalle.Cantidad;
+                if (cantidadDevuelta > 0) {
+                    // Hay devolución, restaurar stock (decrementar con valor negativo)
+                    if (detalle.IdProducto) {
+                        await DecrementProducto({
+                            SucursalId: venta.Sucursal.IdSucursal,
+                            ProductoId: detalle.IdProducto,
+                            Cantidad: -cantidadDevuelta // Negativo para restaurar
+                        });
+                    }
+                    else if (detalle.IdPaquete) {
+                        await DecrementPaquete({
+                            SucursalId: venta.Sucursal.IdSucursal,
+                            PaqueteId: detalle.IdPaquete,
+                            Cantidad: -cantidadDevuelta // Negativo para restaurar
+                        });
+                    }
+                }
                 // Comparaciones
                 if (detalle.Cantidad !== 0) {
                     todosDevueltos = false; // hay algo entregado
@@ -361,6 +396,7 @@ const DevolucionEntrega = async (req, res) => {
             const distribucio = await Distribucion_1.Distribucion.findOne({
                 where: { IdDistribucion: entrega.Distribucion.IdDistribucion },
                 relations: [
+                    "Sucursal",
                     "Detalledistribucion",
                     "Detalledistribucion.Producto",
                     "Detalledistribucion.Paquete"
@@ -369,6 +405,16 @@ const DevolucionEntrega = async (req, res) => {
             if (!distribucio) {
                 throw new error_handler_1.HttpError(404, `Distribucion no existe.`);
             }
+            // Importar funciones de stock
+            const { DecrementProducto, DecrementPaquete } = require("./SucursalProducto.controllers");
+            const exitSucusal = distribucio?.Sucursal?.IdSucursal;
+            if (exitSucusal)
+                for (const dist of distribucio.Detalledistribucion) {
+                    await (0, SucursalProducto_controllers_1.IncrementarProductosEnSucursal)({ SucursalId: exitSucusal, ProductoId: dist.Paquete ? dist.Paquete.IdPaquete : dist.Producto.IdProducto, Cantidad: dist.Cantidad });
+                }
+            // Variables para controlar estados (ANTES del loop)
+            let todosDistribucionDevueltos = true;
+            let todosDistribucionEntregados = true;
             for (const detalle of detalles.item) {
                 const idDetalle = detalle?.IdPaquete ? detalle.IdPaquete : detalle.IdProducto;
                 // Buscar el detalle existente en la distribución
@@ -377,31 +423,57 @@ const DevolucionEntrega = async (req, res) => {
                 if (!detalleExistente) {
                     throw new error_handler_1.HttpError(404, `No existe en la distribución el detalle con ID ${idDetalle}`);
                 }
-                console.log("IdDetalledistribucion encontrado:", detalleExistente.IdDetalleDistribucion);
-                if (detalle.Cantidaddevuelta > 0)
-                    entrega.Estado = await (0, Estado_controllers_1.verifyEstado)({ EstadoId: 12 });
+                // @ts-ignore
+                const cantidadOriginal = detalleExistente.Cantidad || 0;
+                const cantidadDevuelta = detalle.Cantidaddevuelta || 0;
+                const cantidadEntregada = cantidadOriginal - cantidadDevuelta;
+                // Actualizar variables de control de estados
+                if (cantidadEntregada > 0) {
+                    todosDistribucionDevueltos = false; // Si se entregó algo, no es devolución total
+                }
+                if (cantidadEntregada < cantidadOriginal) {
+                    todosDistribucionEntregados = false; // Si se entregó menos de lo original, no es entrega completa
+                }
                 await (0, Detalledistribucion_controllers_1.devolucionCantidad)({
                     Iddetalle: detalleExistente.IdDetalleDistribucion,
-                    Cantidad: detalle.Cantidaddevuelta
+                    Cantidad: cantidadDevuelta
                 });
-                let todosDevueltos = true;
-                let todosEntregados = true;
-                if (todosDevueltos) {
-                    distribucio.Estado = await (0, Estado_controllers_1.verifyEstado)({ EstadoId: 11 }); // Devuelto
-                    entrega.Estado = await (0, Estado_controllers_1.verifyEstado)({ EstadoId: 11 });
-                }
-                else if (todosEntregados) {
-                    distribucio.Estado = await (0, Estado_controllers_1.verifyEstado)({ EstadoId: 12 }); // Entregado
-                    entrega.Estado = await (0, Estado_controllers_1.verifyEstado)({ EstadoId: 12 });
-                }
-                else {
-                    distribucio.Estado = await (0, Estado_controllers_1.verifyEstado)({ EstadoId: 13 }); // Entrega parcial
-                    entrega.Estado = await (0, Estado_controllers_1.verifyEstado)({ EstadoId: 13 });
+                // Restaurar stock de los productos/paquetes devueltos en el ORIGEN
+                if (cantidadDevuelta > 0) {
+                    if (detalleExistente.Producto) {
+                        await DecrementProducto({
+                            SucursalId: distribucio.Origen, // Usar el origen de la distribución
+                            ProductoId: detalleExistente.Producto.IdProducto,
+                            Cantidad: -cantidadDevuelta // Negativo para restaurar
+                        });
+                    }
+                    else if (detalleExistente.Paquete) {
+                        await DecrementPaquete({
+                            SucursalId: distribucio.Origen, // Usar el origen de la distribución
+                            PaqueteId: detalleExistente.Paquete.IdPaquete,
+                            Cantidad: -cantidadDevuelta // Negativo para restaurar
+                        });
+                    }
                 }
             }
+            // Asignar estados DESPUÉS del loop según los resultados
             if (comentario)
                 distribucio.Observacion = comentario;
-            distribucio.Estado = await (0, Estado_controllers_1.verifyEstado)({ EstadoId: 11 });
+            if (todosDistribucionDevueltos) {
+                // Devolución Total
+                distribucio.Estado = await (0, Estado_controllers_1.verifyEstado)({ EstadoId: 12 }); // Devuelto
+                entrega.Estado = await (0, Estado_controllers_1.verifyEstado)({ EstadoId: 12 });
+            }
+            else if (todosDistribucionEntregados) {
+                // Entrega Completa (sin devoluciones)
+                distribucio.Estado = await (0, Estado_controllers_1.verifyEstado)({ EstadoId: 13 }); // Entregado
+                entrega.Estado = await (0, Estado_controllers_1.verifyEstado)({ EstadoId: 13 });
+            }
+            else {
+                // Devolución Parcial
+                distribucio.Estado = await (0, Estado_controllers_1.verifyEstado)({ EstadoId: 14 }); // Entrega parcial
+                entrega.Estado = await (0, Estado_controllers_1.verifyEstado)({ EstadoId: 14 });
+            }
             await distribucio.save();
         }
         await entrega.save();

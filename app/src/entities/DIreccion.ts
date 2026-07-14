@@ -2,8 +2,6 @@ import { BaseEntity, Check, OneToMany, Column, Entity, PrimaryColumn, OneToOne, 
 import { Persona } from "./Persona";
 import { Barrio } from "./Barrio";
 import { Sucursal } from "./Sucursal";
-import { Entrega } from "./Entrega";
-
 
 @Entity()
 export class Direccion extends BaseEntity {
@@ -26,10 +24,7 @@ export class Direccion extends BaseEntity {
   @OneToOne(() => Persona, (persona) => persona.Direccion)
   Persona: Persona;
 
-  @OneToMany(() => Entrega, (envio) => envio.Direccion)
-  Entrega: Entrega[];
-
   @OneToOne(() => Sucursal  , (sucursal) => sucursal.Direccion)
   Sucursal:Sucursal;
-  
+
 }

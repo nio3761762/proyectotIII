@@ -1,6 +1,5 @@
 import API from './api';
 
-//listar usuarios
 
 export const listarPersona = async () => {
   try {
@@ -12,21 +11,11 @@ export const listarPersona = async () => {
   }
 };
 
-export const listarCliente = async () => {
-  try {
-    const response = await API.get('Clientes');
-    return response.data;
-  } catch (error) {
-    console.error('Error al obtener usuarios:', error);
-    throw error;
-  }
-};
-
 
 export const DeleteCliente = async (id) => {
   try {
     const response = await API.delete(`deletePersona/${id}`);
-     console.log(response.data)
+
     return response.data;
    
   } catch (error) {
@@ -36,10 +25,10 @@ export const DeleteCliente = async (id) => {
 };
 
 
-export const RegistrarCliente = async (Dato) => {
+export const RegistrarPersona = async (Dato) => {
   try {
     const response = await API.post('Personas', { 
-     Persona:Dato
+     Personas:Dato
     });
     return response.data;
   } catch (error) {
@@ -48,16 +37,13 @@ export const RegistrarCliente = async (Dato) => {
   }
 };
 
-
-
-
-export const updateCliente = async (dato) => {
+export const UpdatePersona = async (dato) => {
   try {
     const response = await API.put(`putPersona/${dato.IdPersona}`, { 
     Personas:dato
 
     });
-    console.log(response.data);
+    
     return response.data;
   } catch (error) {
     console.error('Error al intentar ingresar datos:', error.response);

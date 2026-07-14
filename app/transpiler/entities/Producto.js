@@ -12,19 +12,16 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.Producto = void 0;
 const typeorm_1 = require("typeorm");
 const SubCategoria_1 = require("./SubCategoria");
-const Marca_1 = require("./Marca");
-const TipoProducto_1 = require("./TipoProducto");
-const Estado_1 = require("./Estado");
-const Imagen_1 = require("./Imagen");
-const Comision_1 = require("./Comision");
-const PromocionProducto_1 = require("./PromocionProducto");
-const Ingrediente_1 = require("./Ingrediente");
-const DetalleVenta_1 = require("./DetalleVenta");
-const ProductoSucursal_1 = require("./ProductoSucursal");
 const ProductoMedida_1 = require("./ProductoMedida");
-const Presentacionproducto_1 = require("./Presentacionproducto");
 const DetallePedido_1 = require("./DetallePedido");
-const Detalledistribucion_1 = require("./Detalledistribucion");
+const DetalleTransferencia_1 = require("./DetalleTransferencia");
+const Inventario_1 = require("./Inventario");
+const MovimientoInventario_1 = require("./MovimientoInventario");
+const Detalleproduccuin_1 = require("./Detalleproduccuin");
+const Receta_1 = require("./Receta");
+const HornoProduccto_1 = require("./HornoProduccto");
+const DetalleVenta_1 = require("./DetalleVenta");
+const PromocionProducto_1 = require("./PromocionProducto");
 let Producto = class Producto extends typeorm_1.BaseEntity {
 };
 exports.Producto = Producto;
@@ -41,7 +38,11 @@ __decorate([
     __metadata("design:type", String)
 ], Producto.prototype, "Descripcion", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'cantidad', type: "integer", nullable: true, default: 0 }),
+    (0, typeorm_1.Column)({ name: 'descripcionlarga', type: "text", nullable: true }),
+    __metadata("design:type", String)
+], Producto.prototype, "Descripcionlarga", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: "cantidad", type: "integer", default: 0 }),
     __metadata("design:type", Number)
 ], Producto.prototype, "Cantidad", void 0);
 __decorate([
@@ -57,10 +58,6 @@ __decorate([
     __metadata("design:type", Date)
 ], Producto.prototype, "Fechaactualizacion", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: "fechavencimiento", type: "date", nullable: true }),
-    __metadata("design:type", Date)
-], Producto.prototype, "FechaVencimiento", void 0);
-__decorate([
     (0, typeorm_1.Column)({ name: "stockminimo", type: "integer", nullable: true }),
     __metadata("design:type", Number)
 ], Producto.prototype, "StockMinimo", void 0);
@@ -70,66 +67,53 @@ __decorate([
     __metadata("design:type", SubCategoria_1.Subcategoria)
 ], Producto.prototype, "Subcategoria", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => Estado_1.Estado, (estado) => estado.Producto),
-    (0, typeorm_1.JoinColumn)({ name: "idestado" }),
-    __metadata("design:type", Estado_1.Estado)
+    (0, typeorm_1.Column)({ name: "estado", type: "integer", default: 1 }),
+    __metadata("design:type", Number)
 ], Producto.prototype, "Estado", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => Marca_1.Marca, (marca) => marca.Producto, { nullable: true }),
-    (0, typeorm_1.JoinColumn)({ name: "idmarca" }),
-    __metadata("design:type", Marca_1.Marca)
-], Producto.prototype, "Marca", void 0);
-__decorate([
-    (0, typeorm_1.ManyToOne)(() => TipoProducto_1.Tipoproducto, (tipoproducto) => tipoproducto.Producto, { nullable: true }),
-    (0, typeorm_1.JoinColumn)({ name: "idtipoproducto" }),
-    __metadata("design:type", TipoProducto_1.Tipoproducto)
-], Producto.prototype, "Tipoproducto", void 0);
-__decorate([
-    (0, typeorm_1.OneToOne)(() => Imagen_1.Imagen, (imagen) => imagen.Producto, { nullable: true }),
-    (0, typeorm_1.JoinColumn)({ name: "idimagen" }),
-    __metadata("design:type", Imagen_1.Imagen)
+    (0, typeorm_1.Column)({ name: "imagen", type: "varchar", length: 255, nullable: true }),
+    __metadata("design:type", String)
 ], Producto.prototype, "Imagen", void 0);
 __decorate([
-    (0, typeorm_1.OneToMany)(() => Comision_1.Comision, (comision) => comision.Producto),
+    (0, typeorm_1.OneToMany)(() => DetalleTransferencia_1.DetalleTransferencia, (ingrediente) => ingrediente.Producto),
     __metadata("design:type", Array)
-], Producto.prototype, "Comision", void 0);
+], Producto.prototype, "Detalletransferencia", void 0);
 __decorate([
-    (0, typeorm_1.OneToMany)(() => PromocionProducto_1.Promocionproducto, (promocionproducto) => promocionproducto.Producto),
+    (0, typeorm_1.OneToMany)(() => DetalleVenta_1.Detalleventa, (ingrediente) => ingrediente.Producto),
+    __metadata("design:type", Array)
+], Producto.prototype, "Detalleventa", void 0);
+__decorate([
+    (0, typeorm_1.OneToMany)(() => Inventario_1.Inventario, (ingrediente) => ingrediente.Producto),
+    __metadata("design:type", Array)
+], Producto.prototype, "Inventario", void 0);
+__decorate([
+    (0, typeorm_1.OneToMany)(() => PromocionProducto_1.Promocionproducto, (ingrediente) => ingrediente.Producto),
     __metadata("design:type", Array)
 ], Producto.prototype, "Promocionproducto", void 0);
 __decorate([
-    (0, typeorm_1.OneToMany)(() => Ingrediente_1.Ingrediente, (ingrediente) => ingrediente.Ingredientes),
+    (0, typeorm_1.OneToMany)(() => MovimientoInventario_1.MovimientoInventario, (ingrediente) => ingrediente.Producto),
     __metadata("design:type", Array)
-], Producto.prototype, "Ingrediente", void 0);
+], Producto.prototype, "Movimiento", void 0);
 __decorate([
-    (0, typeorm_1.OneToMany)(() => Ingrediente_1.Ingrediente, (ingrediente) => ingrediente.Producto),
+    (0, typeorm_1.OneToMany)(() => Receta_1.Receta, (ingrediente) => ingrediente.Producto),
     __metadata("design:type", Array)
-], Producto.prototype, "Producto", void 0);
-__decorate([
-    (0, typeorm_1.OneToMany)(() => ProductoSucursal_1.Productosucursal, (productosucursal) => productosucursal.Producto),
-    __metadata("design:type", Array)
-], Producto.prototype, "Productosucursal", void 0);
+], Producto.prototype, "Receta", void 0);
 __decorate([
     (0, typeorm_1.OneToMany)(() => ProductoMedida_1.Productomedida, (productomedida) => productomedida.Producto),
     __metadata("design:type", Array)
 ], Producto.prototype, "Productomedida", void 0);
 __decorate([
-    (0, typeorm_1.OneToMany)(() => Presentacionproducto_1.Presentacionproducto, (paquete) => paquete.Producto),
-    __metadata("design:type", Array)
-], Producto.prototype, "Paquete", void 0);
-__decorate([
-    (0, typeorm_1.OneToMany)(() => DetalleVenta_1.Detalleventa, (detalleventa) => detalleventa.Producto),
-    __metadata("design:type", Array)
-], Producto.prototype, "Detalleventa", void 0);
-__decorate([
     (0, typeorm_1.OneToMany)(() => DetallePedido_1.Detallepedido, (detalleventa) => detalleventa.Producto),
     __metadata("design:type", Array)
 ], Producto.prototype, "Detallepedido", void 0);
 __decorate([
-    (0, typeorm_1.OneToMany)(() => Detalledistribucion_1.Detalledistribucion, (detalleventa) => detalleventa.Producto),
+    (0, typeorm_1.OneToMany)(() => Detalleproduccuin_1.DetalleProduccion, (consumo) => consumo.Producto),
     __metadata("design:type", Array)
-], Producto.prototype, "Detalledistribucion", void 0);
+], Producto.prototype, "Produccion", void 0);
+__decorate([
+    (0, typeorm_1.OneToMany)(() => HornoProduccto_1.Hornoproducto, he => he.Producto),
+    __metadata("design:type", Array)
+], Producto.prototype, "Hornoproducto", void 0);
 exports.Producto = Producto = __decorate([
     (0, typeorm_1.Entity)()
-    //@Check(`"Estado" IN (0, 1)`)
 ], Producto);

@@ -1,32 +1,60 @@
 import API from './api';
 
-//listar pedidos
-export const listarPedidoSucursal = async (id,fecha, pago) => {
+
+export const listarPedidoSucursal = async ( estado,tipopedido, idsucursal,producto,promocion,fecha, page,limit,search) => {
   try {
-  console.log(id,fecha, pago)
-    const response = await API.get(`getPedidoSucursal/${id}/${fecha}/${pago}`)
+    const params = {
+      page,
+      limit,
+      fecha
+    };
+
+    if(search) params.search=search
+    if(producto)params.producto=producto
+    if(tipopedido) params.tipopedido=tipopedido
+    if(promocion) params.promocion=promocion
+    if(idsucursal) params.idsucursal=idsucursal
+    if(estado) params.estado=estado
+
+    const response = await API.get(`pedidos`,{ params })
     return response.data;
+  
   } catch (error) {
     console.error('Error al obtener pedidos:', error);
     throw error;
   }
 };
-
-export const listarPedidoUsuario = async (id) => {
+export const Registrorapido = async (pedidos, detalles, pagoFinal) => {
   try {
-    const response = await API.get(`pedidosUsuario/${id}`);
+    const response = await API.post('AddpedidosRapido',{pedidos, detalles, pagoFinal});
+   
     return response.data;
+
+
   } catch (error) {
-    console.error('Error al obtener pedidos:', error);
+     console.error('Error al anular el pedido:',error);
     throw error;
   }
 };
-export const anularPedido = async (id,IdSucursal) => {
+
+export const anularPedido = async (id) => {
   try {
-    const response = await API.put(`anularPedido/${id}`,{
-        IdSucursal:IdSucursal
+    const response = await API.put(`anularPedido/${id}`);
+   
+    return response.data;
+  } catch (error) {
+     console.error('Error al anular el pedido:',error);
+    throw error;
+  }
+};
+
+export const AtualizarPedido = async (id,Dato,detalles) => {
+  try {
+    const response = await API.put(`actualizarPedido/${id}`, {
+      pedidos:Dato,
+      detalles:detalles
     });
-     console.log(response.data)
+     
     return response.data;
 
   } catch (error) {
@@ -35,12 +63,28 @@ export const anularPedido = async (id,IdSucursal) => {
   }
 };
 
-export const enviarPedido = async (id,IdSucursal) => {
+
+
+export const enviarPedido = async (id) => {
   try {
-    const response = await API.put(`enviarPedido/${id}`,{
-        IdSucursal:IdSucursal
+    const response = await API.put(`enviarPedido/${id}`);
+   
+    return response.data;
+
+  } catch (error) {
+     console.error('Error al anular el pedido:',error);
+    throw error;
+  }
+};
+
+
+
+export const FinalizarPedido = async (id,pago) => {
+  try {
+    const response = await API.put(`finalizarPedido/${id}`,{
+      pagoFinal:pago
     });
-     console.log(response.data)
+   
     return response.data;
 
   } catch (error) {
@@ -49,58 +93,40 @@ export const enviarPedido = async (id,IdSucursal) => {
   }
 };
 
-export const PagarPedido = async (id,dato) => {
-  try {
-    const response = await API.put(`PagarPedido/${id}`,{
-        Registrar:dato
-    });
-     console.log(response.data)
-    return response.data;
-
-  } catch (error) {
-     console.error('Error al anular el pedido:',error);
-    throw error;
-  }
-};
-
-export const PonerProceso = async (id) => {
-  try {
-    const response = await API.put(`PonerProceso/${id}`);
-     console.log(response.data)
-    return response.data;
-
-  } catch (error) {
-     console.error('Error al anular el pedido:',error);
-    throw error;
-  }
-};
-
-export const RegistrarPedido = async (Dato) => {
+export const RegistrarPedido = async (Dato,detalles) => {
   try {
     const response = await API.post('Addpedidos', {
-      Registrar:Dato,
-      ventas:Dato.ventas,
-      detalles:Dato.detalles
+      pedidos:Dato,
+      detalles:detalles
     });
-    console.log(response.data);
+  ;
     return response.data;
+   } catch (error) {
+    console.error('Error al intentar ingresar datos:', error.response);
+    throw error;
+  }
+};
+
+export const devolverProducto = async (id, idDetallePedido, cantidadDevolver,descripcion) => {
+  try {
+    const response = await API.put(`devolverProducto/${id}`, {
+    idDetallePedido, cantidadDevolver, descripcion
+    });
+  ;
+   return response.data;
   } catch (error) {
     console.error('Error al intentar ingresar datos:', error.response);
     throw error;
   }
 };
 
-export const UpdatePedido = async (Dato) => {
+
+export const listarTipopedido = async () => {
   try {
-    const response = await API.put(`updPedido/${Dato.id}`, {
-      Registrar:Dato,
-      ventas:Dato.ventas,
-      detalles:Dato.detalles
-    });
-    console.log(response.data);
+  const response = await API.get('getTipopedido')
     return response.data;
   } catch (error) {
-    console.error('Error al intentar ingresar datos:', error.response);
+    console.error('Error al obtener usuarios:', error);
     throw error;
   }
 };

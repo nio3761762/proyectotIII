@@ -1,141 +1,93 @@
 import API from './api';
 
+export const listProductoVista = async (search,page,limit) => {
 
-export const listarPaquetesEnProductos = async (id) => {
   try {
-   const params = {
-      id
+    const params = {
+      search,
+      page,
+      limit
+    }
+    const response = await API.get('productos-vista',{ params });
+    return response.data;
+  } catch (error) {
+    console.error('Error al obtener los roles:', error);
+    throw error;
+  }
+};
+
+
+
+
+export const ListarProductosOnSucursal = async (idsucursal,search,limit, page,categoria,subcategoria) =>{
+  try {
+    const params = {
+      id:idsucursal,
+      page,
+      limit
+    }
+    if(search) params.search = search
+    if(categoria) params.categoria = categoria
+    if(subcategoria) params.subcategoria = subcategoria
+    const response = await API.get('getInventario', { params });
+    return response.data;
+  } catch (error) {
+    console.error('Error al obtener los roles:', error);
+    throw error;
+  }
+}
+
+export const listProduct = async () => {
+
+  try {
+    const response = await API.get('getproducto');
+    return response.data;
+  } catch (error) {
+    console.error('Error al obtener los roles:', error);
+    throw error;
+  }
+};
+
+export const listMedidasdeProducto = async (id) => {
+  try {
+    const response = await API.get(`getmedidasdelProducto/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error al obtener los roles:', error);
+    throw error;
+  }
+};
+
+export const listProductMedida = async () => {
+
+  try {
+    const response = await API.get('getProductomedidas');
+    return response.data;
+  } catch (error) {
+    console.error('Error al obtener los roles:', error);
+    throw error;
+  }
+};
+
+export const listarProductos = async (search, estado, categoria, subcategoria, page , limit, signal  ) => {
+  try {
+    const params = {
+      page,
+      limit
     };
-    const response = await API.get('unique-packages-summed', { params });
+    if(estado!=-1) params.estado = estado
+    if(search) params.search=search
+    if(categoria)params.categoria=categoria
+    if(subcategoria) params.subcategoria=subcategoria 
+    
+    const response = await API.get('productos' , { params, signal  });
     return response.data;
+
   } catch (error) {
-    console.error('Error al obtener los roles:', error);
-    throw error;
-  }
-};
-
-export const listarEnProductos = async (id, subcategoriaId) => {
-
-  try {
-   const params = {
-      id,
-      subcategoriaId
-    };
-    const response = await API.get('unique-products-summed', { params });
-    return response.data;
-  } catch (error) {
-    console.error('Error al obtener los roles:', error);
-    throw error;
-  }
-};
-
-
-export const listarProductos = async () => {
-  try {
-    const response = await API.get('productos');
-    return response.data;
-  } catch (error) {
-    console.error('Error al obtener los roles:', error);
-    throw error;
-  }
-};
-
-export const listarProductoConMedidas = async (id) => {
-  try {
-    const response = await API.get(`getProductoInMedida/${id}`);
-    return response.data;
-  } catch (error) {
-    console.error('Error al obtener los roles:', error);
-    throw error;
-  }
-};
-
-export const listarBuscarProductos = async () => {
-  try {
-    const response = await API.get('Buscarproducto');
-    return response.data;
-  } catch (error) {
-    console.error('Error al obtener los roles:', error);
-    throw error;
-  }
-};
-
-export const listarPaquete = async (id) => {
-  try {
-    const response = await API.get(`getpaquete/${id}`);
-    return response.data;
-  } catch (error) {
-    console.error('Error al obtener los roles:', error);
-    throw error;
-  }
-};
-
-export const listarPaqueteSin = async () => {
-  try {
-    const response = await API.get(`getPaquetesinSucursal`);
-    return response.data;
-  } catch (error) {
-    console.error('Error al obtener los roles:', error);
-    throw error;
-  }
-};
-
-export const listarProductosSucursal = async (id,categoriaId,subcategoriaId) => {
-  try {
-    const response = await API.get(`productoSucursal/${id}/${categoriaId}/${subcategoriaId}`);
-    return response.data;
-  } catch (error) {
-    console.error('Error al obtener los roles:', error);
-    throw error;
-  }
-};
-
-export const listarProductosS = async (categoriaId,subcategoriaId) => {
-  try {
-    const response = await API.get(`getProductod/${categoriaId}/${subcategoriaId}`);
-    return response.data;
-  } catch (error) {
-    console.error('Error al obtener los roles:', error);
-    throw error;
-  }
-};
-
-export const ObtenerSucursalproducto = async (id) => {
-  try {
-    const response = await API.get(`ObtenerSucursalproducto/${id}`);
-    return response.data;
-  } catch (error) {
-    console.error('Error al obtener los roles:', error);
-    throw error;
-  }
-};
-
-export const listarProductosConpromociones = async () => {
-  try {
-    const response = await API.get('productopromocions');
-    return response.data;
-  } catch (error) {
-    console.error('Error al obtener los roles:', error);
-    throw error;
-  }
-};
-
-export const listarSucursalProductos = async (categoriaId,subcategoriaId) => {
-  try {
-    const response = await API.get(`sucursal-productos-summed/${categoriaId}/${subcategoriaId}`);
-    return response.data;
-  } catch (error) {
-    console.error('Error al obtener los roles:', error);
-    throw error;
-  }
-};
-
-export const listarSucursalPaquetes = async (id) => {
-  try {
-    const response = await API.get(`getAllPaquetsWithSummedQuantities/${id}`);
-    return response.data;
-  } catch (error) {
-    console.error('Error al obtener los roles:', error);
+    if (error.name === 'CanceledError' || error.code === 'ERR_CANCELED') {
+      return null;
+    }
+    console.error('Error al obtener los productos:', error);
     throw error;
   }
 };
@@ -164,29 +116,31 @@ export const addProducto = async (Producto) => {
   }
 };
 
+export const updateCreatePrecioProducto = async (Precio) => {
+  try {
+    const response = await API.post('updateCreatePrecioProducto',{
+       Precio: Precio
+    }
+       );
+    return response.data;
+   
+  } catch (error) {
+    console.error('Error al intentar ingresar datos:', error.response);
+    throw error;
+  }
+};
+
 export const updateProducto = async (Producto) => {
   try {
     const response = await API.put(`producto/${Producto.id}`, {
     RegistroProducto : Producto
     });
-    console.log(response.data);
     return response.data;
   } catch (error) {
     console.error('Error al intentar ingresar datos:', error.response);
     throw error;
   }
 };
-
-export const ObtenerPaquetes = async (id) => {
-  try {
-    const response = await API.get(`productopaquete/${id}`);
-    return response.data;
-  } catch (error) {
-    console.error('Error al intentar ingresar datos:', error.response);
-    throw error;
-  }
-};
-
 
 export const getProductoIngrediente = async (id) => {
   try {
@@ -197,66 +151,16 @@ export const getProductoIngrediente = async (id) => {
     throw error;
   }
 };
-export const PrecioProducto = async (id) => {
+
+export const getPrecioProducto = async (id) => {
   try {
-    const response = await API.get(`PrecioProducto/${id}`);
+    const response = await API.get(`getmedidasdelProductoPrecio/${id}`);
     return response.data;
-  } catch (error) {
-    console.error('Error al intentar ingresar datos:', error.response);
-    throw error;
-  }
-};
-//usar este 
-export const ObtenerPaqueteProducto = async (id) => {
-  try {
-    const response = await API.get(`productospaquete/${id}`);
-    return response.data;
-  } catch (error) {
-    console.error('Error al intentar ingresar datos:', error.response);
-    throw error;
-  }
-};
-export const ObtenerPaqueteSucursal = async (ids,id) => {
-  try {
-    const response = await API.get(`getPaqueteSucursal/${ids}/${id}`);
-    return response.data;
-  } catch (error) {
-    console.error('Error al intentar ingresar datos:', error.response);
-    throw error;
-  }
-};
-export const ObtenerPresentacion = async (id) => {
-  try {
-    const response = await API.get(`ObtenerPresentacion/${id}`);
-    return response.data;
+
   } catch (error) {
     console.error('Error al intentar ingresar datos:', error.response);
     throw error;
   }
 };
 
-export const IncrementProducto = async (Producto) => {
-  try {
-    console.log(Producto)
-    const response = await API.put(`IncrementProducto/${Producto.id}`, {
-    RegistroProducto : Producto
-    });
-    return response.data;
-  } catch (error) {
-    console.error('Error al intentar ingresar datos:', error.response);
-    throw error;
-  }
-};
-
-export const IncrementProductoCantidad = async (Producto) => {
-  try {
-    const response = await API.put(`IncrementProductoCantidad/${Producto.id}`, {
-    RegistroProducto : Producto
-    });
-    return response.data;
-  } catch (error) {
-    console.error('Error al intentar ingresar datos:', error.response);
-    throw error;
-  }
-};
 

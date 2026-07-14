@@ -1,0 +1,21 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const Produccion_controllers_1 = require("../controllers/Produccion.controllers");
+const verifyToken_1 = require("../middleware/verifyToken");
+const router = (0, express_1.Router)();
+// Flujo de Producción Simplificado
+router.get('/produccion', verifyToken_1.authMiddleware, Produccion_controllers_1.getProducciones);
+router.get('/produccion/insumos/sucursal/:id', verifyToken_1.authMiddleware, Produccion_controllers_1.getInsumosSucursal);
+router.post('/produccion/iniciar', verifyToken_1.authMiddleware, Produccion_controllers_1.iniciarProduccion);
+router.post('/produccion/agregarempleado', verifyToken_1.authMiddleware, Produccion_controllers_1.agregarEmpleadoProduccion);
+router.post('/produccion/empleado/finalizar', verifyToken_1.authMiddleware, Produccion_controllers_1.finalizarTurnoEmpleado);
+router.post('/produccion/horno/encender', verifyToken_1.authMiddleware, Produccion_controllers_1.encenderHorno);
+router.post('/produccion/producto/salida', verifyToken_1.authMiddleware, Produccion_controllers_1.registrarSalidaProducto);
+router.post('/produccion/producto/merma', verifyToken_1.authMiddleware, Produccion_controllers_1.registrarMermaProduccion);
+router.post('/produccion/Descartarproducto', verifyToken_1.authMiddleware, Produccion_controllers_1.descartarProductosDaniados);
+router.post('/produccion/horno/cambio-combustible', verifyToken_1.authMiddleware, Produccion_controllers_1.cambiarCombustibleHorno);
+router.post('/produccion/finalizar', verifyToken_1.authMiddleware, Produccion_controllers_1.finalizarProduccionTotal);
+router.put('/produccion/anular/:id', verifyToken_1.authMiddleware, Produccion_controllers_1.anularProduccion);
+router.post('/produccion/Apagarhorno', verifyToken_1.authMiddleware, Produccion_controllers_1.apagarHorno);
+exports.default = router;

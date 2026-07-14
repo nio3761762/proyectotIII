@@ -1,35 +1,28 @@
 import { Request, Response } from "express";
 import { Promocion } from "../entities/Promocion";
-import { Estado } from "../entities/Estado";
 import { Tipopromocion } from "../entities/Tipopromocion";
 import { createRango, updateRango } from "./Rango.controllers";
-import { verifyEstado } from "./Estado.controllers";
 import { createPromocionProducto, updatePromocionProducto } from "./PromocionProducto.controllers";
 import { verifyTipoPromocion } from "./Tipopromocion.controllers";
 import { Producto } from "../entities/Producto";
 import { generarIdSecuencial } from "../utils/idGenerator";
-import { createImagen, updateImagen } from "./Foto.controllers";
+import { AppDataSource } from "../db";
 
 // en Promocion.controllers.ts
 export const cerrarPromocionesVencidas = async (req?: Request, res?: Response) => {
   try {
-    const promociones = await Promocion.find({ relations: ["Rango", "Estado"] });
+    const promociones = await Promocion.find({ relations: ["Rango"] });
     const ahora = new Date();
 
     for (const promo of promociones) {
       if (promo.Rango) {
-        const fechaFin = new Date(promo.Rango.FechaFin);
-        const [h, m, s] = promo.Rango.HoraFin.split(":").map(Number);
+        const fechaFin = new Date(`${promo.Rango.FechaFin}T${promo.Rango.HoraFin}`);
 
-        fechaFin.setHours(h, m, s);
-console.log(fechaFin)
-        if (ahora > fechaFin && promo.Estado.Nombre === "Activo") {
-          const estadoInactivo = await Estado.findOne({ where: { Nombre: "Inactivo" } });
-          if (estadoInactivo) {
-            promo.Estado = estadoInactivo;
-            promo.Fechaactualizacion = ahora;
-            await promo.save();
-          }
+        if (ahora > fechaFin && promo.Estado === 1) {
+          promo.Estado = 0;
+          promo.Fechaactualizacion = ahora;
+          await promo.save();
+      
         }
       }
     }
@@ -37,7 +30,7 @@ console.log(fechaFin)
     if (res) {
       return res.json({ message: "Promociones vencidas cerradas correctamente" });
     } else {
-      console.log("✔ Promociones vencidas cerradas (llamado por cron)");
+ 
     }
 
   } catch (error) {
@@ -50,24 +43,21 @@ console.log(fechaFin)
 
 export const activarPromociones = async (req?: Request, res?: Response) => {
   try {
-    const promociones = await Promocion.find({ relations: ["Rango", "Estado"] });
+    const promociones = await Promocion.find({ relations: ["Rango"] });
     const ahora = new Date();
 
     for (const promo of promociones) {
       if (promo.Rango) {
         // Construir fecha/hora de inicio
-        const fechaInicio = new Date(promo.Rango.FechaInicio);
-        const [h, m, s] = promo.Rango.HoraInicio.split(":").map(Number);
-        fechaInicio.setHours(h, m, s);
+        const fechaInicio = new Date(`${promo.Rango.FechaInicio}T${promo.Rango.HoraInicio}`);
+        const fechaFin = new Date(`${promo.Rango.FechaFin}T${promo.Rango.HoraFin}`);
 
-        // Si ya llegó la fecha de inicio y sigue inactiva → activar
-        if (ahora >= fechaInicio && promo.Estado.Nombre === "Inactivo") {
-          const estadoActivo = await Estado.findOne({ where: { Nombre: "Activo" } });
-          if (estadoActivo) {
-            promo.Estado = estadoActivo;
-            promo.Fechaactualizacion = ahora;
-            await promo.save();
-          }
+        // Si ya llegó la fecha de inicio, no ha pasado la de fin y sigue inactiva → activar
+        if (ahora >= fechaInicio && ahora <= fechaFin && promo.Estado === 0) {
+          promo.Estado = 1;
+          promo.Fechaactualizacion = ahora;
+          await promo.save();
+        
         }
       }
     }
@@ -75,7 +65,7 @@ export const activarPromociones = async (req?: Request, res?: Response) => {
     if (res) {
       return res.json({ message: "✔ Promociones activadas correctamente" });
     } else {
-      console.log("✔ Promociones activadas automáticamente (cron)");
+    
     }
 
   } catch (error) {
@@ -88,7 +78,7 @@ export const activarPromociones = async (req?: Request, res?: Response) => {
 
 export const actualizarPromociones = async () => {
   try {
-    const promociones = await Promocion.find({ relations: ["Rango", "Estado"] });
+    const promociones = await Promocion.find({ relations: ["Rango"] });
     const ahora = new Date();
 
     for (const promo of promociones) {
@@ -98,25 +88,19 @@ export const actualizarPromociones = async () => {
       const fechaFin = new Date(`${promo.Rango.FechaFin}T${promo.Rango.HoraFin}`);
 
       // Activar si estamos dentro del rango
-      if (ahora >= fechaInicio && ahora <= fechaFin && promo.Estado.Nombre !== "Activo") {
-        const estadoActivo = await Estado.findOne({ where: { Nombre: "Activo" } });
-        if (estadoActivo) {
-          promo.Estado = estadoActivo;
-          promo.Fechaactualizacion = ahora;
-          await promo.save();
-          console.log(`✅ Promoción ${promo.Nombre} activada`);
-        }
+      if (ahora >= fechaInicio && ahora <= fechaFin && promo.Estado !== 1) {
+        promo.Estado = 1;
+        promo.Fechaactualizacion = ahora;
+        await promo.save();
+    
       }
 
       // Desactivar si ya pasó el rango
-      if (ahora > fechaFin && promo.Estado.Nombre !== "Inactivo") {
-        const estadoInactivo = await Estado.findOne({ where: { Nombre: "Inactivo" } });
-        if (estadoInactivo) {
-          promo.Estado = estadoInactivo;
-          promo.Fechaactualizacion = ahora;
-          await promo.save();
-          console.log(`❌ Promoción ${promo.Nombre} desactivada`);
-        }
+      if (ahora > fechaFin && promo.Estado !== 0) {
+        promo.Estado = 0;
+        promo.Fechaactualizacion = ahora;
+        await promo.save();
+       
       }
     }
   } catch (error) {
@@ -127,7 +111,8 @@ export const actualizarPromociones = async () => {
 
 export const verifyPromocion = async ({ PromocionId }: { PromocionId: string }) => {
 
-    const existPromocion = await Promocion.findOne({ where: { IdPromocion: PromocionId } });
+    const existPromocion = await Promocion.findOne({ where: { IdPromocion: PromocionId }, 
+      relations :['Promocionproducto','Promocionproducto.Productomedida','Promocionproducto.Producto'] });
 
 
     if (!existPromocion) {
@@ -135,7 +120,7 @@ export const verifyPromocion = async ({ PromocionId }: { PromocionId: string }) 
     }
 
     return existPromocion;
-};
+}; 
 
 
 export const createPromocion = async (req: Request, res: Response) => {
@@ -146,21 +131,21 @@ export const createPromocion = async (req: Request, res: Response) => {
         if (!tipoPromocion) {
             return res.status(404).json({ message: "Tipo de promoción no encontrado" });
         }
-        
-    
  const nuevoId = await generarIdSecuencial('PROM');
 
         const nuevaPromocion = new Promocion();
         nuevaPromocion.IdPromocion = nuevoId;
         if (RegistrarPromocion.Nombre) nuevaPromocion.Nombre = RegistrarPromocion.Nombre;
-        nuevaPromocion.Estado = await verifyEstado({ EstadoId: 1 });
         nuevaPromocion.FechaRegistro = new Date();
         if (RegistrarPromocion.Descripcion) nuevaPromocion.Descripcion = RegistrarPromocion.Descripcion;
         if (RegistrarPromocion.Tipopromocion.IdTipoPromocion) 
             nuevaPromocion.Tipopromocion = await verifyTipoPromocion({ PromocionId: Number(RegistrarPromocion.Tipopromocion.IdTipoPromocion)});
-        if(RegistrarPromocion.Url)
-           nuevaPromocion.Imagen = await createImagen({Foto:RegistrarPromocion.Url})
-        await nuevaPromocion.save();
+         if(RegistrarPromocion.Url)  nuevaPromocion.Imagen = RegistrarPromocion.Url
+         if(RegistrarPromocion.LimiteUso) nuevaPromocion.LimiteUso = RegistrarPromocion.LimiteUso
+           nuevaPromocion.Preciopromocion = RegistrarPromocion.Preciopromocion
+           if(RegistrarPromocion.TipoDescuento) nuevaPromocion.TipoDescuento = RegistrarPromocion.TipoDescuento
+       
+           await nuevaPromocion.save();
 
         await createRango({
             IdPromocion: nuevoId, HoraInicio: RegistrarPromocion.Rango.HoraInicio,
@@ -168,7 +153,7 @@ export const createPromocion = async (req: Request, res: Response) => {
         });
 
         for (const producto of RegistrarPromocion.Promocionproducto) {
-            await createPromocionProducto({ IdPromocion: nuevoId, IdProducto: producto.IdProducto, Cantidad: producto.Cantidad, Descuento: producto.Descuento, IdEstado:producto.IdEstado,IdPaquete:producto.IdPaquete });
+            await createPromocionProducto( nuevaPromocion, producto.IdProducto,  producto.Cantidad,  producto.Descuento, producto.Precio,producto.IdEstado );
         }
 
         return res.status(201).json({ message: "La promoción se registró correctamente" });
@@ -196,13 +181,10 @@ export const updatePromocion = async (req: Request, res: Response) => {
         if (RegistrarPromocion.Tipopromocion.IdTipoPromocion)
             promocion.Tipopromocion = await verifyTipoPromocion({ PromocionId: Number(RegistrarPromocion.Tipopromocion.IdTipoPromocion) });
             promocion.Fechaactualizacion = new Date();
-        if(RegistrarPromocion.IdImagen)
-            promocion.Imagen = await updateImagen({ImagenId:RegistrarPromocion.IdImagen,Foto:RegistrarPromocion.Url})
-          else   
-            if(RegistrarPromocion.Url)
-            promocion.Imagen = await createImagen({Foto:RegistrarPromocion.Url})
-
-
+        if(RegistrarPromocion.LimiteUso) promocion.LimiteUso = RegistrarPromocion.LimiteUso
+           promocion.Preciopromocion = RegistrarPromocion.Preciopromocion
+        if(RegistrarPromocion.Url)   promocion.Imagen = RegistrarPromocion.Url
+           if(RegistrarPromocion.TipoDescuento) promocion.TipoDescuento = RegistrarPromocion.TipoDescuento
         await promocion.save();
 
         await updateRango({
@@ -212,8 +194,8 @@ export const updatePromocion = async (req: Request, res: Response) => {
 
 
         for (const producto of RegistrarPromocion.Promocionproducto) {
-            await updatePromocionProducto({ Idpp: producto.IdPromocionProducto,IdPromocion:id ,IdProducto: producto.IdProducto,
-                 Cantidad: producto.Cantidad, Descuento: producto.Descuento, IdEstado:producto.IdEstado, IdPaquete:producto.IdPaquete });
+            await updatePromocionProducto(producto.IdPromocionProducto,producto.IdProducto,promocion ,
+                 producto.Cantidad,  producto.Descuento, producto.IdEstado,producto.Precio );
         }
 
         return res.json({ message: "La promoción se actualizó correctamente" });
@@ -227,26 +209,26 @@ export const updatePromocion = async (req: Request, res: Response) => {
 
 export const deletePromocion = async (req: Request, res: Response) => {
     try {
-        const { id } = req.params;
-
-        const promocion = await Promocion.findOne({ where: { IdPromocion: id }, relations: ['Estado'] });
-        if (!promocion) {
-            return res.status(404).json({ message: "Promoción no encontrada" });
-        }
-
-        const esActivo = promocion.Estado?.IdEstado === 1;
-        const nuevoEstadoId = esActivo ? 2 : 1;
-        const mensajeAccion = esActivo ? 'deshabilitó' : 'habilitó';
-
-        const nuevoEstado = await verifyEstado({ EstadoId: nuevoEstadoId });
-        if (!nuevoEstado) {
-            return res.status(500).json({ message: "No se pudo obtener el estado requerido." });
-        }
-
-        promocion.Estado = nuevoEstado;
-        await promocion.save();
-
-        return res.json({ message: `Se ${mensajeAccion} correctamente` });
+       const { id } = req.params;
+       
+         const result = await AppDataSource.query(
+         `UPDATE promocion 
+          SET estado = CASE WHEN estado = 1 THEN 0 ELSE 1 END
+          WHERE IdPromocion = $1
+          RETURNING estado AS estado`,
+         [id]
+       );
+       
+           // ✅ aquí está el cambio
+           if (result.length === 0) {
+             return res.status(404).json({ message: "Persona no encontrado" });
+           }
+       const nuevoEstado = Number(result[0][0].estado);
+           const mensajeAccion = nuevoEstado === 1 ? "habilitaron" : "eliminaron";
+       
+           return res.json({
+             message: `Se ${mensajeAccion} los datos de la promocion correctamente`,
+           });
 
     } catch (error) {
         if (error instanceof Error) {
@@ -256,79 +238,318 @@ export const deletePromocion = async (req: Request, res: Response) => {
 };
 
 export const getPromociones = async (req: Request, res: Response) => {
-    try {
-        const promociones = await Promocion.find({
-            relations: ["Estado",
-                 "Tipopromocion", 
-                 "Rango",
-                 "Imagen",
-                  "Promocionproducto",
-                  "Promocionproducto.Estado",
-                  'Promocionproducto.Producto',
-                  'Promocionproducto.Paquete']
-        });
-        return res.json(promociones);
-    } catch (error) {
-        if (error instanceof Error) {
-            return res.status(500).json({ message: error.message });
-        }
+  try {
+    const {
+      search,
+      idproducto,
+      estado,
+      tipopromocion,
+      page = 1,
+      limit = 8
+    } = req.query;
+
+    const offset = (Number(page) - 1) * Number(limit);
+
+    const searchParam =
+      typeof search === "string" && search.trim() !== ""
+        ? search.trim()
+        : null;
+
+    const idProductoParam =
+      typeof idproducto === "string" && idproducto.trim() !== ""
+        ? idproducto.trim()
+        : null;
+
+    const estadoParam =
+      estado !== undefined && estado !== ""
+        ? Number(estado)
+        : null;
+
+   const tipoParam =
+  tipopromocion !== undefined && tipopromocion !== ""
+    ? Number(tipopromocion)
+    : null;
+
+    const result = await AppDataSource.query(
+      `
+      SELECT 
+        pr.idpromocion,
+        pr.nombre,
+        pr.descripcion,
+        pr.estado,
+        pr.tipodescuento,
+        pr.preciopromocion,
+        pr.limiteuso,
+        pr.imagen,
+        COUNT(*) OVER() AS total,
+
+        -- 🔥 RANGO
+        json_build_object(
+          'IdRango', r.idrango,
+          'FechaInicio', r.fechainicio,
+          'FechaFin', r.fechafin,
+          'HoraInicio', r.horainicio,
+          'HoraFin', r.horafin
+        ) AS "Rango",
+
+        -- 🔥 Tipo Promoción
+        json_build_object(
+          'IdTipoPromocion', tp.idtipopromocion,
+          'Nombre', tp.nombre
+        ) AS "Tipopromocion",
+
+        -- 🔥 Productos de la promoción
+        COALESCE(
+          json_agg(
+            DISTINCT jsonb_build_object(
+              'IdPromocionProducto', pp.idpromocionproducto,
+              'Cantidad', pp.cantidad,
+              'Descuento', pp.descuento,
+              'Precio', pp.precio,
+              'Estado', pp.estado,
+
+              'Productomedida', json_build_object(
+                'IdProductoMedida', pm.idproductomedida,
+                'Cantidad', pm.cantidad,
+                'PrecioVenta', pm.precioventa,
+                'Imagen', pm.imagen,
+
+                -- 🔥 NUEVO: PRESENTACION
+                'Presentacion', json_build_object(
+                  'IdPresentacion', prd.idpresentacion,
+                  'Nombre', prd.nombre,
+                  'Estado', prd.estado
+                ),
+
+                'Producto', json_build_object(
+                  'IdProducto', p.idproducto,
+                  'Nombre', p.nombre,
+                  'Estado', p.estado,
+                  'Imagen', p.imagen
+                )
+              )
+            )
+          ) FILTER (WHERE pp.idpromocionproducto IS NOT NULL),
+          '[]'
+        ) AS "Promocionproducto"
+
+      FROM promocion pr
+
+      LEFT JOIN rango r 
+        ON r.idpromocion = pr.idpromocion
+
+      LEFT JOIN tipopromocion tp 
+        ON tp.idtipopromocion = pr.idtipopromocion
+
+      LEFT JOIN promocionproducto pp 
+        ON pp.idpromocion = pr.idpromocion
+
+      LEFT JOIN productomedida pm 
+        ON pm.idproductomedida = pp.idproductomedida
+
+      LEFT JOIN producto p 
+        ON p.idproducto = pm.idproducto
+
+      -- 🔥 NUEVO JOIN
+      LEFT JOIN presentacion prd 
+        ON prd.idpresentacion = pm.idpresentacion
+
+      WHERE
+        ($1::text IS NULL OR pr.nombre ILIKE '%' || $1::text || '%')
+      AND ($2::text IS NULL OR p.idproducto = $2)
+      AND ($3::int IS NULL OR pr.estado = $3)
+      AND ($4::int IS NULL OR tp.idtipopromocion = $4::int)
+     
+      GROUP BY 
+        pr.idpromocion,
+        tp.idtipopromocion,
+        r.idrango
+
+      ORDER BY pr.idpromocion
+      LIMIT $5 OFFSET $6;
+      `,
+      [
+        searchParam,
+        idProductoParam,
+        estadoParam,
+        tipoParam,
+        Number(limit),
+        offset
+      ]
+    );
+
+    if (result.length === 0) {
+      return res.json({
+        total: 0,
+        page: Number(page),
+        limit: Number(limit),
+        data: []
+      });
     }
+
+    return res.json({
+      total: result[0].total,
+      page: Number(page),
+      limit: Number(limit),
+      data: result
+    });
+
+  } catch (error) {
+    console.error("Error real:", error);
+    return res.status(500).json({ message: "Error interno del servidor" });
+  }
 };
 
-export const getPromocionesActiva = async (req: Request, res: Response) => {
-    try {
-        const promociones = await Promocion.find({
-            where:{Estado:{IdEstado:1}},
-            relations: [ "Imagen","Tipopromocion", "Promocionproducto",'Promocionproducto.Producto','Promocionproducto.Paquete']
-        });
-        return res.json(promociones);
-    } catch (error) {
-        if (error instanceof Error) {
-            return res.status(500).json({ message: error.message });
-        }
+
+
+export const getPromocionesVista = async (req: Request, res: Response) => {
+  try {
+    const {
+      search,
+      tipopromocion,
+      page = 1,
+      limit = 12
+    } = req.query;
+
+    const offset = (Number(page) - 1) * Number(limit);
+
+    const searchParam =
+      typeof search === "string" && search.trim() !== ""
+        ? search.trim()
+        : null;
+
+    const tipoParam =
+      tipopromocion !== undefined && tipopromocion !== ""
+        ? Number(tipopromocion)
+        : null;
+
+    const result = await AppDataSource.query(
+      `
+      SELECT 
+        pr.idpromocion,
+        pr.nombre,
+        pr.descripcion,
+        pr.estado,
+        pr.tipodescuento,
+        pr.preciopromocion,
+        pr.limiteuso,
+        pr.imagen,
+        COUNT(*) OVER() AS total,
+
+        -- RANGO
+        json_build_object(
+          'IdRango', r.idrango,
+          'FechaInicio', r.fechainicio,
+          'FechaFin', r.fechafin,
+          'HoraInicio', r.horainicio,
+          'HoraFin', r.horafin
+        ) AS "Rango",
+
+        -- Tipo Promoción
+        json_build_object(
+          'IdTipoPromocion', tp.idtipopromocion,
+          'Nombre', tp.nombre
+        ) AS "Tipopromocion",
+
+        --  Productos de la promoción
+        COALESCE(
+          json_agg(
+            DISTINCT jsonb_build_object(
+              'IdPromocionProducto', pp.idpromocionproducto,
+              'Cantidad', pp.cantidad,
+              'Descuento', pp.descuento,
+              'Precio', pp.precio,
+              'Estado', pp.estado,
+
+              'Productomedida', json_build_object(
+                'IdProductoMedida', pm.idproductomedida,
+                'Cantidad', pm.cantidad,
+                'PrecioVenta', pm.precioventa,
+                'Imagen', pm.imagen,
+
+                'Presentacion', json_build_object(
+                  'IdPresentacion', prd.idpresentacion,
+                  'Nombre', prd.nombre,
+                  'Estado', prd.estado
+                ),
+
+                'Producto', json_build_object(
+                  'IdProducto', p.idproducto,
+                  'Nombre', p.nombre,
+                  'Estado', p.estado,
+                  'Imagen', p.imagen
+                )
+              )
+            )
+          ) FILTER (WHERE pp.idpromocionproducto IS NOT NULL AND pp.estado = 1),
+          '[]'
+        ) AS "Promocionproducto"
+
+      FROM promocion pr
+
+      LEFT JOIN rango r 
+        ON r.idpromocion = pr.idpromocion
+
+      LEFT JOIN tipopromocion tp 
+        ON tp.idtipopromocion = pr.idtipopromocion
+
+      LEFT JOIN promocionproducto pp 
+        ON pp.idpromocion = pr.idpromocion
+
+      LEFT JOIN productomedida pm 
+        ON pm.idproductomedida = pp.idproductomedida
+
+      LEFT JOIN producto p 
+        ON p.idproducto = pm.idproducto
+
+      LEFT JOIN presentacion prd 
+        ON prd.idpresentacion = pm.idpresentacion
+
+      WHERE pr.estado = 1
+      AND ($1::text IS NULL OR pr.nombre ILIKE '%' || $1::text || '%')
+      AND ($2::int IS NULL OR tp.idtipopromocion = $2::int)
+      -- Validar que estemos dentro del rango de fechas
+      AND (
+        CURRENT_DATE BETWEEN r.fechainicio AND r.fechafin
+      )
+
+      GROUP BY 
+        pr.idpromocion,
+        tp.idtipopromocion,
+        r.idrango
+
+      ORDER BY pr.idpromocion
+      LIMIT $3 OFFSET $4;
+      `,
+      [
+        searchParam,
+        tipoParam,
+        Number(limit),
+        offset
+      ]
+    );
+
+    if (result.length === 0) {
+      return res.json({
+        total: 0,
+        page: Number(page),
+        limit: Number(limit),
+        data: []
+      });
     }
+
+    return res.json({
+      total: Number(result[0].total),
+      page: Number(page),
+      limit: Number(limit),
+      data: result
+    });
+
+  } catch (error) {
+    console.error("Error en getPromocionesVista:", error);
+    return res.status(500).json({ message: "Error interno del servidor" });
+  }
 };
 
-export const getPromocion = async (req: Request, res: Response) => {
-    try {
-        const { id } = req.params;
-        const promocion = await Promocion.findOne({
-            where: { IdPromocion: id },
-            relations: [
-                "Promocionproducto",
-                "Promocionproducto.Estado",
-                "Promocionproducto.Producto",
-                "Promocionproducto.Paquete"
-            ]
-        });
-
-        if (!promocion) {
-            return res.status(404).json({ message: "Promoción no encontrada" });
-        }
-
-        // Mapeamos el resultado para devolver solo lo necesario
-        const promocionResponse = {
-            IdPromocion: promocion.IdPromocion,
-            Nombre: promocion.Nombre,
-            Descripcion: promocion.Descripcion,
-            Estado: promocion.Estado?.Nombre,  // Solo el nombre           
-            Productos: promocion.Promocionproducto.map(p => ({
-                Estado:p.Estado.IdEstado,
-                IdProducto: p.Producto ? p.Producto.IdProducto : null,
-                IdPaquete: p.Paquete ? p.Paquete.IdPaquete : null,
-                Nombre: p.Producto?.Nombre || p.Paquete?.Nombre,
-                Cantidad: p.Cantidad,
-                Descuento: p.Descuento
-            }))
-        };
-
-        return res.json(promocionResponse);
-
-    } catch (error) {
-        if (error instanceof Error) {
-            return res.status(500).json({ message: error.message });
-        }
-    }
-};
 
 

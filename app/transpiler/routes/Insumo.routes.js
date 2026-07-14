@@ -1,0 +1,16 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const verifyToken_1 = require("../middleware/verifyToken");
+const Insumo_controllers_1 = require("../controllers/Insumo.controllers");
+const Insumomedida_controllers_1 = require("../controllers/Insumomedida.controllers");
+const router = (0, express_1.Router)();
+router.use(verifyToken_1.authMiddleware);
+router.post("/postInsumo", Insumo_controllers_1.createInsumo);
+router.put('/putInsumo/:id', Insumo_controllers_1.updateInsumo);
+router.put('/Photoinsumo/:id', Insumo_controllers_1.SubirPhotoInsumo);
+router.get('/getInsumo', Insumo_controllers_1.getInsumo);
+router.get('/listInumo', Insumo_controllers_1.ListInsumo);
+router.delete('/delInsumo/:id', Insumo_controllers_1.deleteInsumo);
+router.get('/getInsumoInMedida/:id', Insumomedida_controllers_1.getInsumoInMedida);
+exports.default = router;

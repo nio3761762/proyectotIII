@@ -1,10 +1,5 @@
 import { BaseEntity, Check, OneToMany, Column, Entity, PrimaryColumn, OneToOne, ManyToOne, JoinColumn } from "typeorm";
-import bcrypt from "bcryptjs";
-import { Producto } from "./Producto";
-import { Metodopago } from "./MetodoPago";
-import { Venta } from "./Venta";
-import { Presentacionproducto } from "./Presentacionproducto";
-import { Estado } from "./Estado";
+import { Productomedida } from "./ProductoMedida";
 
 @Entity()
 //@Check(`"Estado" IN (0, 1)`)
@@ -20,13 +15,16 @@ export class Presentacion extends BaseEntity {
 
     @Column({ name: "fechaactualizacion", type: "date", nullable:true })
     FechaActualizacion: Date;
+   
+     
+   @Column({ name: 'abreviatura', type: 'varchar', length: 100, nullable:true })
+   Abreviatura: string;
 
+     @OneToMany(() => Productomedida, (productomedida) => productomedida.Presentacion)
+       Productomedida: Productomedida[];
+    
 
-      @OneToMany(() => Presentacionproducto, (paquete) => paquete.Presentacion)
-      Presentacionproducto: Presentacionproducto[];
-
-       @ManyToOne(() => Estado, (estado) => estado.Presentacion)
-          @JoinColumn({ name: "idestado" })
-          Estado: Estado;
+    @Column({ name: "estado", type: "integer",default: 1}) 
+    Estado: number; 
 
     }

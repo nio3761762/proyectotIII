@@ -82,12 +82,6 @@ CREATE TABLE Horario (
     HoraSalida TIME
 );
 
-CREATE TABLE Salario (
-    IdSalario VARCHAR(150) PRIMARY KEY,
-    Salario DECIMAL(10, 2) DEFAULT 0.00,
-    Moneda VARCHAR(10),
-    Fecha DATE
-);
 
 CREATE TABLE MetodoPago (
     IdMetodoPago INT PRIMARY KEY,
@@ -320,12 +314,10 @@ CREATE TABLE Persona (
     IdDireccion VARCHAR(255),
     IdGenero INT,
     IdEstado INT,
-    IdSalario VARCHAR(150),
     FOREIGN KEY (IdImagen) REFERENCES Imagen(IdImagen),
     FOREIGN KEY (IdDireccion) REFERENCES Direccion(IdDireccion),
     FOREIGN KEY (IdGenero) REFERENCES Genero(IdGenero),
     FOREIGN KEY (IdEstado) REFERENCES Estado(IdEstado),
-    FOREIGN KEY (IdSalario) REFERENCES Salario(IdSalario)
 );
 
 CREATE TABLE Cliente (
@@ -365,8 +357,6 @@ CREATE TABLE Usuario (
     IdUsuario VARCHAR(150) PRIMARY KEY,
     Contrasena VARCHAR(150),
     Pin VARCHAR(150),
-    Token VARCHAR(255),
-    RToken VARCHAR(255),
     PinRecuperacion VARCHAR(10),
     IdPersona VARCHAR(150),
     IdEstado INT,
@@ -507,12 +497,12 @@ CREATE TABLE DetalleVenta (
     FOREIGN KEY (IdPaquete) REFERENCES PresentacionProducto(IdPaquete)
 );
 
-CREATE TABLE Factura (
-    IdFactura VARCHAR(100) PRIMARY KEY,
-    NroFactura VARCHAR(255),
+CREATE TABLE Comprobante (
+    IdComprobante VARCHAR(100) PRIMARY KEY,
+    NroComprobante VARCHAR(255),
     FechaEmicion DATE,
     Aprobado VARCHAR(10),
-    UrlFactura VARCHAR(255),
+    UrlComprobante VARCHAR(255),
     IdVenta VARCHAR(100),
     IdEnlace VARCHAR(50),
     FOREIGN KEY (IdVenta) REFERENCES Venta(IdVenta),
@@ -621,26 +611,6 @@ CREATE TABLE Entrega (
     FOREIGN KEY (IdRepartidor) REFERENCES Repartidor(IdRepartidor)
 );
 
-CREATE TABLE SeguimientoEntrega (
-    IdSeguimiento VARCHAR(100) PRIMARY KEY,
-    IdEntrega VARCHAR(50),
-    Latitud DECIMAL(10, 8),
-    Longitud DECIMAL(11, 8),
-    FechaHoraUbicacion TIMESTAMP,
-    FOREIGN KEY (IdEntrega) REFERENCES Entrega(IdEntrega)
-);
-
-CREATE TABLE TrackingLink (
-    IdTracking VARCHAR(50) PRIMARY KEY,
-    Token VARCHAR(255),
-    IdRepartidor VARCHAR(150),
-    FechaExpiracion DATE,
-    IdEstado INT,
-    FechaCreacion DATE,
-    FOREIGN KEY (IdRepartidor) REFERENCES Repartidor(IdRepartidor),
-    FOREIGN KEY (IdEstado) REFERENCES Estado(IdEstado)
-);
-
 CREATE TABLE Proveedor (
     IdProveedor VARCHAR(50) PRIMARY KEY,
     RazonSocial VARCHAR(255),
@@ -658,7 +628,7 @@ CREATE TABLE Compra (
     FechaCompra DATE,
     IdComprobante VARCHAR(50),
     IdProveedor VARCHAR(50),
-    FOREIGN KEY (IdComprobante) REFERENCES Comprobante(IdComporobante),
+    FOREIGN KEY (IdComprobante) REFERENCES Tipocomprobante(IdTipoComporobante),
     FOREIGN KEY (IdProveedor) REFERENCES Proveedor(IdProveedor)
 );
 
@@ -674,14 +644,9 @@ CREATE TABLE DetalleCompra (
     FOREIGN KEY (IdCompra) REFERENCES Compra(IdCompra)
 );
 
-CREATE TABLE Comprobante (
-    IdComporobante VARCHAR(50) PRIMARY KEY,
+CREATE TABLE TIPOCOMPROBANTE(
+    IdTipoComporobante VARCHAR(50) PRIMARY KEY,
     Nombre VARCHAR(100)
 );
 
-CREATE TABLE ContadorSecuencias (
-    prefijo VARCHAR(5),
-    fecha DATE,
-    ultimaSecuencia INT,
-    PRIMARY KEY (prefijo, fecha)
-);
+

@@ -2,7 +2,9 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const EmpresaReparto_controllers_1 = require("../controllers/EmpresaReparto.controllers");
+const verifyToken_1 = require("../middleware/verifyToken");
 const router = (0, express_1.Router)();
+router.use(verifyToken_1.authMiddleware);
 router.post("/empresareparto", EmpresaReparto_controllers_1.createEmpresaReparto);
 router.get("/empresareparto", EmpresaReparto_controllers_1.getEmpresaRepartos);
 router.get("/empresareparto/:id", EmpresaReparto_controllers_1.getEmpresaReparto);

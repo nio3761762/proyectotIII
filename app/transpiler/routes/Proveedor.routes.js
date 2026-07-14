@@ -3,8 +3,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const Proveedor_controllers_1 = require("../controllers/Proveedor.controllers");
 const TipoProveedor_controllers_1 = require("../controllers/TipoProveedor.controllers");
+const verifyToken_1 = require("../middleware/verifyToken");
 const router = (0, express_1.Router)();
-//router.use(authMiddleware)
+router.use(verifyToken_1.authMiddleware);
 router.post('/Proveedor', Proveedor_controllers_1.createProveedor);
 router.put('/putProveedor/:id', Proveedor_controllers_1.updateProveedor);
 router.get('/getProveedor', Proveedor_controllers_1.getProveedores);

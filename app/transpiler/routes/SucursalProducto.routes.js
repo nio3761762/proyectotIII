@@ -2,8 +2,9 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const SucursalProducto_controllers_1 = require("../controllers/SucursalProducto.controllers");
+const verifyToken_1 = require("../middleware/verifyToken"); // Descomentar si se necesita autenticación
 const router = (0, express_1.Router)();
-// router.use(authMiddleware); 
+router.use(verifyToken_1.authMiddleware);
 router.get("/sucursalproductos", SucursalProducto_controllers_1.getProductosBySucursal);
 router.get("/ObtenerSucursalproducto/:id", SucursalProducto_controllers_1.ObtenerSucursalproducto);
 router.get("/sucursal-productos-summed/:categoriaId/:subcategoriaId", SucursalProducto_controllers_1.getAllProductsWithSummedQuantities);

@@ -1,62 +1,23 @@
 import { Request, Response } from "express";
 import { Venta } from "../entities/Venta";
 import { Detalleventa } from "../entities/DetalleVenta";
+import { Pago } from "../entities/Pago";
 import { HttpError } from "../utils/error.handler";
 import { verifyUsuario } from "./Usuario.controllers";
 import { generarIdSecuencial } from "../utils/idGenerator";
-import { createDetalleventa, createDetalleventaPedido, updateDetalleventa, deleteDetalleventaAndRestoreStock, updateDetalleventaPedido } from "./DetalleVenta.controllers";
+import { createDetalleventa } from "./DetalleVenta.controllers";
 import { createPago, updatePago } from "./Pago.controllers";
-import { AnanirPersona, verifyPersona } from "./Persona.controllers";
-import { verifyEstado } from "./Estado.controllers";
-import { IncrementProducto, IncrementPaquete, IncrementPromocion } from "./SucursalProducto.controllers";
-import { Usuario } from "../entities/Usuario";
-import { Between, IsNull, Not, Raw } from "typeorm";
+import {  verifyPersona } from "./Persona.controllers";
+import {  IncrementProducto, IncrementPromocion } from "./Inventario.controllers";
 import { verifySucursal } from "./Sucursal.controllers";
-import { Producto } from "../entities/Producto";
-import { createCelular } from "./Celular.controllers";
-import { createDocumento } from "./Documento.controllers";
-import { Persona } from "../entities/Persona";
+import { AppDataSource } from "../db";
+import { verifyPromocion } from "./Promocion.controllers";
+import { verifyProductoMedida } from "./ProductoMedida.controllers";
+import { verifyMetodoPago } from "./MetodoPago.controllers";
+import { getFechaHoraBolivia } from "../utils/Fecha";
+const { fecha, hora } = getFechaHoraBolivia();
 
-const DataPersona = async (personaData: any) => {
-    const persona = await AnanirPersona({
-        Nombre: personaData.Nombre,
-        ApellidoPaterno: personaData.ApellidoPaterno,
-        ApellidoMaterno: personaData.ApellidoMaterno || '',
-        FechaDeNacimiento: personaData.FechaDeNacimiento || '',
-        IdGenero: personaData.IdGenero,
-        email: personaData.email || ''
-    });
-    console.log(persona)
-    if (Array.isArray(personaData.Celulares)) {
-        await Promise.all(
-            personaData.Celulares.map((numero: any) =>
-                createCelular({ Numero: numero.Numero, PersonaId: persona.IdPersona })
-            )
-        );
-    }
-    if (Array.isArray(personaData.Documento)) {
-        await Promise.all(
-            personaData.Documento
-                .filter((doc: any) => doc.Documento && doc.Documento.trim() !== "")
-                .map((doc: any) =>
-                    createDocumento({
-                        IdTipoDocumento: doc.IdTipoDocumento,
-                        IdComplemento: doc.IdComplemento,
-                        Documentos: doc.Documento,
-                        PersonaId: persona.IdPersona
-                    })
-                )
-        );
-    }
-    
-    const existePersona = await Persona.findOne({
-      where:{IdPersona:persona.IdPersona}
-    })
-    if (existePersona)
-    console.log(existePersona, 'existe')
 
-    return persona.IdPersona;
-};
 
 
 
@@ -79,9 +40,9 @@ export const getVentas = async (req: Request, res: Response) => {
     }
   }
 }
+ 
 
-
-export const verifyVenta = async ({ VentaId }: { VentaId: string }) => {
+export const verifyVenta = async ( VentaId: string ) => {
 
   const existVenta = await Venta.findOne({ where: { IdVenta: VentaId } });
 
@@ -95,457 +56,746 @@ export const verifyVenta = async ({ VentaId }: { VentaId: string }) => {
 
 
 export const registrarVenta = async (req: Request, res: Response) => {
+  const queryRunner = AppDataSource.createQueryRunner();
+  await queryRunner.connect();
+  await queryRunner.startTransaction();
+
   try {
     const { ventas, detalles } = req.body;
-    const nuevoId = await generarIdSecuencial('V');
+ 
+    // 1. Validaciones básicas
+    if (!ventas.IdUsuario || !ventas.IdSucursal) {
+      throw new HttpError(400, "Usuario y Sucursal son requeridos para la venta.");
+    }
+
+    // 2. Generar ID y preparar cabecera de Venta
+    const nuevoIdVenta = await generarIdSecuencial('V');
     const venta = new Venta();
-    venta.IdVenta = nuevoId;
-      if (ventas.Nombre) {
-            ventas.IdCliente = await DataPersona(ventas)
-        }
-    if (ventas.IdCliente) venta.Persona = await verifyPersona({ PersonaId: ventas.IdCliente });
-    venta.Usuario = await verifyUsuario({ UsuarioId: ventas.IdUsuario });
-    if (ventas.IdSucursal) venta.Sucursal = await verifySucursal({ SucursalId: ventas.IdSucursal })
-    const fechaHoraActual = new Date();
-    venta.FechaVenta = fechaHoraActual;
-    venta.HoraVenta = fechaHoraActual.toTimeString().slice(0, 8);
-    venta.Estado = await verifyEstado({ EstadoId: 3 });
-    await venta.save();
-    await createPago({ IdVenta: nuevoId, Monto: ventas.Monto, Cambio: ventas.Cambio, IdMetodoPago: ventas.IdMetodoPago })
-
-
-    if (detalles) {
-      if (detalles.Producto && detalles.Producto.length > 0) {
-        for (const producto of detalles.Producto) {
-          await createDetalleventa({
-            IdPromocion: '',
-            IdProducto: producto.id,
-            Cantidad: producto.Cantidad,
-            IdPaquete: '',
-            IdVenta: nuevoId,
-            Precio: producto.precioUnitario.toFixed(2),
-            IdSucursal: ventas.IdSucursal,
-            Modo: producto.Modo
-          });
-        }
-      }
-      if (detalles.Paquete && detalles.Paquete.length > 0) {
-        for (const paquete of detalles.Paquete) {
-          await createDetalleventa({
-            IdPromocion: '',
-            IdProducto: '',
-            Cantidad: paquete.Cantidad,
-            IdPaquete: paquete.id,
-            IdVenta: nuevoId,
-            Precio: paquete.precioUnitario.toFixed(2),
-            IdSucursal: ventas.IdSucursal,
-            Modo: paquete.Modo
-          });
-        }
-      }
-      if (detalles.Promocion && detalles.Promocion.length > 0) {
-        for (const promocion of detalles.Promocion) {
-          await createDetalleventa({
-            IdPromocion: promocion.id,
-            IdProducto: '',
-            Cantidad: promocion.Cantidad,
-            IdPaquete: '',
-            IdVenta: nuevoId,
-            Precio: promocion.precioUnitario.toFixed(2),
-            IdSucursal: ventas.IdSucursal,
-            Modo: promocion.Modo
-          });
-        }
-      }
-    }
-
-    res.status(201).json({ message: "La venta se registro correctamente" });
-  } catch (error) {
-    if (error instanceof HttpError) {
-      res.status(error.statusCode).json({ message: error.message });
-    } else if (error instanceof Error) {
-      res.status(500).json({ message: 'Error interno del servidor', error: error.message });
-    }
-  }
-};
-
-
-export const updateVenta = async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    const { ventas, detalles } = req.body;
-
-    const venta = await Venta.findOne({
-      where: { IdVenta: id }
-    });
-
-    if (!venta) {
-      return res.status(404).json({ message: "Venta no encontrada" });
-    }
-
-    if (ventas.IdCliente) venta.Persona = await verifyPersona({ PersonaId: ventas.IdCliente });
-    const fechaHoraActual = new Date();
-    venta.FechaVenta = fechaHoraActual;
-    venta.HoraVenta = fechaHoraActual.toTimeString().slice(0, 8);
-
-    await venta.save();
-
-    await updatePago({ IdVenta: venta.IdVenta, IdPago: ventas.IdPago, Monto: ventas.Monto, Cambio: ventas.Cambio, IdMetodoPago: ventas.IdMetodoPago });
-
-    // Fetch existing details for this venta
-    const existingDetalles = await Detalleventa.find({
-      where: { Venta: { IdVenta: id } },
-      relations: ["Producto", "Paquete", "Promocion"]
-    });
-
-    // Collect IDs of incoming details
-    const incomingDetalleIds = new Set<string>();
-    if (detalles.Producto) {
-      detalles.Producto.forEach((p: any) => {
-        if (p.IdDetalleVenta) incomingDetalleIds.add(p.IdDetalleVenta);
-      });
-    }
-    if (detalles.Paquete) {
-      detalles.Paquete.forEach((p: any) => {
-        if (p.IdDetalleVenta) incomingDetalleIds.add(p.IdDetalleVenta);
-      });
-    }
-    if (detalles.Promocion) {
-      detalles.Promocion.forEach((p: any) => {
-        if (p.IdDetalleVenta) incomingDetalleIds.add(p.IdDetalleVenta);
-      });
-    }
-
-    // Identify and delete details that are no longer present in the incoming request
-    for (const existingDetalle of existingDetalles) {
-      if (!incomingDetalleIds.has(existingDetalle.IdDetalleVenta)) {
-        await deleteDetalleventaAndRestoreStock({
-          Iddetalle: existingDetalle.IdDetalleVenta,
-          IdSucursal: ventas.IdSucursal // Assuming IdSucursal is available in ventas
-        });
-      }
-    }
-
-    if (detalles) {
-      if (detalles.Producto && detalles.Producto.length > 0) {
-        for (const producto of detalles.Producto) {
-          await updateDetalleventa({
-            Iddetalle: producto.IdDetalleVenta,
-            IdPromocion: '',
-            IdProducto: producto.id,
-            Cantidad: producto.Cantidad,
-            IdPaquete: '',
-            IdVenta: venta.IdVenta,
-            Precio: producto.precioUnitario.toFixed(2),
-            IdSucursal: ventas.IdSucursal,
-            Modo: producto.Modo
-          });
-        }
-      }
-      if (detalles.Paquete && detalles.Paquete.length > 0) {
-        for (const paquete of detalles.Paquete) {
-          await updateDetalleventa({
-            Iddetalle: paquete.IdDetalleVenta,
-            IdPromocion: '',
-            IdProducto: '',
-            Cantidad: paquete.Cantidad,
-            IdPaquete: paquete.id,
-            IdVenta: venta.IdVenta,
-            Precio: paquete.precioUnitario.toFixed(2),
-            IdSucursal: ventas.IdSucursal,
-            Modo: paquete.Modo
-          });
-        }
-      }
-      if (detalles.Promocion && detalles.Promocion.length > 0) {
-        for (const promocion of detalles.Promocion) {
-          await updateDetalleventa({
-            Iddetalle: promocion.IdDetalleVenta,
-            IdPromocion: promocion.id,
-            IdProducto: '',
-            Cantidad: promocion.Cantidad,
-            IdPaquete: '',
-            IdVenta: venta.IdVenta,
-            Precio: promocion.precioUnitario.toFixed(2),
-            IdSucursal: ventas.IdSucursal,
-            Modo: promocion.Modo
-          });
-        }
-      }
-    }
-
-    res.status(201).json({ message: "La venta se actualizo correctamente" });
-  } catch (error) {
-    if (error instanceof HttpError) {
-      res.status(error.statusCode).json({ message: error.message });
-    } else if (error instanceof Error) {
-      res.status(500).json({ message: 'Error interno del servidor', error: error.message });
-    }
-  }
-};
-
-
-export const agregarClienteVenta = async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    const { ventas } = req.body;
-
-    const venta = await Venta.findOne({
-      where: { IdVenta: id },
-       relations:["Persona"]
-    });
-    if (!venta) {
-      return res.status(404).json({ message: "Venta no encontrada" });
-    }
+    venta.IdVenta = nuevoIdVenta;
     
-    if (ventas.Nombre && venta.Persona === null && !ventas.IdCliente) {
-            ventas.IdCliente = await DataPersona(ventas);
-            console.log( ventas.IdCliente)
-        } 
-    if (ventas.IdCliente) venta.Persona = await verifyPersona({ PersonaId: ventas.IdCliente });
-
-    await venta.save();
-
-   
-    // Collect IDs of incoming details
-  
-
-  
-    res.status(201).json({ message: "La venta se actualizo correctamente" });
-  } catch (error) {
-    if (error instanceof HttpError) {
-      res.status(error.statusCode).json({ message: error.message });
-    } else if (error instanceof Error) {
-      res.status(500).json({ message: 'Error interno del servidor', error: error.message });
+    // 3. Manejo de Cliente (Persona)
+    if (ventas.IdPersona) {
+      venta.Persona = await verifyPersona({ PersonaId: ventas.IdPersona });
     }
+
+    venta.Usuario = await verifyUsuario({ UsuarioId: ventas.IdUsuario });
+    venta.Sucursal = await verifySucursal({ SucursalId: ventas.IdSucursal });
+
+    if(ventas.Monto > 0) venta.PrecioTotal = Number(ventas.Monto)
+    venta.FechaVenta = ventas.FechaVenta || fecha;
+    venta.HoraVenta = ventas.HoraVenta || hora;
+  
+
+    // Guardar venta dentro de la transacción
+    await queryRunner.manager.save(venta);
+
+    // 4. Registro de Pago
+    await createPago(
+      queryRunner,
+      venta, 
+      ventas.Monto, 
+       ventas.Cambio, 
+       ventas.IdMetodoPago 
+    );
+
+    // 5. Procesar Detalles (Presentaciones Productos, Promociones)
+    if (detalles) {
+      if (detalles.Producto?.length > 0) {
+        for (const prod of detalles.Producto) {
+          let promocion = null;
+          if (prod.idPromocion) {
+            promocion = await verifyPromocion({ PromocionId: prod.idPromocion });
+            // Verificar límite de uso si existe
+            if (promocion.LimiteUso > 0) {
+              if (promocion.LimiteUso < prod.Cantidad) {
+                throw new HttpError(400, `La promoción "${promocion.Nombre}" ha agotado su límite de uso o no tiene suficiente disponible.`);
+              }
+              promocion.LimiteUso -= prod.Cantidad;
+              if(promocion.LimiteUso == 0 )
+                promocion.Estado = 0
+              await queryRunner.manager.save(promocion);
+            }
+          }
+
+          let presentacion = null;
+          if (prod.idPaquete) {
+            presentacion = await verifyProductoMedida({ PaqueteId: prod.idPaquete });
+          }
+          await createDetalleventa(
+            queryRunner,
+            venta,
+            presentacion,
+            promocion,
+            prod.Cantidad,
+            prod.precioUnitario,
+            ventas.IdSucursal
+          );
+        }
+      }
+    }
+
+    // Confirmar todo si llegamos aquí
+    await queryRunner.commitTransaction();
+    return res.status(201).json({ 
+      message: "La venta se registró correctamente", 
+      idVenta: nuevoIdVenta 
+    });
+
+  } catch (error) {
+    // Si algo falla, revertimos todos los cambios (Venta, Pagos e Inventario)
+    await queryRunner.rollbackTransaction();
+
+    if (error instanceof HttpError) {
+      return res.status(error.statusCode).json({ message: error.message });
+    }
+    return res.status(500).json({ 
+      message: "Error al registrar la venta", 
+      error: error instanceof Error ? error.message : "Error desconocido" 
+    });
+  } finally {
+    // Liberar el query runner
+    await queryRunner.release();
   }
 };
+
+
+
+
 export const anularVenta = async (req: Request, res: Response) => {
+  const queryRunner = AppDataSource.createQueryRunner();
+  await queryRunner.connect();
+  await queryRunner.startTransaction();
+
   try {
     const { id } = req.params;
-    const { IdSucursal } = req.body;
-    const venta = await Venta.findOne({
+   
+
+    const venta = await queryRunner.manager.findOne(Venta, {
       where: { IdVenta: id },
       relations: [
-        "Detalleventa", "Usuario"
+        "Sucursal",
+        "Detalleventa",
+         "Detalleventa.Producto",
+        "Detalleventa.Productomedida",
+        "Detalleventa.Promocion",
+        "Detalleventa.Promocion.Promocionproducto",
+        "Detalleventa.Promocion.Promocionproducto.Productomedida"
       ]
     });
+
     if (!venta) {
-      return res.status(404).json({ message: "Venta no encontrada" });
+      throw new HttpError(404, "Venta no encontrada");
     }
-    console.log(venta.Detalleventa)
-    for (const detalle of venta.Detalleventa) {
 
-      const cantidad = detalle.Cantidad;
+    if (venta.Estado === 0) {
+      throw new HttpError(400, "La venta ya está anulada");
+    }
 
-      const obtenerDetalle = await Detalleventa.findOne({
-        where: { IdDetalleVenta: detalle.IdDetalleVenta },
-        relations: [
-          "Producto",
-          "Paquete",
-          "Promocion",
-        ]
-      });
-      if (!obtenerDetalle) {
-        return res.status(404).json({ message: "Detalles de la venta no encontrada" });
-      }
-
-      if (obtenerDetalle.Producto) {
-        await IncrementProducto({
-          SucursalId: IdSucursal,
-          ProductoId: obtenerDetalle.Producto.IdProducto,
-          Cantidad: cantidad
-        });
-      } else if (obtenerDetalle.Paquete) {
-        await IncrementPaquete({
-          SucursalId: IdSucursal,
-          PaqueteId: obtenerDetalle.Paquete.IdPaquete,
-          Cantidad: cantidad
-        });
-      } else if (obtenerDetalle.Promocion) {
-        await IncrementPromocion({
-          SucursalId: IdSucursal,
-          PromocionId: obtenerDetalle.Promocion.IdPromocion,
-          Cantidad: cantidad
-        });
+    // 1. Cambiar el estado de la venta a anulado (0)
+    venta.Estado = 0;
+    await queryRunner.manager.save(venta);
+    const IdSucursal = venta.Sucursal.IdSucursal 
+    // 2. Restaurar stock para cada detalle
+    if (venta.Detalleventa) {
+      for (const detalle of venta.Detalleventa) {
+        if (detalle.Productomedida) {
+          const presentacion = await verifyProductoMedida({PaqueteId:detalle.Productomedida.IdProductoMedida})
+          await IncrementProducto(queryRunner,presentacion, IdSucursal, detalle.Cantidad, id);
+        } else if (detalle.Promocion) {
+          // Restaurar límite de uso si aplica
+          if (detalle.Promocion.LimiteUso != null) {
+            detalle.Promocion.LimiteUso += detalle.Cantidad;
+            detalle.Promocion.Estado = 1; // Reactivar si estaba agotada
+            await queryRunner.manager.save(detalle.Promocion);
+          }
+          await IncrementPromocion(queryRunner,IdSucursal, detalle.Cantidad, detalle.Promocion, id);
+        }
       }
     }
-    venta.Estado = await verifyEstado({ EstadoId: 5 });
-    await venta.save();
 
-    res.status(200).json({ message: "Venta anulada correctamente y stock restaurado." });
+    await queryRunner.commitTransaction();
+    return res.status(200).json({ message: "Venta anulada correctamente y stock restaurado." });
 
   } catch (error) {
-    if (error instanceof Error) {
-      res.status(500).json({ message: error.message });
+    await queryRunner.rollbackTransaction();
+    if (error instanceof HttpError) {
+      return res.status(error.statusCode).json({ message: error.message });
     }
-  }
-}
-
-export const getVentasTodasSucursal = async (req: Request, res: Response) => {
-  try {
-    //  const { fecha } = req.params;
-
-    // console.log("Fecha recibida:", fecha);
-    // const fechaStr = fecha.split('T')[0] || fecha; // por si llega con hora
-    // const inicioDia = new Date(`${fechaStr}T00:00:00`);
-    // const finDia = new Date(`${fechaStr}T23:59:59.999`);
-
-    let ventas = await Venta.find({
-      //   where: { FechaVenta: Between(inicioDia, finDia) },
-      relations: [
-        "Pago",
-        "Pago.Metodopago",
-        "Persona",
-        "Detalleventa",
-        "Detalleventa.Producto",
-        "Detalleventa.Paquete",
-        "Detalleventa.Promocion",
-        "Usuario",
-        "Sucursal"]
+    return res.status(500).json({ 
+      message: "Error al anular la venta", 
+      error: error instanceof Error ? error.message : "Error desconocido" 
     });
-    return res.json(ventas)
-  } catch (error) {
-    if (error instanceof Error) {
-      return res.status(500).json({ message: error.message })
-    }
+  } finally {
+    await queryRunner.release();
   }
-}
+};
+
+
 
 export const getVentasSucursal = async (req: Request, res: Response) => {
   try {
-    const { id, fecha, pago } = req.params;
 
-    console.log("Fecha recibida:", fecha);
-    const fechaStr = fecha.split('T')[0] || fecha; // por si llega con hora
-    const inicioDia = new Date(`${fechaStr}T00:00:00`);
-    const finDia = new Date(`${fechaStr}T23:59:59.999`);
+    const {
+      producto,
+      promocion,
+      id,
+      fecha,
+      pago,
+      estado,
+      factura, 
+      page = 1,
+      limit = 10
+    } = req.query;
 
-   let ventas = await Venta.find({
-  where: {
-    FechaVenta: Raw(alias => `${alias} IS NOT NULL AND ${alias} BETWEEN :inicio AND :fin`, {
-      inicio: inicioDia,
-      fin: finDia
-    })
-  },
-  relations: [
-    "Estado",
-    "Persona",
-    "Detalleventa",
-    "Detalleventa.Producto",
-    "Detalleventa.Paquete",
-    "Detalleventa.Promocion",
-    "Usuario",
-    "Sucursal",
-    "Pago",
-    "Pago.Metodopago"
-  ]
-});
+    const offset = (Number(page) - 1) * Number(limit);
 
+    const query = `
+      WITH filtered_ventas AS (
+        SELECT v.*
+        FROM venta v
+        WHERE
+          ($1::date IS NULL OR v.fechaventa = $1)
 
-    const ventasFiltradas = ventas.filter(v =>
-     (
-    id === "TODOS" || v.Sucursal?.IdSucursal === id || // sucursal específica
-    (id === "TODOS" && v.Sucursal == null) // incluir null si es TODOS
-  )   &&
-      (Number(pago) == 0 || v.Pago?.some(p => p.Metodopago?.IdMetodoPago == Number(pago)))
-    );
-    return res.json(ventasFiltradas)
-  } catch (error) {
-    if (error instanceof Error) {
-      return res.status(500).json({ message: error.message })
+          AND (
+            $2::text = 'TODOS'
+            OR v.idsucursal = $2
+          )
+
+          AND ( 
+            $3::int = 0
+            OR EXISTS (
+              SELECT 1
+              FROM pago pg
+              WHERE pg.idventa = v.idventa
+              AND pg.idmetodopago = $3
+            )
+          )
+ 
+          AND (
+            $4::varchar IS NULL
+            OR EXISTS (
+              SELECT 1
+              FROM detalleventa dv
+              INNER JOIN productomedida pm
+                ON pm.idproductomedida = dv.idproductomedida
+              WHERE dv.idventa = v.idventa
+              AND pm.idproducto = $4
+            )
+          )
+
+          AND (
+            $5::varchar IS NULL
+            OR EXISTS (
+              SELECT 1
+              FROM detalleventa dv
+              WHERE dv.idventa = v.idventa
+              AND dv.idpromocion = $5
+            )
+          )
+
+          AND (
+            $6::int IS NULL
+            OR v.estado = $6
+          )
+
+          AND (
+            $9::text IS NULL OR $9::text = 'TODOS'
+            OR ($9::text = 'SI' AND EXISTS (SELECT 1 FROM factura f WHERE f.idventa = v.idventa))
+            OR ($9::text = 'NO' AND NOT EXISTS (SELECT 1 FROM factura f WHERE f.idventa = v.idventa))
+          )
+      )
+
+      SELECT
+        v.idventa,
+        v.fechaventa,
+        v.horaventa,
+        v.preciototal,
+        v.estado,
+        COUNT(*) OVER() AS total,
+
+        -- 🔥 PERSONA
+        json_build_object(
+          'IdPersona', per.idpersona,
+          'Nombre', per.nombre,
+          'ApellidoPaterno', per.apellidopaterno,
+          'ApellidoMaterno', per.apellidomaterno,
+
+           'Documento',
+           json_build_object(
+           'IdDocumento', d.iddocumento,
+           'Documento', d.documento,
+          'Complemento', row_to_json(cmp)
+           )
+        ) AS "Persona",
+
+        -- 🔥 SUCURSAL
+        json_build_object(
+          'IdSucursal', s.idsucursal,
+          'Nombre', s.nombre
+        ) AS "Sucursal",
+
+        -- 🔥 USUARIO
+        json_build_object(
+          'IdUsuario', u.idusuario,
+          'Usuario', u.Username
+        ) AS "Usuario",
+
+        -- 🔥 PEDIDO (SI EXISTE)
+        CASE 
+          WHEN ped.idpedido IS NOT NULL THEN
+            json_build_object(
+              'IdPedido', ped.idpedido,
+              'FechaRegistro', ped.fecharegistro,
+              'Adelanto', ped.adelanto,
+              'TotalPedido', ped.total,
+              'Pagos', (
+                SELECT COALESCE(
+                  json_agg(
+                    jsonb_build_object(
+                      'IdPago', pg2.idpago,
+                      'Monto', pg2.monto,
+                      'FechaPago', pg2.fechapago,
+                      'Metodopago', json_build_object(
+                        'IdMetodoPago', mp2.idmetodopago,
+                        'Nombre', mp2.nombre
+                      )
+                    )
+                  ),
+                  '[]'
+                )
+                FROM pago pg2
+                LEFT JOIN metodopago mp2 ON mp2.idmetodopago = pg2.idmetodopago
+                WHERE pg2.idpedido = ped.idpedido
+              )
+            )
+          ELSE NULL
+        END AS "Pedido",
+
+        -- 🔥 FACTURA
+        CASE 
+          WHEN f.idfactura IS NOT NULL THEN
+            json_build_object(
+              'IdFactura', f.idfactura,
+              'NroFactura', f.nrofactura,
+              'FechaEmicion', f.fechaemicion,
+              'HoraEmicion', f.horaemicion,
+              'Aprobado', f.aprobado,
+              'IdEnlace', f.idenlace,
+              'NitCiFacturacion', f.nitcifacturacion,
+              'NombreFacturacion', f.nombrefacturacion,
+              'Enlace', e.enlace
+            )
+          ELSE NULL
+        END AS "Factura",
+
+        --  DETALLE VENTA
+        COALESCE(
+          json_agg(
+            DISTINCT jsonb_build_object(
+
+              'IdDetalleVenta', dv.iddetalleventa,
+              'Cantidad', dv.cantidad,
+              'Precio', dv.precio,
+              'Descuento', dv.descuento,
+
+              --  PRODUCTO DIRECTO
+              'Producto', CASE
+                WHEN prod.idproducto IS NOT NULL THEN
+                  json_build_object(
+                    'IdProducto', prod.idproducto,
+                    'Nombre', prod.nombre,
+                    'Descripcion', prod.descripcion,
+                    'Imagen', prod.imagen
+                  )
+                ELSE NULL
+              END,
+
+              --  PRODUCTO MEDIDA
+              'Productomedida', CASE
+                WHEN pm.idproductomedida IS NOT NULL THEN
+                  json_build_object(
+                    'IdProductoMedida', pm.idproductomedida,
+                    'Cantidad', pm.cantidad,
+                    'PrecioVenta', pm.precioventa,
+                    'PrecioMayor', pm.preciomayor,
+                    'Imagen', pm.imagen,
+
+                    --  PRESENTACION
+                    'Presentacion', json_build_object(
+                      'IdPresentacion', pres.idpresentacion,
+                      'Nombre', pres.nombre
+                    ),
+
+                    --  PRODUCTO
+                    'Producto', json_build_object(
+                      'IdProducto', pmp.idproducto,
+                      'Nombre', pmp.nombre,
+                      'Descripcion', pmp.descripcion,
+                      'Imagen', pmp.imagen
+                    )
+                  )
+                ELSE NULL
+              END,
+
+              --  PROMOCION
+              'Promocion', CASE
+                WHEN prom.idpromocion IS NOT NULL THEN
+                  json_build_object(
+                    'IdPromocion', prom.idpromocion,
+                    'Nombre', prom.nombre,
+                    'Descripcion', prom.descripcion,
+                    'PrecioPromocion', prom.preciopromocion,
+                    'TipoDescuento', prom.tipodescuento,
+                    'Imagen', prom.imagen,
+
+                    --  TIPO PROMOCION
+                    'Tipopromocion', json_build_object(
+                      'IdTipoPromocion', tp.idtipopromocion,
+                      'Nombre', tp.nombre
+                    ),
+
+                    --  PRODUCTOS DE LA PROMOCION
+                    'Productos', (
+                      SELECT COALESCE(
+                        json_agg(
+                          jsonb_build_object(
+                            'IdPromocionProducto', pp.idpromocionproducto,
+                            'Cantidad', pp.cantidad,
+                            'Descuento', pp.descuento,
+                            'Precio', pp.precio,
+                          
+                            'Producto', CASE
+                              WHEN prod2.idproducto IS NOT NULL THEN
+                                json_build_object(
+                                  'IdProducto', prod2.idproducto,
+                                  'Nombre', prod2.nombre,
+                                  'Imagen', prod2.imagen
+                                )
+                              ELSE NULL
+                            END,
+
+                            'Productomedida', CASE
+                              WHEN ppm.idproductomedida IS NOT NULL THEN
+                                json_build_object(
+                                  'IdProductoMedida', ppm.idproductomedida,
+                                  'Cantidad', ppm.cantidad,
+                                  'PrecioVenta', ppm.precioventa,
+                                  'Imagen', ppm.imagen,
+
+                                  'Presentacion', json_build_object(
+                                    'IdPresentacion', pres2.idpresentacion,
+                                    'Nombre', pres2.nombre
+                                  ),
+
+                                  'Producto', json_build_object(
+                                    'IdProducto', prodppm.idproducto,
+                                    'Nombre', prodppm.nombre,
+                                    'Imagen', prodppm.imagen
+                                  )
+                                )
+                              ELSE NULL
+                            END
+                          )
+                        ),
+                        '[]'
+                      )
+                      FROM promocionproducto pp
+
+                      LEFT JOIN producto prod2
+                        ON prod2.idproducto = pp.idproducto
+
+                      LEFT JOIN productomedida ppm
+                        ON ppm.idproductomedida = pp.idproductomedida
+
+                      LEFT JOIN presentacion pres2
+                        ON pres2.idpresentacion = ppm.idpresentacion
+
+                      LEFT JOIN producto prodppm
+                        ON prodppm.idproducto = ppm.idproducto
+
+                      WHERE pp.idpromocion = prom.idpromocion
+                    )
+                  )
+                ELSE NULL
+              END
+
+            )
+          ) FILTER (WHERE dv.iddetalleventa IS NOT NULL),
+          '[]'
+        ) AS "Detalleventa",
+
+        --  PAGOS
+        COALESCE(
+          json_agg(
+            DISTINCT jsonb_build_object(
+              'IdPago', pg.idpago,
+              'Monto', pg.monto,
+              'Cambio', pg.cambio,
+
+              'Metodopago', json_build_object(
+                'IdMetodoPago', mp.idmetodopago,
+                'Nombre', mp.nombre
+              )
+            )
+          ) FILTER (WHERE pg.idpago IS NOT NULL),
+          '[]'
+        ) AS "Pago"
+
+      FROM filtered_ventas v
+
+      LEFT JOIN persona per
+        ON per.idpersona = v.idpersona
+      
+      LEFT JOIN documento d
+      ON d.idpersona = per.idpersona
+
+      LEFT JOIN complemento cmp
+      ON cmp.idcomplemento = d.idcomplemento
+      
+      LEFT JOIN sucursal s
+      ON s.idsucursal = v.idsucursal
+
+      LEFT JOIN usuario u
+        ON u.idusuario = v.idusuario
+
+      LEFT JOIN detalleventa dv
+        ON dv.idventa = v.idventa
+
+      -- 🔥 PRODUCTO DIRECTO
+      LEFT JOIN producto prod
+        ON prod.idproducto = dv.idproducto
+
+      -- 🔥 PRODUCTO MEDIDA
+      LEFT JOIN productomedida pm
+        ON pm.idproductomedida = dv.idproductomedida
+
+      LEFT JOIN producto pmp
+        ON pmp.idproducto = pm.idproducto
+
+      LEFT JOIN presentacion pres
+        ON pres.idpresentacion = pm.idpresentacion
+
+      -- 🔥 PROMOCION
+      LEFT JOIN promocion prom
+        ON prom.idpromocion = dv.idpromocion
+
+      LEFT JOIN tipopromocion tp
+        ON tp.idtipopromocion = prom.idtipopromocion
+
+      -- 🔥 PAGOS
+      LEFT JOIN pago pg
+        ON pg.idventa = v.idventa
+
+      LEFT JOIN metodopago mp
+        ON mp.idmetodopago = pg.idmetodopago
+
+      LEFT JOIN factura f
+        ON f.idventa = v.idventa
+
+      LEFT JOIN enlace e
+       ON e.idenlace = f.idenlace
+
+      LEFT JOIN pedido ped
+        ON ped.idpedido = v.idpedido
+
+     GROUP BY
+  v.idventa,
+  v.fechaventa,
+  v.horaventa,
+  v.preciototal,
+  v.estado,
+
+  per.idpersona,
+
+  d.iddocumento,
+  d.documento,
+
+   cmp.idcomplemento,
+
+  s.idsucursal,
+  u.idusuario,
+  f.idfactura,
+  e.enlace,
+  ped.idpedido
+
+      ORDER BY
+        v.fechaventa DESC,
+        v.horaventa DESC
+
+      LIMIT $7 OFFSET $8;
+    `;
+
+    const result = await AppDataSource.query(query, [
+      fecha || null,
+      id || "TODOS",
+      Number(pago || 0),
+      producto || null,
+      promocion || null,
+      estado !== undefined ? Number(estado) : null,
+      Number(limit),
+      offset,
+      factura || "TODOS"
+    ]);
+
+    if (result.length === 0) {
+      return res.json({
+        total: 0,
+        page: Number(page),
+        limit: Number(limit),
+        data: []
+      });
     }
-  }
-}
 
-export const getVentasUsuario = async (req: Request, res: Response) => {
+    return res.json({
+      total: Number(result[0].total),
+      page: Number(page),
+      limit: Number(limit),
+      data: result.map(({ total, ...rest }: any) => rest)
+    });
+
+  } catch (error) {
+
+    console.error("Error real:", error);
+
+    if (error instanceof Error) {
+      return res.status(500).json({
+        message: error.message
+      });
+    }
+
+  }
+};
+
+
+export const actualizarVenta = async (req: Request, res: Response) => {
+  const queryRunner = AppDataSource.createQueryRunner();
+  await queryRunner.connect();
+  await queryRunner.startTransaction();
+
   try {
     const { id } = req.params;
-    const { Fecha } = req.body;
-    const ventas = await Venta.find({
-      where: {
-        Usuario: { IdUsuario: id },
-        FechaVenta: Fecha
-      },
-      relations:
-        [
-          "Estado",
-          "Pago",
-          "Persona",
-          "Detalleventa",
-          "Detalleventa.Producto",
-          "Detalleventa.Paquete",
-          "Detalleventa.Promocion"
-        ]
+    const { ventas, detalles } = req.body;
+
+    const venta = await queryRunner.manager.findOne(Venta, {
+      where: { IdVenta: id },
+      relations: [
+        "Sucursal",
+        "Detalleventa",
+        "Detalleventa.Productomedida",
+        "Detalleventa.Promocion",
+        "Detalleventa.Promocion.Promocionproducto",
+        "Detalleventa.Promocion.Promocionproducto.Productomedida"
+      ]
     });
-    return res.json(ventas)
-  } catch (error) {
-    if (error instanceof Error) {
-      return res.status(500).json({ message: error.message })
+
+    if (!venta) {
+      throw new HttpError(404, "Venta no encontrada");
     }
-  }
-}
 
-export const createVenta = async (ventasData: any, detallesData: any): Promise<Venta> => {
-  try {
-    const nuevoId = await generarIdSecuencial('V');
-    console.log(ventasData)
-    const venta = new Venta();
-    venta.IdVenta = nuevoId;
-    if (ventasData.IdCliente) venta.Persona = await verifyPersona({ PersonaId: ventasData.IdCliente });
-    if (ventasData.IdUsuario) venta.Usuario = await verifyUsuario({ UsuarioId: ventasData.IdUsuario });
-    if (ventasData.IdSucursal !== 'TODOS') venta.Sucursal = await verifySucursal({ SucursalId: ventasData.IdSucursal })
-    const fechaHoraActual = new Date();
-    venta.FechaVenta = fechaHoraActual;
-    venta.HoraVenta = fechaHoraActual.toTimeString().slice(0, 8);
-    venta.Estado = await verifyEstado({ EstadoId: 4 });
+    const IdSucursalAntigua = venta.Sucursal.IdSucursal;
 
+    // 1. Si hay nuevos detalles, restauramos el stock de los antiguos y los eliminamos
+    if (detalles) {
+      if (venta.Detalleventa) {
+        for (const detalle of venta.Detalleventa) {
+          if (detalle.Productomedida) {
+            const presentacion = await verifyProductoMedida({ PaqueteId: detalle.Productomedida.IdProductoMedida });
+            await IncrementProducto(queryRunner, presentacion, IdSucursalAntigua, detalle.Cantidad, id);
+          } else if (detalle.Promocion) {
+            if (detalle.Promocion.LimiteUso != null) {
+              detalle.Promocion.LimiteUso += detalle.Cantidad;
+              detalle.Promocion.Estado = 1;
+              await queryRunner.manager.save(detalle.Promocion);
+            }
+            await IncrementPromocion(queryRunner, IdSucursalAntigua, detalle.Cantidad, detalle.Promocion, id);
+          }
+          await queryRunner.manager.remove(detalle);
+        }
+      }
+    }
 
-    await venta.save();
+    // 2. Actualizar cabecera de la Venta
+    if (ventas.IdPersona) {
+      venta.Persona = await verifyPersona({ PersonaId: ventas.IdPersona });
+    }
+    if (ventas.IdUsuario) {
+      venta.Usuario = await verifyUsuario({ UsuarioId: ventas.IdUsuario });
+    }
+    if (ventas.IdSucursal) {
+      venta.Sucursal = await verifySucursal({ SucursalId: ventas.IdSucursal });
+    }
+    
+    if (ventas.Monto > 0) venta.PrecioTotal = Number(ventas.Monto);
+     venta.FechaVenta = ventas.FechaVenta || fecha;
+     venta.HoraVenta = ventas.HoraVenta || hora;
+     
+    await queryRunner.manager.save(venta);
 
-    if (ventasData.pago.Monto !== 0 && (ventasData.pago.Cambio === 0 || ventasData.pago.Cambio !== 0))
-      await createPago({ IdVenta: nuevoId, Monto: ventasData.pago.Monto, Cambio: ventasData.pago.Cambio, IdMetodoPago: ventasData.pago.IdMetodoPago })
+    // 3. Manejo de Pagos
+    if (ventas.IdMetodoPago) {
+      const pagoExistente = await queryRunner.manager.findOne(Pago, { where: { Venta: { IdVenta: id } } });
+      if (pagoExistente) {
+        pagoExistente.Monto = ventas.Monto;
+        pagoExistente.Cambio = ventas.Cambio;
+        pagoExistente.Metodopago = await verifyMetodoPago({ MetodoPagoId: ventas.IdMetodoPago });
+        await queryRunner.manager.save(pagoExistente);
+      } else {
+        await createPago(queryRunner, venta, ventas.Monto, ventas.Cambio, ventas.IdMetodoPago);
+      }
+    }
 
+    // 4. Procesar nuevos Detalles
+    if (detalles && detalles.Producto?.length > 0) {
+      const IdSucursalNueva = ventas.IdSucursal || IdSucursalAntigua;
+      for (const prod of detalles.Producto) {
+        let promocion = null;
+        if (prod.idPromocion) {
+          promocion = await verifyPromocion({ PromocionId: prod.idPromocion });
+          if (promocion.LimiteUso > 0) {
+            if (promocion.LimiteUso < prod.Cantidad) {
+              throw new HttpError(400, `La promoción "${promocion.Nombre}" ha agotado su límite de uso.`);
+            }
+            promocion.LimiteUso -= prod.Cantidad;
+            if (promocion.LimiteUso === 0) promocion.Estado = 0;
+            await queryRunner.manager.save(promocion);
+          }
+        }
 
+        let presentacion = null;
+        if (prod.idPaquete) {
+          presentacion = await verifyProductoMedida({ PaqueteId: prod.idPaquete });
+        }
+        
+        await createDetalleventa(
+          queryRunner,
+          venta,
+          presentacion,
+          promocion,
+          prod.Cantidad,
+          prod.precioUnitario,
+          IdSucursalNueva
+        );
+      }
+    }
 
-    return venta;
+    await queryRunner.commitTransaction();
+    return res.status(200).json({ message: "La venta se actualizó correctamente" });
+
   } catch (error) {
-    throw error;
+    await queryRunner.rollbackTransaction();
+    if (error instanceof HttpError) {
+      return res.status(error.statusCode).json({ message: error.message });
+    }
+    return res.status(500).json({ 
+      message: "Error al actualizar la venta", 
+      error: error instanceof Error ? error.message : "Error desconocido" 
+    });
+  } finally {
+    await queryRunner.release();
   }
 };
 
-export const ActualizarVenta = async (ventasData: any, detallesData: any): Promise<Venta> => {
-  try {
-    // Buscar la venta
-    console.log("actualizar precio "+ventasData)
-    const venta = await Venta.findOne({
-      where: { IdVenta: ventasData.IdVenta },
-    });
-    if (!venta) throw new HttpError(404, "Venta no encontrada");
-
-    // Actualizar cliente y tipo de venta
-    if (ventasData.IdCliente) {
-      venta.Persona = await verifyPersona({ PersonaId: ventasData.IdCliente });
-    }
-
-    await venta.save();
-
-    // Actualizar pago
-     if (ventasData.pago.Monto !== 0 && (ventasData.pago.Cambio === 0 || ventasData.pago.Cambio !== 0))
-    await updatePago({
-      IdVenta: venta.IdVenta,
-      IdPago: ventasData.pago.IdPago,
-      Monto: ventasData.pago.Monto,
-      Cambio: ventasData.pago.Cambio,
-      IdMetodoPago: ventasData.pago.IdMetodoPago,
-    });
 
 
-    return venta;
 
-  } catch (error) {
-    throw error;
-  }
-};
-
-
+ 

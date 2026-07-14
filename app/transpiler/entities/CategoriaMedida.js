@@ -11,7 +11,6 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Categoriamedida = void 0;
 const typeorm_1 = require("typeorm");
-const Estado_1 = require("./Estado");
 const UnidadMedida_1 = require("./UnidadMedida");
 let Categoriamedida = class Categoriamedida extends typeorm_1.BaseEntity {
 };
@@ -37,9 +36,8 @@ __decorate([
     __metadata("design:type", Array)
 ], Categoriamedida.prototype, "Unidadmedida", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => Estado_1.Estado, (estado) => estado.Categoriamedida),
-    (0, typeorm_1.JoinColumn)({ name: "idestado" }),
-    __metadata("design:type", Estado_1.Estado)
+    (0, typeorm_1.Column)({ name: "estado", type: "integer", default: 1 }),
+    __metadata("design:type", Number)
 ], Categoriamedida.prototype, "Estado", void 0);
 exports.Categoriamedida = Categoriamedida = __decorate([
     (0, typeorm_1.Entity)()

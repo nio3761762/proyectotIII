@@ -12,7 +12,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.Imagen = void 0;
 const typeorm_1 = require("typeorm");
 const Persona_1 = require("./Persona");
-const AdmDatos_1 = require("./AdmDatos");
 const Producto_1 = require("./Producto");
 const Categoria_1 = require("./Categoria");
 const Presentacionproducto_1 = require("./Presentacionproducto");
@@ -40,10 +39,6 @@ __decorate([
     (0, typeorm_1.OneToOne)(() => Producto_1.Producto, (producto) => producto.Imagen),
     __metadata("design:type", Producto_1.Producto)
 ], Imagen.prototype, "Producto", void 0);
-__decorate([
-    (0, typeorm_1.OneToOne)(() => AdmDatos_1.Administrardatos, (dato) => dato.Imagen),
-    __metadata("design:type", AdmDatos_1.Administrardatos)
-], Imagen.prototype, "Administrardatos", void 0);
 __decorate([
     (0, typeorm_1.OneToOne)(() => Presentacionproducto_1.Presentacionproducto, (dato) => dato.Imagen),
     __metadata("design:type", Presentacionproducto_1.Presentacionproducto)

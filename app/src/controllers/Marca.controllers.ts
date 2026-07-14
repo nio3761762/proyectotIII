@@ -1,14 +1,15 @@
 import { Request, Response } from "express";
 import { Marca } from "../entities/Marca";
 import { HttpError } from "../utils/error.handler";
+import { AppDataSource } from "../db";
 
 
 export const getMarcas = async (req: Request, res: Response) => {
   try {
-    const Marcas = await Marca.find({
-    //   relations: ['Estado', 'Marca', 'Unidadmedida', 'TipoMarca', 'Subcategoria', 'Subcategoria.categoria']
-    });
-    return res.json(Marcas);
+   const result = await AppDataSource.query(
+       `SELECT * FROM marca`
+     );
+         return res.json({ result });
   } catch (error) {
     if (error instanceof Error) {
       return res.status(500).json({ message: error.message });

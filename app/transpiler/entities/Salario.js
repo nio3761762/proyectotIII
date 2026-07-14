@@ -11,7 +11,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Salario = void 0;
 const typeorm_1 = require("typeorm");
-const Persona_1 = require("./Persona");
+const Empleado_1 = require("./Empleado");
 let Salario = class Salario extends typeorm_1.BaseEntity {
 };
 exports.Salario = Salario;
@@ -20,21 +20,26 @@ __decorate([
     __metadata("design:type", String)
 ], Salario.prototype, "IdSalario", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: "salario", type: "decimal", precision: 10, scale: 2, default: 0.00 }),
+    (0, typeorm_1.Column)({ name: "salario", type: "numeric", precision: 10, scale: 2, default: 0.00 }),
     __metadata("design:type", Number)
 ], Salario.prototype, "Salario", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: "moneda", type: "varchar", length: 10 }),
-    __metadata("design:type", String)
-], Salario.prototype, "Moneda", void 0);
-__decorate([
-    (0, typeorm_1.Column)({ name: "fecha", type: "date" }),
+    (0, typeorm_1.Column)({ name: "fechainicio", type: "date", nullable: true }),
     __metadata("design:type", Date)
-], Salario.prototype, "Fecha", void 0);
+], Salario.prototype, "FechaInicio", void 0);
 __decorate([
-    (0, typeorm_1.OneToMany)(() => Persona_1.Persona, (persona) => persona.Salario),
-    __metadata("design:type", Array)
-], Salario.prototype, "Persona", void 0);
+    (0, typeorm_1.Column)({ name: "fechafin", type: "date", nullable: true }),
+    __metadata("design:type", Date)
+], Salario.prototype, "FechaFin", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: "estado", type: "integer", default: 1 }),
+    __metadata("design:type", Number)
+], Salario.prototype, "Estado", void 0);
+__decorate([
+    (0, typeorm_1.ManyToOne)(() => Empleado_1.Empleado, (empleado) => empleado.Salarios, { nullable: true }),
+    (0, typeorm_1.JoinColumn)({ name: "idempleado" }),
+    __metadata("design:type", Empleado_1.Empleado)
+], Salario.prototype, "Empleado", void 0);
 exports.Salario = Salario = __decorate([
     (0, typeorm_1.Entity)()
 ], Salario);

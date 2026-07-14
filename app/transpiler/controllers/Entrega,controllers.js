@@ -8,7 +8,6 @@ const idGenerator_1 = require("../utils/idGenerator");
 const Direccion_controllers_1 = require("./Direccion.controllers");
 const Estado_controllers_1 = require("./Estado.controllers");
 const Pedido_Controllers_1 = require("./Pedido.Controllers");
-const typeorm_1 = require("typeorm");
 const Distribucion_controllers_1 = require("./Distribucion.controllers");
 const Distribucion_1 = require("../entities/Distribucion");
 const Pedido_1 = require("../entities/Pedido");
@@ -20,16 +19,21 @@ const DIreccion_1 = require("../entities/DIreccion");
 const Sucursal_controllers_1 = require("./Sucursal.controllers");
 const Pago_controllers_1 = require("./Pago.controllers");
 const Entrega_1 = require("../entities/Entrega");
+const SucursalProducto_controllers_1 = require("./SucursalProducto.controllers");
 const createEntrega = async ({ BarrioId, Direccions, Referencia, Ubicacion, Costo, PedidoID, IdSucursal, Fecha, Hora, tipoe }) => {
     const nuevoId = await (0, idGenerator_1.generarIdSecuencial)('ENT');
     const nuevoEntrega = new Entrega_1.Entrega();
     nuevoEntrega.IdEntrega = nuevoId;
-    nuevoEntrega.Direccion = (tipoe === "TPE-E1") ? await cargarDireccion({ IdSucursal: IdSucursal }) : await (0, Direccion_controllers_1.createDireccion)({
-        BarrioId: BarrioId || "",
-        Direccions: Direccions || "",
-        Referencia: Referencia || "",
-        Ubicacion: Ubicacion || ""
-    });
+    if (IdSucursal !== 'TODOS')
+        nuevoEntrega.Direccion = await cargarDireccion({ IdSucursal: IdSucursal });
+    else
+        // if((tipoe === "TPE-E1" ) )
+        nuevoEntrega.Direccion = await (0, Direccion_controllers_1.createDireccion)({
+            BarrioId: BarrioId || "",
+            Direccions: Direccions || "",
+            Referencia: Referencia || "",
+            Ubicacion: Ubicacion || ""
+        });
     nuevoEntrega.CostoEntrega = Costo || 0.00;
     nuevoEntrega.FechaEntrega = parseLocalDate(Fecha);
     nuevoEntrega.HoraEntrega = normalizarHora(Hora);
@@ -163,6 +167,7 @@ const ObtenerEntrega = async (req, res) => {
         const entrega = await Entrega_1.Entrega.findOne({
             where: [
                 { Pedido: { IdPedido: id } },
+                { Distribucion: { IdDistribucion: id } },
                 { IdEntrega: id }
             ],
             relations: ["Tipoentrega", "Direccion", "Direccion.Sucursal", "Direccion.Barrio"]
@@ -215,25 +220,30 @@ exports.getEntregas = getEntregas;
 const getEntregaSucursal = async (req, res) => {
     try {
         const { id, fecha } = req.params;
-        console.log("Fecha recibida:", fecha);
-        const fechaStr = fecha.split('T')[0] || fecha; // por si llega con hora
+        const fechaStr = fecha.split('T')[0];
         const inicioDia = new Date(`${fechaStr}T00:00:00`);
         const finDia = new Date(`${fechaStr}T23:59:59.999`);
-        let entregas = await Entrega_1.Entrega.find({
-            where: { FechaEntrega: (0, typeorm_1.Between)(inicioDia, finDia) },
-            relations: [
-                "Estado",
-                "Direccion",
-                "Pedido",
-                "Pedido.Tipopedido",
-                "Pedido.Venta.Persona",
-                "Pedido.Venta.Sucursal",
-                "Tipoentrega"
-            ]
+        const query = Entrega_1.Entrega.createQueryBuilder("entrega")
+            .leftJoinAndSelect("entrega.Estado", "estado")
+            .leftJoinAndSelect("entrega.Direccion", "direccion")
+            .leftJoinAndSelect("entrega.Pedido", "pedido")
+            .leftJoinAndSelect("pedido.Tipopedido", "tipopedido")
+            .leftJoinAndSelect("pedido.Venta", "venta")
+            .leftJoinAndSelect("venta.Persona", "persona")
+            .leftJoinAndSelect("venta.Sucursal", "sucursal")
+            .leftJoinAndSelect("entrega.Distribucion", "distribucion")
+            .leftJoinAndSelect("distribucion.Sucursal", "dissucursal")
+            .leftJoinAndSelect("entrega.Tipoentrega", "tipoentrega")
+            .where("entrega.FechaEntrega BETWEEN :inicio AND :fin", {
+            inicio: inicioDia,
+            fin: finDia
         });
-        const filtradas = entregas
-            .filter(e => id === "TODOS" || e.Pedido.Venta?.Sucursal.IdSucursal === id)
-            .map(e => ({
+        // 🔹 Filtro opcional por sucursal
+        if (id !== "TODOS") {
+            query.andWhere("(sucursal.IdSucursal = :id OR dissucursal.IdSucursal = :id)", { id });
+        }
+        const entregas = await query.getMany();
+        const resultado = entregas.map(e => ({
             IdEntrega: e.IdEntrega,
             FechaEntrega: e.FechaEntrega,
             HoraEntrega: e.HoraEntrega,
@@ -241,8 +251,8 @@ const getEntregaSucursal = async (req, res) => {
             NombreEstado: e.Estado?.Nombre,
             Costo: e.CostoEntrega,
             Direccion: e.Direccion?.IdDireccion,
-            NombreEntrega: e.Tipoentrega.Nombre,
-            IdtEntrega: e.Tipoentrega.IdTipoEntrega,
+            NombreEntrega: e.Tipoentrega?.Nombre,
+            IdtEntrega: e.Tipoentrega?.IdTipoEntrega,
             Pedido: {
                 IdPedido: e.Pedido?.IdPedido,
                 FechaRegistro: e.Pedido?.FechaRegistro,
@@ -250,14 +260,13 @@ const getEntregaSucursal = async (req, res) => {
                 NombreTipo: e.Pedido?.Tipopedido?.Nombre,
                 IdVenta: e.Pedido?.Venta?.IdVenta,
                 Persona: e.Pedido?.Venta?.Persona
-            }
+            },
+            Distribucion: e.Distribucion
         }));
-        return res.json(filtradas);
+        return res.json(resultado);
     }
     catch (error) {
-        if (error instanceof Error) {
-            return res.status(500).json({ message: error.message });
-        }
+        return res.status(500).json({ message: "Error al obtener entregas" });
     }
 };
 exports.getEntregaSucursal = getEntregaSucursal;
@@ -366,6 +375,7 @@ const DevolucionEntrega = async (req, res) => {
             const distribucio = await Distribucion_1.Distribucion.findOne({
                 where: { IdDistribucion: entrega.Distribucion.IdDistribucion },
                 relations: [
+                    "Sucursal",
                     "Detalledistribucion",
                     "Detalledistribucion.Producto",
                     "Detalledistribucion.Paquete"
@@ -374,6 +384,11 @@ const DevolucionEntrega = async (req, res) => {
             if (!distribucio) {
                 throw new error_handler_1.HttpError(404, `Distribucion no existe.`);
             }
+            const exitSucusal = distribucio?.Sucursal?.IdSucursal;
+            if (exitSucusal)
+                for (const dist of distribucio.Detalledistribucion) {
+                    await (0, SucursalProducto_controllers_1.IncrementarProductosEnSucursal)({ SucursalId: exitSucusal, ProductoId: dist.Paquete ? dist.Paquete.IdPaquete : dist.Producto.IdProducto, Cantidad: dist.Cantidad });
+                }
             for (const detalle of detalles.item) {
                 const idDetalle = detalle?.IdPaquete ? detalle.IdPaquete : detalle.IdProducto;
                 // Buscar el detalle existente en la distribución
@@ -382,7 +397,6 @@ const DevolucionEntrega = async (req, res) => {
                 if (!detalleExistente) {
                     throw new error_handler_1.HttpError(404, `No existe en la distribución el detalle con ID ${idDetalle}`);
                 }
-                console.log("IdDetalledistribucion encontrado:", detalleExistente.IdDetalleDistribucion);
                 if (detalle.Cantidaddevuelta > 0)
                     entrega.Estado = await (0, Estado_controllers_1.verifyEstado)({ EstadoId: 12 });
                 await (0, Detalledistribucion_controllers_1.devolucionCantidad)({

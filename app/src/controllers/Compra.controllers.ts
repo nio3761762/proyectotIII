@@ -1,183 +1,584 @@
-import { Raw } from "typeorm/find-options/operator/Raw";
 import { Compra } from "../entities/Compra";
 import { Detallecompra } from "../entities/DetalleCompra";
+import { Inventario } from "../entities/Inventario";
 import { HttpError } from "../utils/error.handler";
 import { generarIdSecuencial } from "../utils/idGenerator";
 import { verifyComprobante } from "./Comprobante.controllers";
-import { createDetalleCompra, deleteDetalleCompraAndRestoreStock, updateDetalleCompra } from "./Detallecompra.controllers";
-import { verifyEstado } from "./Estado.controllers";
+import { createDetalleCompra } from "./Detallecompra.controllers";
 import { verifyProveedor } from "./Proveedor.controllers";
-import { verifyTipoproveedor } from "./TipoProveedor.controllers";
 import { Request, Response } from "express";
+import { AppDataSource } from "../db";
+import { anularMovimientoInventario, createLoteInventario, registrarMovimientoEntrada, registrarMovimientoSalida } from "./Inventario.controllers";
+import { getFechaHoraBolivia } from "../utils/Fecha";
+import { verifyInsumoMedida } from "./Insumomedida.controllers";
+const { fecha, hora } = getFechaHoraBolivia();
 
-export const verifyCompra = async ({ PaqueteId }: { PaqueteId: string }) => {
-  const existPaquete = await Compra.findOne({ where: { IdCompra: PaqueteId } });
+export const verifyCompra = async ( IdCompra: string ) => {
+  const existPaquete = await Compra.findOne({ where: { IdCompra: IdCompra } });
 
   if (!existPaquete) {
-    throw new HttpError(404, `La compra con ID ${PaqueteId} no existe.`);
+    throw new HttpError(404, `La compra con ID ${IdCompra} no existe.`);
   }
 
   return existPaquete;
 };
 
 export const registrarCompra = async (req: Request, res: Response) => {
-  try {
-    const { Compras, detalles } = req.body;
-    const nuevoId = await generarIdSecuencial('COM');
+  const queryRunner = AppDataSource.createQueryRunner();
+  await queryRunner.connect();
+  await queryRunner.startTransaction();
 
+  try {
+    const { Compras, detalles, Destinos } = req.body;
+
+    // 1. Validaciones básicas
+    if (!Compras.IdProveedor) {
+      throw new HttpError(400, "Proveedor es requerido.");
+    }
+
+    // 2. Preparar cabecera de Compra
+    const nuevoId = await generarIdSecuencial('COM');
     const compra = new Compra();
     compra.IdCompra = nuevoId;
-    if (Compras.IdProveedor) compra.Proveedor = await verifyProveedor({ TipoproveedorId: Compras.IdProveedor });
-    compra.FechaCompra = new Date();
-    compra.NroComprobante = Compras.Numero;
-    compra.Comprobante = await verifyComprobante({ TipoId: Compras.Comprobante })
-    compra.Estado = await verifyEstado({EstadoId:1})
-    await compra.save();
 
+if (Compras.IdProveedor) compra.Proveedor = await verifyProveedor({ TipoproveedorId: Compras.IdProveedor });
+    compra.FechaCompra = Compras.Fecha || fecha;
+    compra.HoraCompra = hora;
+    compra.NroComprobante = Compras.Numero || '';
+    compra.Descripcion = Compras.Descripcion || '';
+    compra.PrecioTotal = Number(Compras.PrecioTotal) || 0;
+   
+    if(Compras.Comprobante)compra.Comprobante = await verifyComprobante(Compras.Comprobante);
+    
+    // Guardar la compra dentro de la transacción
+    await queryRunner.manager.save(compra);
 
+    // 3. Registrar Detalles de Compra
     if (detalles && detalles.length > 0) {
       for (const producto of detalles) {
-        await createDetalleCompra({ IdCompra: nuevoId, Cantidad: producto.Cantidad, IdMedida: producto.IdMedida, Descripcion: producto.IdMedida, Precio: Number(producto.Precio), Fecha:producto.Fecha })
+        await createDetalleCompra(
+          queryRunner,
+          compra,
+          producto.Cantidad, 
+          producto.IdMedida, 
+          Number(producto.Precio), 
+          producto.Fecha
+        );
       }
     }
 
-    res.status(201).json({ message: "La Compra se registro correctamente" });
+    // 4. Registrar Destinos (Lotes e Inventario)
+    if (Destinos && Destinos.length > 0) {
+      for (const destinos of Destinos) {
+        const medida = await verifyInsumoMedida({ PaqueteId: destinos.IdMedida });
+
+        const cantidadFinal = destinos.IdInsumo
+          ? Number(destinos.Cantidad) * (Number(destinos.CantidadMedida) || 1)
+          : Number(destinos.Cantidad);
+
+        const costoTotal = destinos.IdInsumo ? Number(destinos.Cantidad) * Number(destinos.PrecioInsumo) : 0;
+        const costoUnitario = costoTotal > 0 ? costoTotal / cantidadFinal : 0;
+        const precioUnitario = destinos.IdInsumo ? Number(destinos.PrecioInsumo) : 0;
+
+        await createLoteInventario(
+          queryRunner,
+          destinos.IdProducto,
+          destinos.IdInsumo,
+          cantidadFinal,
+          costoUnitario,
+          destinos.IdSucursal,
+          'ENTRADA_COMPRA',
+          nuevoId,
+          precioUnitario,
+          destinos.IdInsumo ? Number(destinos.Cantidad) : undefined,
+          medida.Unidadmedida.IdUnidadMedida
+        );
+      }
+    }
+
+
+    // 5. Confirmar transacción
+    await queryRunner.commitTransaction();
+    return res.status(201).json({ message: "La Compra se registro correctamente", idCompra: nuevoId });
+
   } catch (error) {
+    // 6. Revertir cambios en caso de error
+    await queryRunner.rollbackTransaction();
+
+    if (error instanceof HttpError) {
+      return res.status(error.statusCode).json({ message: error.message });
+    }
+    return res.status(500).json({ 
+      message: 'Error interno del servidor', 
+      error: error instanceof Error ? error.message : 'Error desconocido' 
+    });
+  } finally {
+    // 7. Liberar conexión
+    await queryRunner.release();
+  }
+};
+export const anularCompra = async (req: Request, res: Response) => {
+  const queryRunner = AppDataSource.createQueryRunner();
+  await queryRunner.connect();
+  await queryRunner.startTransaction();
+
+  try {
+    const { id } = req.params;
+
+    await queryRunner.manager.query(
+      `UPDATE compra 
+       SET estado = 0
+       WHERE IdCompra = $1`,
+      [id]);
+    
+    await anularMovimientoInventario(queryRunner, id, 'ENTRADA_COMPRA');
+
+    await queryRunner.commitTransaction();
+    return res.json({
+      message: `Se anulo la compra correctamente`,
+    });
+  } catch (error) {
+    await queryRunner.rollbackTransaction();
     if (error instanceof HttpError) {
       res.status(error.statusCode).json({ message: error.message });
     } else if (error instanceof Error) {
       res.status(500).json({ message: 'Error interno del servidor', error: error.message });
     }
+  } finally {
+    await queryRunner.release();
   }
 };
-
 
 export const updateCompra = async (req: Request, res: Response) => {
+  const queryRunner = AppDataSource.createQueryRunner();
+  await queryRunner.connect();
+  await queryRunner.startTransaction();
+
   try {
     const { id } = req.params;
-    const { Compras, detalles } = req.body;
+    const { Compras, detalles, Destinos } = req.body;
 
-    const compra = await Compra.findOne({
+    if (!Compras || !Compras.IdProveedor) {
+      throw new HttpError(400, "Proveedor es requerido.");
+    }
+
+    const compra = await queryRunner.manager.findOne(Compra, {
       where: { IdCompra: id }
     });
+    if (!compra) throw new HttpError(404, `La compra con ID ${id} no existe.`);
 
-    if (!compra) {
-      return res.status(404).json({ message: "Compra no encontrada" });
-    }
-    if (Compras.IdProveedor) compra.Proveedor = await verifyProveedor({ TipoproveedorId: Compras.IdProveedor });
-    compra.FechaCompra = new Date();
-    compra.NroComprobante = Compras.Numero;
-    compra.Comprobante = await verifyComprobante({ TipoId: Compras.Comprobante })
+    // --- INVENTARIO: sincronizar lotes ---
+  // Obtener inventarios actuales
+const inventariosActuales = await queryRunner.manager.find(Inventario, {
+  where: {
+    IdReferencia: id,
+    TipoOrigen: "ENTRADA_COMPRA"
+  },
+  relations: ["Insumo", "Producto", "Sucursal"]
+});
 
-    await compra.save();
+const procesados = new Set<string>();
 
+for (const destino of Destinos) {
+  const medida = await verifyInsumoMedida({ PaqueteId: destino.IdMedida });
 
-    // Fetch existing details for this Compra
-    const existingDetalles = await Detallecompra.find({
-      where: { Compra: { IdCompra: id } },
-      relations: ["Productomedida"]
-    });
+  const cantidadFinal = destino.IdInsumo
+    ? Number(destino.Cantidad) * (Number(destino.CantidadMedida) || 1)
+    : Number(destino.Cantidad);
 
-    // Collect IDs of incoming details
-    const incomingDetalleIds = new Set<string>();
-    if (detalles) {
-      detalles.forEach((p: any) => {
-        if (p.IdDetalleCompra) incomingDetalleIds.add(p.IdDetalleCompra);
-      });
-    }
-    // Identify and delete details that are no longer present in the incoming request
-    for (const existingDetalle of existingDetalles) {
-      if (!incomingDetalleIds.has(existingDetalle.IdDetalleCompra)) {
-        await deleteDetalleCompraAndRestoreStock({
-          Iddetalle: existingDetalle.IdDetalleCompra,
-        });
-      }
-    }
-    if (detalles && detalles.length > 0)
-      for (const producto of detalles) {
-        await updateDetalleCompra({ IdDetalle: producto.IdDetalle, IdCompra: compra.IdCompra, Cantidad: producto.Cantidad, IdMedida: producto.IdMedida, Descripcion: producto.IdMedida, Precio: Number(producto.Precio), Fecha:producto.Fecha  })
-      }
-    res.status(201).json({ message: "La Compra se actualizo correctamente" });
-  } catch (error) {
-    if (error instanceof HttpError) {
-      res.status(error.statusCode).json({ message: error.message });
-    } else if (error instanceof Error) {
-      res.status(500).json({ message: 'Error interno del servidor', error: error.message });
-    }
+  const costoTotal = destino.IdInsumo
+    ? Number(destino.Cantidad) * Number(destino.PrecioInsumo)
+    : 0;
+ 
+  const costoUnitario =
+    cantidadFinal > 0 ? costoTotal / cantidadFinal : 0;
+
+  const precioUnitario = destino.IdInsumo
+    ? Number(destino.PrecioInsumo)
+    : 0;
+
+  let inventario = null;
+ 
+  if (destino.IdInventario) {
+    inventario = inventariosActuales.find(
+      i => i.IdInventario === destino.IdInventario
+    );
+   
   }
-};
 
+  if (inventario) {
 
-export const anularCompra = async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    
-    const compra = await Compra.findOne({
-      where: { IdCompra: id }
-    });
+    procesados.add(inventario.IdInventario);
 
-    if (!compra) {
-      return res.status(404).json({ message: "Compra no encontrada" });
+    const stockAnterior = Number(inventario.Stock);
+
+    if (destino.CantidadMedida > 0) {
+
+      const diferencia = cantidadFinal - stockAnterior;
+
+      inventario.Stock = destino.CantidadMedida;
+      inventario.Cantidad = destino.Cantidad
+      inventario.Estado = cantidadFinal > 0 ? 1 : 0;
+      inventario.CostoUnitario = costoUnitario;
+      inventario.Preciounitario = precioUnitario;
+      await queryRunner.manager.save(inventario);
+
+      if (diferencia > 0) {
+        await registrarMovimientoEntrada(
+          queryRunner,
+          inventario,
+          "ENTRADA_COMPRA",
+          id,
+          diferencia
+        );
+      } else if (diferencia < 0) {
+        await registrarMovimientoSalida(
+          queryRunner,
+          inventario,
+          "SALIDA_AJUSTE",
+          Math.abs(diferencia),
+          id
+        );
+      }
+
+    } else {
+
+      inventario.CostoUnitario = costoUnitario;
+      inventario.Preciounitario = precioUnitario;
+
+      await queryRunner.manager.save(inventario);
     }
-     compra.Estado = await verifyEstado({EstadoId:5}) 
 
-    await compra.save();
+  } else {
 
-
-    // Fetch existing details for this Compra
-    res.status(201).json({ message: "La Compra se anulo correctamente" });
-  } catch (error) {
-    if (error instanceof HttpError) {
-      res.status(error.statusCode).json({ message: error.message });
-    } else if (error instanceof Error) {
-      res.status(500).json({ message: 'Error interno del servidor', error: error.message });
-    }
-  }
-};
-
-
-export const getCompras = async (req: Request, res: Response) => {
-  try {
-     const { fecha } = req.params;
-
-    console.log("Fecha recibida:", fecha);
-    const fechaStr = fecha.split('T')[0] || fecha; // por si llega con hora
-    const inicioDia = new Date(`${fechaStr}T00:00:00`);
-    const finDia = new Date(`${fechaStr}T23:59:59.999`);
-
-    const pagos = await Compra.find({
-      where: {
-          FechaCompra: Raw(alias => `${alias} IS NOT NULL AND ${alias} BETWEEN :inicio AND :fin`, {
-            inicio: inicioDia,
-            fin: finDia
-          })
-        },
-      relations:
-        [
-          "Estado",
-          "Proveedor",
-          "Proveedor.Persona",
-          "Comprobante",
-          "Detallecompra",
-          "Detallecompra.Productomedida",
-           "Detallecompra.Productomedida.Unidadmedida",
-            "Detallecompra.Productomedida.Unidadmedida.Categoria",
-          "Detallecompra.Productomedida.Producto",
-          "Detallecompra.Productomedida.Producto.Marca"
-        ]
-    });
-    return res.json(pagos)
-  } catch (error) {
-    if (error instanceof Error) {
-      return res.status(500).json({ message: error.message })
-    }
+    await createLoteInventario(
+      queryRunner,
+      destino.IdProducto,
+      destino.IdInsumo,
+      cantidadFinal,
+      costoUnitario,
+      destino.IdSucursal,
+      "ENTRADA_COMPRA",
+      id,
+      precioUnitario,
+      destino.IdInsumo
+        ? Number(destino.Cantidad)
+        : undefined,
+      medida.Unidadmedida.IdUnidadMedida
+    );
   }
 }
 
+// Eliminar los lotes que ya no existen
+for (const inv of inventariosActuales) {
+
+  if (procesados.has(inv.IdInventario))
+    continue;
+
+  if (Number(inv.Stock) > 0) {
+    await registrarMovimientoSalida(
+      queryRunner,
+      inv,
+      "SALIDA_AJUSTE",
+      Number(inv.Stock),
+      id
+    );
+  }
+
+await queryRunner.manager.query(
+  `DELETE FROM movimiento_inventario
+   WHERE idinventario = $1`,
+  [inv.IdInventario]
+);
+
+// Luego eliminar el inventario
+await queryRunner.manager.query(
+  `DELETE FROM inventario
+   WHERE idinventario = $1`,
+  [inv.IdInventario]
+);
+}
+
+    // --- FIN INVENTARIO ---
+
+    // Eliminar detalles anteriores
+    await queryRunner.manager.delete(Detallecompra, { Compra: { IdCompra: id } });
+
+    // Actualizar cabecera
+    compra.Proveedor = await verifyProveedor({ TipoproveedorId: Compras.IdProveedor });
+    compra.FechaCompra = Compras.Fecha || fecha;
+    compra.HoraCompra = hora;
+    compra.NroComprobante = Compras.Numero || '';
+    compra.Descripcion = Compras.Descripcion || '';
+    compra.PrecioTotal = Number(Compras.PrecioTotal) || 0;
+
+    if (Compras.Comprobante) {
+      compra.Comprobante = await verifyComprobante(Compras.Comprobante);
+    }
+
+    await queryRunner.manager.save(compra);
+
+    // Registrar nuevos detalles
+    if (detalles && detalles.length > 0) {
+      for (const producto of detalles) {
+        await createDetalleCompra(
+          queryRunner,
+          compra,
+          producto.Cantidad,
+          producto.IdMedida,
+          Number(producto.Precio),
+          producto.Fecha
+        );
+      }
+    }
+
+    await queryRunner.commitTransaction();
+    return res.json({ message: "La Compra se actualizó correctamente", idCompra: id });
+
+  } catch (error) {
+    await queryRunner.rollbackTransaction();
+
+    if (error instanceof HttpError) {
+      return res.status(error.statusCode).json({ message: error.message });
+    }
+    return res.status(500).json({
+      message: 'Error interno del servidor',
+      error: error instanceof Error ? error.message : 'Error desconocido'
+    });
+  } finally {
+    await queryRunner.release();
+  }
+};
+
+export const getCompras = async (req: Request, res: Response) => {
+  const queryRunner = AppDataSource.createQueryRunner();
+  await queryRunner.connect();
+  try {
+    const {
+      search,
+      fecha,
+      estado,
+      page = 1,
+      limit = 8
+    } = req.query;
+
+    const offset = (Number(page) - 1) * Number(limit);
+
+    const result = await queryRunner.query(
+      `
+      WITH compras_filtradas AS (
+        SELECT *
+        FROM compra c
+        WHERE 
+          ($1::text IS NULL OR EXISTS (
+            SELECT 1 
+            FROM proveedor p
+            LEFT JOIN persona per ON per.idpersona = p.idpersona
+            WHERE p.idproveedor = c.idproveedor
+            AND (
+              per.nombre ILIKE '%' || $1 || '%' 
+              OR p.razonsocial ILIKE '%' || $1 || '%'
+            )
+          ))
+          AND ($2::date IS NULL OR c.fechacompra = $2)
+          AND ($3::int IS NULL OR c.estado = $3)
+      )
+
+      SELECT 
+        c.idcompra,
+        c.nrocomprobante,
+        c.preciototal,
+        c.fechacompra,
+        c.horacompra,
+        c.descripcion,
+        c.estado,
+
+        COUNT(*) OVER() AS total,
+
+        -- 🟢 COMPROBANTE
+        json_build_object(
+          'idcomprobante', comp.idcomprobante,
+          'nombre', comp.nombre
+        ) AS comprobante,
+
+        -- 🟢 PROVEEDOR
+        json_build_object(
+          'idproveedor', p.idproveedor,
+          'razonsocial', p.razonsocial,
+          'nit', p.nit,
+          'estado', p.estado,
+          'tipoproveedor', json_build_object(
+            'idtipoproveedor', tp.idtipoproveedor,
+            'nombre', tp.nombre
+          ),
+          'persona', json_build_object(
+            'nombre', per.nombre,
+            'apellidopaterno', per.apellidopaterno,
+            'apellidomaterno', per.apellidomaterno,
+            'email', per.email,
+            'imagen', per.imagen
+          )
+        ) AS proveedor,
+
+        -- 🟢 DETALLES
+        COALESCE(
+          json_agg(
+            DISTINCT jsonb_build_object(
+              'iddetallecompra', dc.iddetallecompra,
+              'cantidad', dc.cantidad,
+              'precio', dc.precio,
+              'preciototal', dc.preciototal,
+              'fechavencimiento', dc.fechavencimiento,
+
+              'insumo', json_build_object(
+                'idinsumo', i.idinsumo,
+                'nombre', i.nombre,
+                'descripcion', i.descripcion,
+                'imagen', i.imagen
+              ),
+
+              'insumomedida', json_build_object(
+                'idinsumomedida', im.idinsumomedida,
+                'cantidad', im.cantidad,
+              
+                'unidadmedida', json_build_object(
+                  'nombre', um.nombre,
+                  'equivalente', um.cantidad,
+                  'abreviatura', um.abreviatura
+                )
+              )
+            )
+          ) FILTER (WHERE dc.iddetallecompra IS NOT NULL),
+          '[]'
+        ) AS detalles,
+
+        -- 🟢 DESTINOS (inventario)
+        COALESCE(
+          json_agg(
+            DISTINCT jsonb_build_object(
+              'idinventario', inv.idinventario,
+              'stock', inv.stock,
+              'cantidad', inv.cantidad,
+              'costounitario', inv.costounitario,
+              'preciounitario', inv.preciounitario,
+
+              'insumo', CASE WHEN inv.idinsumo IS NOT NULL THEN
+                json_build_object(
+                  'idinsumo', i2.idinsumo,
+                  'nombre', i2.nombre
+                )
+              ELSE NULL END,
+
+              'producto', CASE WHEN inv.idproducto IS NOT NULL THEN
+                json_build_object(
+                  'idproducto', pr2.idproducto,
+                  'nombre', pr2.nombre
+                )
+              ELSE NULL END,
+
+              'sucursal', json_build_object(
+                'idsucursal', s2.idsucursal,
+                'nombre', s2.nombre
+              )
+            )
+          ) FILTER (WHERE inv.idinventario IS NOT NULL),
+          '[]'
+        ) AS destinos
+
+      FROM compras_filtradas c
+
+      LEFT JOIN comprobante comp 
+        ON comp.idcomprobante = c.idcomprobante
+
+      JOIN proveedor p 
+        ON p.idproveedor = c.idproveedor
+
+      LEFT JOIN tipoproveedor tp 
+        ON tp.idtipoproveedor = p.idtipoproveedor
+
+      LEFT JOIN persona per 
+        ON per.idpersona = p.idpersona
+
+      LEFT JOIN detallecompra dc 
+        ON dc.idcompra = c.idcompra
+
+      LEFT JOIN insumo i 
+        ON i.idinsumo = dc.idinsumo
+
+      LEFT JOIN insumomedida im 
+        ON im.idinsumomedida = dc.idinsumomedida
+
+      LEFT JOIN unidadmedida um 
+        ON um.idunidadmedida = im.idunidadmedida
+
+      LEFT JOIN inventario inv
+        ON inv.idreferencia = c.idcompra AND inv.tipoorigen = 'ENTRADA_COMPRA'
+
+      LEFT JOIN sucursal s2
+        ON s2.idsucursal = inv.idsucursal
+
+      LEFT JOIN insumo i2
+        ON i2.idinsumo = inv.idinsumo
+
+      LEFT JOIN producto pr2
+        ON pr2.idproducto = inv.idproducto
+
+      GROUP BY 
+         c.idcompra,
+  c.nrocomprobante,
+  c.preciototal,
+  c.fechacompra,
+  c.horacompra,
+  c.descripcion,
+  c.estado,
+  comp.idcomprobante,
+  p.idproveedor,
+  tp.idtipoproveedor,
+  per.idpersona
+
+      ORDER BY c.fechacompra DESC
+      LIMIT $4 OFFSET $5;
+      `,
+      [
+        search || null,
+        fecha || null,
+        estado !== undefined ? Number(estado) : null,
+        Number(limit),
+        offset
+      ]
+    );
+
+    // 🔥 si no hay datos
+    if (result.length === 0) {
+      return res.json({
+        total: 0,
+        page: Number(page),
+        limit: Number(limit),
+        data: []
+      });
+    }
+
+    return res.json({
+      total: Number(result[0].total),
+      page: Number(page),
+      limit: Number(limit),
+      data: result
+    });
+
+  } catch (error) {
+    return res.status(500).json({
+      message: error instanceof Error ? error.message : error
+    });
+  } finally {
+    await queryRunner.release();
+  }
+};
 export const getCompra = async (req: Request, res: Response) => {
+  const queryRunner = AppDataSource.createQueryRunner();
+  await queryRunner.connect();
   try {
     const {id} = req.params;
-    const pagos = await Compra.findOne({ 
+    const pagos = await queryRunner.manager.findOne(Compra, { 
       where:{IdCompra:id},
       relations:
         [
@@ -188,10 +589,13 @@ export const getCompra = async (req: Request, res: Response) => {
           "Detallecompra.Productomedida"
         ]
     });
-    return res.json(pagos)
+       return res.json(pagos)
   } catch (error) {
     if (error instanceof Error) {
       return res.status(500).json({ message: error.message })
     }
+  } finally {
+    await queryRunner.release();
   }
 }
+

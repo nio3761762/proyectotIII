@@ -1,12 +1,13 @@
 import {Router} from 'express'
 
 import { authMiddleware } from '../middleware/verifyToken';
-import { AsignarRol, AsignarupdateRol } from '../controllers/RolUsuario.controller';
+import { AsignarRol, AsignarupdateRol, DeleteRol } from '../controllers/RolUsuario.controllers';
 
 const router = Router();
 
 router.use(authMiddleware);
-router.post('/Rolusuario', AsignarRol)
+router.post('/AsignarRolUsuario', AsignarRol)
+router.delete('/DeleteRolUsuario/:idu/:idr', DeleteRol)
 router.put('/Rolusuario/:id', AsignarupdateRol)
 
 

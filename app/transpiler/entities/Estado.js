@@ -11,7 +11,6 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Estado = void 0;
 const typeorm_1 = require("typeorm");
-const Persona_1 = require("./Persona");
 const Usuario_1 = require("./Usuario");
 const Rol_1 = require("./Rol");
 const Sucursal_1 = require("./Sucursal");
@@ -52,11 +51,7 @@ __decorate([
     __metadata("design:type", Array)
 ], Estado.prototype, "Proveedor", void 0);
 __decorate([
-    (0, typeorm_1.OneToMany)(() => Persona_1.Persona, (persona) => persona.Estado),
-    __metadata("design:type", Array)
-], Estado.prototype, "Persona", void 0);
-__decorate([
-    (0, typeorm_1.OneToMany)(() => Compra_1.Compra, (persona) => persona.Estado),
+    (0, typeorm_1.OneToMany)(() => Compra_1.Compra, (compra) => compra.Estado),
     __metadata("design:type", Array)
 ], Estado.prototype, "Compra", void 0);
 __decorate([

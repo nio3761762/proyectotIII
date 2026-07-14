@@ -12,9 +12,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.Administrardatos = void 0;
 const typeorm_1 = require("typeorm");
 const Sucursal_1 = require("./Sucursal");
-const Imagen_1 = require("./Imagen");
 const Persona_1 = require("./Persona");
-const Email_1 = require("./Email");
 let Administrardatos = class Administrardatos extends typeorm_1.BaseEntity {
 };
 exports.Administrardatos = Administrardatos;
@@ -31,25 +29,22 @@ __decorate([
     __metadata("design:type", String)
 ], Administrardatos.prototype, "Celular", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ name: 'email', type: "varchar", length: 255, nullable: true }),
+    __metadata("design:type", String)
+], Administrardatos.prototype, "Email", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'foto', type: "varchar", length: 255 }),
+    __metadata("design:type", String)
+], Administrardatos.prototype, "Foto", void 0);
+__decorate([
     (0, typeorm_1.OneToMany)(() => Sucursal_1.Sucursal, (sucursal) => sucursal.Datos),
     __metadata("design:type", Array)
 ], Administrardatos.prototype, "sucursal", void 0);
-__decorate([
-    (0, typeorm_1.OneToOne)(() => Imagen_1.Imagen, (imagen) => imagen.Administrardatos),
-    (0, typeorm_1.JoinColumn)({ name: "foto" }),
-    __metadata("design:type", Imagen_1.Imagen)
-], Administrardatos.prototype, "Imagen", void 0);
 __decorate([
     (0, typeorm_1.OneToOne)(() => Persona_1.Persona, (persona) => persona.Administrardatos),
     (0, typeorm_1.JoinColumn)({ name: "idpropietario" }),
     __metadata("design:type", Persona_1.Persona)
 ], Administrardatos.prototype, "Persona", void 0);
-__decorate([
-    (0, typeorm_1.OneToOne)(() => Email_1.Email, (email) => email.Administrardatos),
-    (0, typeorm_1.JoinColumn)({ name: "idemail" }),
-    __metadata("design:type", Email_1.Email)
-], Administrardatos.prototype, "Email", void 0);
 exports.Administrardatos = Administrardatos = __decorate([
     (0, typeorm_1.Entity)()
-    //@Check(`"Estado" IN (0, 1)`)
 ], Administrardatos);

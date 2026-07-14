@@ -4,41 +4,51 @@
     <div class="absolute top-0 right-0 w-96 h-96 bg-linear-to-br from-orange-400/5 to-red-500/5 rounded-full blur-3xl"></div>
     <div class="absolute bottom-0 left-0 w-80 h-80 bg-linear-to-tr from-red-400/5 to-orange-500/5 rounded-full blur-2xl"></div>
 
+    <!-- Botón menú móvil -->
+    <button
+      v-if="isMobile && !sidebarOpen"
+      @click="toggleSidebar"
+      class="fixed top-4 left-4 z-50 w-12 h-12 bg-gradient-to-br from-orange-500 to-red-600 rounded-xl shadow-lg flex items-center justify-center text-white hover:shadow-xl transition-all duration-300"
+    >
+      <Menu class="h-6 w-6" />
+    </button>
+
     <!-- Sidebar   -->
     <div
       :class="[
-        'relative transition-all duration-300 ease-in-out z-40',
-        sidebarOpen 
-          ? 'w-80' 
-          : 'w-20'
+        'transition-all duration-300 ease-in-out',
+        isMobile
+          ? (sidebarOpen ? 'fixed inset-y-0 left-0 w-80 z-[60]' : 'hidden')
+          : (sidebarOpen ? 'relative w-80 z-40' : 'relative w-20 z-40')
       ]"
       @mouseenter="handleMouseEnter"
       @mouseleave="handleMouseLeave"
     >
       <!-- Sidebar Content -->
       <div class="h-full bg-white/80 backdrop-blur-sm shadow-2xl border-r border-white/50 flex flex-col">
-        <!-- Header -->
-        <!-- <div class="p-6 border-b border-gray-100/50">
-          <div v-if="sidebarOpen" class="flex items-center gap-3">
-            <div class="w-12 h-12 bg-linear-to-br from-orange-500 to-red-600 rounded-2xl shadow-lg flex items-center justify-center">
-              <span class="text-white font-bold text-lg">MC</span>
+        <!-- Header con botón cerrar para móvil -->
+        <div v-if="isMobile && sidebarOpen" class="p-4 border-b border-gray-100/50 flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-600 rounded-xl shadow-lg flex items-center justify-center">
+              <span class="text-white font-bold text-sm">MC</span>
             </div>
-            <div>
-              <h1 class="text-xl font-bold bg-linear-to-r from-orange-600 via-red-600 to-orange-700 bg-clip-text text-transparent">
-                Masas C'ori
-              </h1>
-              <p class="text-gray-500 text-sm">Sistema de Gestión</p>
-            </div>
+            <h1 class="text-lg font-bold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">
+              Menú
+            </h1>
           </div>
-          <div  class="flex justify-center">
-            <div class="w-10 h-10 bg-linear-to-br from-orange-500 to-red-600 rounded-xl shadow-lg flex items-center justify-center">
-              <span class="text-white font-bold">MC</span>
-            </div>
-          </div>
-        </div> -->
+          <button
+            @click="toggleSidebar"
+            class="p-2 rounded-xl hover:bg-orange-50 transition-colors text-gray-600 hover:text-orange-600"
+          >
+            <X class="h-6 w-6" />
+          </button>
+        </div>
 
         <!-- Navigation -->
-        <div class="flex-1 overflow-y-auto p-4 space-y-2 scrollbar-thin scrollbar-thumb-orange-300 scrollbar-track-transparent">
+        <div :class="[
+          'flex-1 overflow-y-auto p-4 space-y-2 scrollbar-thin scrollbar-thumb-orange-300 scrollbar-track-transparent',
+          isMobile && !sidebarOpen ? '' : ''
+        ]">
           <div v-for="(item, index) in menuItems" :key="index" class="space-y-1">
             <!-- Main Menu Item -->
             <button
@@ -101,7 +111,7 @@
 
             <!-- Submenu -->
             <div
-              v-if="sidebarOpen && item.submenu && item.expanded"
+              v-if="item.submenu && item.expanded && (sidebarOpen || isMobile)"
               class="ml-6 space-y-1 animate-fade-in"
             >
               <button
@@ -156,8 +166,8 @@
               <User class="h-5 w-5 text-white" />
             </div>
             <div class="flex-1">
-              <p class="text-sm font-semibold text-gray-800">{{ usuario?.usuario?.Rolusuario?.[0]?.Rol?.Nombre }}</p>
-              <p class="text-xs text-gray-500">{{ usuario?.usuario?.Persona?.Email?.Email }}</p>
+              <p class="text-sm font-semibold text-gray-800">{{ sessionStore.rolSeleccionado?.Nombre }}</p>
+              <p class="text-xs text-gray-500">{{ sessionStore.usuario?.Persona?.Email?.Email }}</p>
             </div>
             <button @click="CerrarSesion" class="text-gray-400 hover:text-red-500 transition-colors">
               <LogOut class="h-4 w-4" />
@@ -217,115 +227,181 @@
     <!-- Mobile Overlay -->
     <div
       v-if="sidebarOpen && isMobile"
-      class="fixed inset-0 bg-black/50 backdrop-blur-sm z-30 md:hidden"
+      class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[55] md:hidden"
       @click="sidebarOpen = false"
     ></div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, defineProps } from 'vue'
+import { ref, computed, onMounted, onUnmounted, defineProps, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   Menu, Home, Users, Package, ShoppingCart, Truck, ClipboardList,
   User, Key, Ruler , Tag, Percent, UserCheck, DollarSign,
-  Calendar, MapPin, Bell, Settings, LogOut, ChevronDown, Building, Accessibility 
+  Calendar, MapPin, Bell, Settings, LogOut, ChevronDown, Building, Accessibility, X
 } from 'lucide-vue-next'
 import { RolUsuario } from '@/Server/Usuario'
+import { Listarmenusrol } from '@/Server/rol'
 import { logout, stopTokenRefreshTimer } from '@/Server/Autapi'
 import { useAlertStore } from '@/stores/alertStore';
+import { useSessionStore } from '@/stores/sessionStore';
 
-// Reactive data
+// 1. Mapeos y constantes primero (No dependen de nada reactivo)
+const menuIconMap = {
+  'Dashboard': Home,
+  'Gestion Datos': Settings,
+  'Gestión Sucursal': Building,
+  'Gestión Reporte': ClipboardList,
+  'Gestión Perfil': User,
+  'Gestión Rol': Key,
+  'Gestión Persona': Users,
+  'Gestión Producto': Package,
+  'Gestión Medida': Ruler,
+  'Gestión Categoría': Tag,
+  'Gestión Presentación': Ruler,
+  'Gestión Promoción': Percent,
+  'Gestión Venta': DollarSign,
+  'Gestión Comisión': Percent,
+  'Gestión Transferencia': DollarSign,
+  'Gestión Pedido': ClipboardList,
+  'Gestión Produccion': Package,
+  'Gestión Compra': ShoppingCart
+};
+
+const menuCategoryMap = {
+  'Dashboard': { category: 'principal', order: 1 },
+  'Gestion Datos': { category: 'principal', order: 2 },
+  'Gestión Sucursal': { category: 'principal', order: 3 },
+  'Gestión Reporte': { category: 'principal', order: 4 },
+  'Gestión Perfil': { category: 'Usuario', categoryIcon: Users, order: 1 },
+  'Gestión Rol': { category: 'Usuario', categoryIcon: Users, order: 2 },
+  'Gestión Persona': { category: 'Usuario', categoryIcon: Users, order: 3 },
+  'Gestión Producto': { category: 'Producto', categoryIcon: Package, order: 1 },
+  'Gestión Medida': { category: 'Producto', categoryIcon: Package, order: 2 },
+  'Gestión Categoría': { category: 'Producto', categoryIcon: Package, order: 3 },
+  'Gestión Presentación': { category: 'Producto', categoryIcon: Package, order: 4 },
+  'Gestión Promoción': { category: 'Producto', categoryIcon: Package, order: 5 },
+  'Gestión Venta': { category: 'Venta', categoryIcon: DollarSign, order: 1 },
+  'Gestión Comisión': { category: 'Venta', categoryIcon: DollarSign, order: 2 },
+  'Gestión Transferencia': { category: 'Pedidos', categoryIcon: ClipboardList, order: 2 },
+  'Gestión Pedido': { category: 'Pedidos', categoryIcon: ClipboardList, order: 1 },
+  'Gestión Produccion': { category: 'Producto', categoryIcon: Package, order: 6 },
+  'Gestión Compra': { category: 'Compra', categoryIcon: ShoppingCart, order: 1 }
+};
+// esta es la nueva lista de los menus y sus enlaces 
+// // "Gestión Perfil"	"/home/perfil"
+// "Gestión Rol"	"/home/rol"
+// "Gestion Datos"	"/home/datos"
+// "Dashboard"	"/home/dashboard"
+// "Gestión Sucursal"	"/home/sucursal"
+// "Gestión Venta"	"/home/venta"
+// "Gestión Compra"	"/home/compra"
+// "Gestión Reporte"	"/home/reporte"
+// "Gestión Comisión"	"/home/comision"
+// "Gestión Producto"	"/home/producto"
+// "Gestión Medida"	"/home/medida"
+// "Gestión Categoría"	"/home/categoria"
+// "Gestión Presentación"	"/home/presentacion"
+// "Gestión Promoción"	"/home/promocion"
+// "Gestión Persona"	"/home/persona"
+// "Gestión Transferencia"	"/home/transferencia"
+// "Gestión Pedido"	"/home/pedido"
+// "Gestión Produccion"	"/home/produccion"
+
+// 2. Funciones de ayuda (Definirlas antes de usarlas en watchers)
+const construirMenu = (rolMenus) => {
+  if (!rolMenus || rolMenus.length === 0) return [];
+  
+  const categorizedMenus = {};
+  const principalMenus = [];
+
+  rolMenus.forEach(rolMenu => {
+    const menuNombre = rolMenu.menu.Nombre;
+    const menuEnlace = rolMenu.menu.Enlace?.Enlace || '';
+    const menuVisible = rolMenu.menu.Visible;
+
+    const categoryInfo = menuCategoryMap[menuNombre];
+    if (!categoryInfo || !menuVisible) return;
+
+    const icon = menuIconMap[menuNombre] || Package;
+
+    const menuItem = {
+      name: menuNombre,
+      icon: icon,
+      route: menuEnlace,
+      order: categoryInfo.order || 999,
+      permisos: rolMenu.permisos || []
+    };
+
+    if (categoryInfo.category === 'principal') {
+      principalMenus.push({ ...menuItem, expanded: false });
+    } else if (categoryInfo.category) {
+      const category = categoryInfo.category;
+      if (!categorizedMenus[category]) {
+        categorizedMenus[category] = {
+          name: category,
+          icon: categoryInfo.categoryIcon,
+          expanded: false,
+          submenu: []
+        };
+      }
+      categorizedMenus[category].submenu.push(menuItem);
+    }
+  });
+
+  Object.values(categorizedMenus).forEach(category => {
+    category.submenu.sort((a, b) => a.order - b.order);
+  });
+  principalMenus.sort((a, b) => a.order - b.order);
+
+  const finalMenu = [...principalMenus];
+  const categoryOrder = ['Usuario', 'Producto', 'Compra', 'Venta', 'Pedidos'];
+  categoryOrder.forEach(categoryName => {
+    if (categorizedMenus[categoryName]) finalMenu.push(categorizedMenus[categoryName]);
+  });
+
+  return finalMenu;
+}
+
+// 3. Datos reactivos y watchers (Ya tienen acceso a lo anterior)
+const sessionStore = useSessionStore()
 const sidebarOpen = ref(false)
 const selectedIndex = ref(0)
 const isMobile = ref(false)
+const menuItems = ref([])
 const currentRoute = ref('/home/dashboard')
 const router = useRouter()
 const alertStore = useAlertStore();
 let alertInterval = null;
 
-// Menu items configuration
-const menuItems = ref([
-  {
-    name: 'Dashboard',
-    icon: Home,
-    route: '/home/dashboard',
-    expanded: false
-  },
-   {
-    name: 'Administrar Datos',
-    icon: Settings,
-    route: '/home/datos',
-    expanded: false
-  },
-   {
-    name: 'Gestion Sucursal',
-    icon: Building,
-    route: '/home/sucursal',
-    expanded: false
-  },
-  {
-    name: 'Usuario',
-    icon: Users,
-    expanded: false,
-    submenu: [
-      { name: 'Gestión Perfil', icon: User, route: '/home/perfil' },
-      { name: 'Gestión Usuario', icon: Users, route: '/home/usuario' },
-      { name: 'Gestión Rol', icon: Key, route: '/home/rol' }
-    ]
-  },
-  {
-    name: 'Producto',
-    icon: Package,
-    expanded: false,
-    submenu: [
-      { name: 'Gestión Presentacion', icon: Ruler, route: '/home/presentacion' },
-      { name: 'Gestión Medida', icon: Ruler, route: '/home/medidas' },
-      { name: 'Gestión Producto', icon: Package , route: '/home/producto' },
-      { name: 'Gestión Promoción', icon: Percent, route: '/home/promocion' },
-      { name: 'Gestión Categoría', icon: Tag, route: '/home/categoria' }
-    ]
-  },
-  {
-    name: 'Compra',
-    icon: ShoppingCart,
-    expanded: false,
-    submenu: [
-      { name: 'Gestión Proveedor', icon: UserCheck, route: '/home/proveedor' },
-       { name: 'Gestión Insumo', icon: Package, route: '/home/insumo' },
-      { name: 'Gestión Compra', icon: ShoppingCart, route: '/home/compras' }
-    ]
-  },
-  {
-    name: 'Venta',
-    icon: DollarSign,
-    expanded: false,
-    submenu: [
-      { name: 'Gestión Comisión', icon: Percent, route: '/home/comision' },
-      { name: 'Gestión Cliente', icon: Users, route: '/home/cliente' },
-      { name: 'Gestión Venta', icon: DollarSign, route: '/home/venta' }
-    ]
-  },
-  {
-    name: 'Pedidos',
-    icon: ClipboardList,
-    expanded: false,
-    submenu: [
-      { name: 'Gestión Reserva', icon: Calendar, route: '/home/reserva' },
-      { name: 'Gestión Entrega/Devolucion', icon: Truck, route: '/home/entrega' },
-      { name: 'Gestión Distribución', icon: Truck, route: '/home/distribucion' },
-      // { name: 'Seguimiento de Envío', icon: Truck, route: '/home/seguimiento-pedido' },
-    //  { name: 'Gestion Envio', icon: MapPin, route: '/home/panel-despacho' },
-      { name: 'Gestión Repartidor', icon: Accessibility , route: '/home/repartidores' },
-    ]
-  },
-  {
-    name: 'Reportes',
-    icon: ClipboardList,
-    route: '/home/reporte',
-    expanded: false
+const updateSelectionFromRoute = () => {
+  const path = router.currentRoute.value.path
+  currentRoute.value = path
+  
+  menuItems.value.forEach((item, index) => {
+    if (item.route === path) {
+      selectedIndex.value = index
+    } else if (item.submenu) {
+      const subIndex = item.submenu.findIndex(sub => sub.route === path)
+      if (subIndex !== -1) {
+        selectedIndex.value = index
+        item.expanded = true
+      }
+    }
+  })
+}
+
+watch(() => sessionStore.menus, (newMenus) => {
+  if (newMenus) {
+    menuItems.value = construirMenu(newMenus);
+    updateSelectionFromRoute();
   }
-])
+}, { immediate: true });
+
+watch(() => router.currentRoute.value.path, () => {
+  updateSelectionFromRoute();
+});
 
 // Computed properties
 const currentPageTitle = computed(() => {
@@ -337,20 +413,22 @@ const currentPageDescription = computed(() => {
   const descriptions = {
     '/home/dashboard': 'Panel principal del sistema',
     '/home/perfil': 'Gestiona tu perfil personal',
-    '/home/usuario': 'Administra usuarios del sistema',
     '/home/rol': 'Configura roles y permisos',
-    '/home/medidas': 'Define unidades de medida',
-    '/home/producto': 'Gestiona el catálogo de productos',
-    '/home/promocion': 'Crea y administra promociones',
-    '/home/categoria': 'Organiza productos por categorías',
-    '/home/proveedor': 'Administra proveedores',
-    '/home/compras': 'Registra y controla compras',
-    '/home/comision': 'Configura comisiones de venta',
-    '/home/cliente': 'Gestiona base de clientes',
+    '/home/persona': 'Administra personas y sus datos',
+    '/home/datos': 'Administración de datos generales',
+    '/home/sucursal': 'Gestión de sucursales',
     '/home/venta': 'Procesa ventas y facturación',
-    '/home/reserva': 'Gestiona reservas y citas',
-    '/home/entrega': 'Controla entregas y distribución',
-    '/home/reporte': 'Genera y visualiza reportes del sistema'
+    '/home/compra': 'Registra y controla compras',
+    '/home/reporte': 'Genera y visualiza reportes del sistema',
+    '/home/comision': 'Configura comisiones de venta',
+    '/home/producto': 'Gestiona el catálogo de productos',
+    '/home/medida': 'Define unidades de medida',
+    '/home/categoria': 'Organiza productos por categorías',
+    '/home/presentacion': 'Gestiona presentaciones de productos',
+    '/home/promocion': 'Crea y administra promociones',
+    '/home/transferencia': 'Gestiona transferencias de productos',
+    '/home/pedido': 'Administra pedidos de clientes',
+    '/home/produccion': 'Gestiona el proceso de producción'
   }
   return descriptions[currentRoute.value] || 'Selecciona una opción del menú'
 })
@@ -374,9 +452,13 @@ const handleMouseLeave = () => {
 
 const toggleMenuItem = (item, index) => {
   if (item.submenu) {
+    // En móvil, asegurarse de que el sidebar esté abierto
+    if (isMobile.value && !sidebarOpen.value) {
+      sidebarOpen.value = true
+    }
     item.expanded = !item.expanded
     selectedIndex.value = index
-  } else {
+  } else { 
     selectedIndex.value = index
     navigateToRoute(item.route)
   }
@@ -384,9 +466,10 @@ const toggleMenuItem = (item, index) => {
 
 const navigateToRoute = (route) => {
   currentRoute.value = route
-  console.log('Navigating to:', route)
+ 
   
-  // Si tienes Vue Router configurado, descomenta la siguiente línea:
+  // Si tienes Vue Router configurado, descomenta la siguiente línea: 
+  
   router.push(route)
   // En móvil, cerrar sidebar después de navegar
   if (isMobile.value) {
@@ -419,23 +502,13 @@ const checkMobile = () => {
     sidebarOpen.value = false
   }
 }
-const usuario = ref({})
-const obtenerRol = async (id) =>{
-    try {
-    const response = await RolUsuario(id);
-    usuario.value = response;
-    console.log(usuario.value)
-  } catch (error) {
-    console.error('Error al cargar usuarios:', error);
-  }
-}
+
 const CerrarSesion = async () =>{
     try {
-    const response = await logout();
-    stopTokenRefreshTimer(); // Stop the token refresh timer
-    usuario.value = response;
+    await logout();
+    stopTokenRefreshTimer();
+    sessionStore.resetSession();
     router.push('/login');
-    console.log(usuario.value)
   } catch (error) {
     console.error('Error al cerrar sesion:', error);
   }
@@ -446,18 +519,21 @@ onMounted(async () => {
   const usuarioStr = localStorage.getItem('usuario');
    if (usuarioStr) {
     const usuarios = JSON.parse(usuarioStr); // convertir string a objeto
-    await obtenerRol(usuarios.IdUsuario);  // ahora sí accedes al IdUsuario
+    // If store doesn't have menus yet, load them
+    if (!sessionStore.menus.length) {
+      await sessionStore.cargarUsuarioYRoles(usuarios.IdUsuario);
+    }
   } else {
-    console.log("No hay usuario en localStorage");
+   
   }
   checkMobile();
   window.addEventListener('resize', checkMobile)
-
+  
   // Fetch alerts periodically
-  alertStore.fetchAlerts();
-  alertInterval = setInterval(() => {
-    alertStore.fetchAlerts();
-  }, 30000); // Check for new alerts every 30 seconds
+  // alertStore.fetchAlerts();
+  // alertInterval = setInterval(() => {
+  //   alertStore.fetchAlerts();
+  // }, 30000); // Check for new alerts every 30 seconds
 })
 
 onUnmounted(() => {

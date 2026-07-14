@@ -4,9 +4,26 @@ import API from './api';
 
 
 //listar rol
-export const listarRoles = async () => {
+export const listarRoles = async (search,estado,page,limit) => {
   try {
-    const response = await API.get('role');
+     const params = {
+      page,
+      limit
+    };
+    if(estado != -1) params.estado = estado
+    if(search) params.search = search
+    
+    const response = await API.get('role', { params });
+    return response.data;
+  } catch (error) {
+    console.error('Error al obtener los roles:', error);
+    throw error;
+  }
+};
+
+export const filtRol = async () => {
+  try {
+    const response = await API.get('filroles');
     return response.data;
   } catch (error) {
     console.error('Error al obtener los roles:', error);
@@ -25,6 +42,16 @@ export const DeleteROl = async (id) => {
   }
 };
 
+export const Listarmenusrol = async (id) => {
+  try {
+    const response = await API.get(`rolemenus/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error al eliminar rol:', error);
+    throw error;
+  }
+};
+
 export const listarMenus = async () => {
   try {
     const response = await API.get('Menu');
@@ -34,7 +61,7 @@ export const listarMenus = async () => {
     throw error;
   }
 };
-
+//para descartar 
 export const listarRolMenus = async (id) => {
   try {
     const response = await API.get(`RolMenu/${id}`);
@@ -47,12 +74,13 @@ export const listarRolMenus = async (id) => {
 
 export const addRol = async (Nombre, Seleccionado) => {
   try {
+ 
     const response = await API.post('RolMenu',{
        Nombre: Nombre,
        Permiso: Seleccionado
     }
        );
-    console.log(response.data);
+  ;
     return response.data;
   } catch (error) {
     console.error('Error al intentar ingresar datos:', error.response);
@@ -62,11 +90,12 @@ export const addRol = async (Nombre, Seleccionado) => {
 
 export const updateRol = async (id,Nombre, Seleccionado) => {
   try {
+     
     const response = await API.put(`RolMenu/${id}`, {
       Nombre: Nombre,
       Permiso: Seleccionado
     });
-    console.log(response.data);
+  ;
     return response.data;
   } catch (error) {
     console.error('Error al intentar ingresar datos:', error.response);
@@ -86,12 +115,12 @@ export const listarRolMenu = async (id) => {
 
 export const AsignarRolUsuario = async (usuario) => {
   try {
-    const response = await API.post('Rolusuario',{
+    const response = await API.post('AsignarRolUsuario',{
        UsuarioId: usuario.IdUsuario,
        RolId: usuario.IdROl
     }
        );
-    console.log(response.data);
+  ;
     return response.data;
   } catch (error) {
     console.error('Error al intentar ingresar datos:', error.response);
@@ -104,10 +133,34 @@ export const updateRolUsuario = async (usuario) => {
     const response = await API.put(`Rolusuario/${usuario.IdUsuario}`, {
         RolId: usuario.IdRol
     });
-    console.log(response.data);
+  ;
     return response.data;
   } catch (error) {
     console.error('Error al intentar ingresar datos:', error.response);
+    throw error;
+  }
+};
+
+export const DeleteRolUsuario = async (usuario) => {
+  try {
+    const response = await API.delete(`DeleteRolUsuario/${usuario.IdUsuario}/${usuario.IdRol}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error al intentar desasignar el rol del usuario:', error.response);
+    throw error;
+  }
+};
+
+export const GuardarRolesUsuario = async (usuario) => {
+  try {
+    const response = await API.post('AsignarRolUsuario', {
+      UsuarioId: usuario.IdUsuario,
+      RolesAsignar: usuario.RolesAsignar ?? [],
+      RolesQuitar: usuario.RolesQuitar ?? []
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error al guardar los roles del usuario:', error.response);
     throw error;
   }
 };

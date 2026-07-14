@@ -543,7 +543,6 @@ CREATE TABLE Rolusuario (
     idrolusuario VARCHAR(50) PRIMARY KEY,
     fecharegistro DATE,
     fechaactualizacion DATE,
-    idrol VARCHAR(50),
     idusuario VARCHAR(150),
     FOREIGN KEY (idrol) REFERENCES Rol(idrol),
     FOREIGN KEY (idusuario) REFERENCES Usuario(idusuario)
@@ -654,8 +653,6 @@ CREATE TABLE Usuario (
     idusuario VARCHAR(150) PRIMARY KEY,
     contrasena VARCHAR(150),
     pin VARCHAR(150),
-    token VARCHAR(255),
-    rtoken VARCHAR(255),
     pinrecuperacion VARCHAR(10),
     idpersona VARCHAR(150),
     idestado INTEGER,

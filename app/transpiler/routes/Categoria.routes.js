@@ -2,12 +2,14 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const Categoria_controllers_1 = require("../controllers/Categoria.controllers");
+const verifyToken_1 = require("../middleware/verifyToken");
 const router = (0, express_1.Router)();
-//router.use(authMiddleware)
+router.use(verifyToken_1.authMiddleware);
 router.post("/Categoria", Categoria_controllers_1.createCategoria);
 router.put('/Categoria/:id', Categoria_controllers_1.updateCategoria);
 router.get('/Categorias', Categoria_controllers_1.getCategorias);
 router.get('/ObtenerSubCategorias/:id', Categoria_controllers_1.getCategoria);
+router.get('/listacategoria', Categoria_controllers_1.ListCategoria);
 router.get('/ObtenerCategoria/:id', Categoria_controllers_1.getSubCategoria);
 router.delete('/Categorias/:id', Categoria_controllers_1.deleteCategoria);
 router.get('/SubCategorias/', Categoria_controllers_1.getSubCategorias);

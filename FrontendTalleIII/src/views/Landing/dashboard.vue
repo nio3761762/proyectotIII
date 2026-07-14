@@ -76,8 +76,8 @@
                   class="mt-1 block w-full px-4 py-2.5 bg-gray-100/50 border border-gray-300/70 rounded-xl shadow-md backdrop-blur-sm text-gray-800 placeholder-gray-400 focus:bg-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
                 >
                   <option value="">Todas</option>
-                  <option v-for="sucursal in sucursales" :key="sucursal.id" :value="sucursal.IdSucursal">
-                    {{ sucursal.Nombre }}
+                  <option v-for="sucursal in sucursales" :key="sucursal.id" :value="sucursal.idsucursal">
+                    {{ sucursal.nombre }}
                   </option>
                 </select>
               </div>
@@ -89,8 +89,8 @@
                   class="mt-1 block w-full px-4 py-2.5 bg-gray-100/50 border border-gray-300/70 rounded-xl shadow-md backdrop-blur-sm text-gray-800 placeholder-gray-400 focus:bg-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
                 >
                   <option value="TODOS">Todas</option>
-                  <option v-for="categoria in categorias" :key="categoria.IdCategoria" :value="categoria.IdCategoria">
-                    {{ categoria.Nombre }}
+                  <option v-for="categoria in categorias" :key="categoria.idcategoria" :value="categoria.idcategoria">
+                    {{ categoria.nombre }} 
                   </option>
                 </select>
               </div>
@@ -103,8 +103,8 @@
                   class="mt-1 block w-full px-4 py-2.5 bg-gray-100/50 border border-gray-300/70 rounded-xl shadow-md backdrop-blur-sm text-gray-800 placeholder-gray-400 focus:bg-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300 disabled:bg-gray-200"
                 >
                   <option value="">Todas</option>
-                  <option v-for="subcategoria in subcategorias" :key="subcategoria.IdSubCategoria" :value="subcategoria.IdSubCategoria">
-                    {{ subcategoria.Nombre }}
+                  <option v-for="subcategoria in subcategorias" :key="subcategoria.idsubcategoria" :value="subcategoria.idsubcategoria">
+                    {{ subcategoria.nombre }}
                   </option>
                 </select>
               </div>
@@ -386,64 +386,55 @@
           </transition>
         </div>
 
-        <!-- Alertas y Notificaciones -->
+        <!-- Resumen de Actividad -->
         <div class="bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl border border-white/50 p-4">
           <div class="flex items-center gap-3 mb-6">
-            <div class="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl shadow-lg flex items-center justify-center">
-              <Bell class="h-5 w-5 text-white" />
+            <div class="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl shadow-lg flex items-center justify-center">
+              <Activity class="h-5 w-5 text-white" />
             </div>
             <div>
-              <h3 class="text-xl font-bold text-gray-800">Alertas del Sistema</h3>
-              <p class="text-sm text-gray-600">Notificaciones importantes</p>
+              <h3 class="text-xl font-bold text-gray-800">Resumen de Actividad</h3>
+              <p class="text-sm text-gray-600">Últimos movimientos registrados</p>
             </div>
           </div>
 
           <div class="space-y-4 max-h-80 overflow-y-auto">
             <div 
-              v-for="alerta in alertas" 
-              :key="alerta.id"
-              :class="[
-                'p-4 rounded-2xl border-l-4 transition-all duration-300 hover:shadow-md',
-                alerta.tipo === 'critico' ? 'bg-red-50 border-red-500' :
-                alerta.tipo === 'advertencia' ? 'bg-yellow-50 border-yellow-500' :
-                'bg-blue-50 border-blue-500'
-              ]"
+              v-for="actividad in actividadReciente" 
+              :key="actividad.id"
+              class="flex items-center gap-3 p-3 rounded-2xl transition-all duration-300"
+              :class="(activityConfig[actividad.type] || activityConfig.default).bgCard"
             >
-              <div class="flex items-start gap-3">
-                <div :class="[
-                  'w-8 h-8 rounded-xl flex items-center justify-center',
-                  alerta.tipo === 'critico' ? 'bg-red-500' :
-                  alerta.tipo === 'advertencia' ? 'bg-yellow-500' :
-                  'bg-blue-500'
+              <div :class="[
+                'w-10 h-10 rounded-2xl shadow-md flex items-center justify-center',
+                (activityConfig[actividad.type] || activityConfig.default).color
+              ]">
+                <component :is="(activityConfig[actividad.type] || activityConfig.default).icon" class="h-5 w-5 text-white" />
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-semibold text-gray-800 truncate">{{ actividad.description }}</p>
+                <p class="text-xs text-gray-500">{{ formatTimeAgo(actividad.date, actividad.time) }}</p>
+              </div>
+              <div class="text-right shrink-0">
+                <p v-if="(activityConfig[actividad.type] || activityConfig.default).amountKey" :class="[
+                  'text-sm font-bold',
+                  (activityConfig[actividad.type] || activityConfig.default).textColor || 'text-gray-800'
                 ]">
-                  <AlertTriangle v-if="alerta.tipo === 'critico'" class="h-4 w-4 text-white" />
-                  <AlertCircle v-else-if="alerta.tipo === 'advertencia'" class="h-4 w-4 text-white" />
-                  <Info v-else class="h-4 w-4 text-white" />
-                </div> 
-                <div class="flex-1">
-                  <p :class="[
-                    'font-semibold text-sm',
-                    alerta.tipo === 'critico' ? 'text-red-800' :
-                    alerta.tipo === 'advertencia' ? 'text-yellow-800' :
-                    'text-blue-800'
-                  ]">
-                    {{ alerta.titulo }}
-                  </p> 
-                  <p :class="[
-                    'text-xs mt-1',
-                    alerta.tipo === 'critico' ? 'text-red-600' :
-                    alerta.tipo === 'advertencia' ? 'text-yellow-600' :
-                    'text-blue-600'
-                  ]">
-                    {{ alerta.descripcion }}
-                  </p>
-                  <p class="text-xs text-gray-500 mt-2">{{ formatTimeAgo(alerta.date, alerta.time) }}</p>
-                </div>
+                  <span v-if="(activityConfig[actividad.type] || activityConfig.default).sign">{{ (activityConfig[actividad.type] || activityConfig.default).sign }} </span>
+                  Bs. {{ actividad[(activityConfig[actividad.type] || activityConfig.default).amountKey] }}
+                </p>
+                <span :class="[
+                  'inline-block px-2 py-0.5 rounded-full text-xs font-medium',
+                  (activityConfig[actividad.type] || activityConfig.default).badge
+                ]">
+                  {{ actividad.type }}
+                </span>
               </div>
             </div>
+            <div v-if="actividadReciente.length === 0" class="text-center py-8 text-gray-400">
+              <p>No hay actividad reciente</p>
+            </div>
           </div>
-
-          <!-- EEE -->
         </div>
       </div>
 
@@ -482,24 +473,17 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch  } from 'vue'
-import { storeToRefs } from 'pinia';
+import { ref, computed, onMounted, watch } from 'vue'
 import {
-  BarChart3, DollarSign, Package, Users, Archive, TrendingUp, AlertTriangle,
-  Activity, ShoppingCart, User, Star, Bell, AlertCircle, Info, Zap,
-  Plus, FileText, Settings, Calculator, Truck, PieChart, ChevronDown, RefreshCw,
-  ClipboardList
+  BarChart3, DollarSign, Package, Users, Archive, TrendingUp,
+  ShoppingCart, User, Star, Settings, Truck, Activity, ChevronDown, RefreshCw,
+  ClipboardList, Plus, FileText, Calculator, AlertTriangle
 } from 'lucide-vue-next'
 import { Chart, registerables } from 'chart.js';
 Chart.register(...registerables);
-import { listarCubo, listarParaHoy, OlapCube, movimientos } from '@/Server/CubeOlap'
-import { listarCategorias, ObtenerSubCategorias} from '@/Server/Categoria';
-import { listarSucursales } from '@/Server/api'
-import { useAlertStore } from '@/stores/alertStore';
-
-// Store setup
-const alertStore = useAlertStore();
-const { allAlerts: alertas } = storeToRefs(alertStore);
+import { OlapCube, movimientos } from '@/Server/CubeOlap'
+import { listCategorias, ObtenerSubCategorias} from '@/Server/Categoria';
+import { Listsucursal } from '@/Server/Sucural'
 
 // Reactive data
 const periodoSeleccionado = ref('24H')
@@ -522,16 +506,19 @@ const subcategorias = ref([]);
 
 const ListarCategorias = async () => {
   try {
-    categorias.value = await listarCategorias();
+    const res = await listCategorias();
+    categorias.value = res?.result ?? res ?? [];
   } catch (error) {
     console.error('Error al cargar categorias:', error);
+    categorias.value = [];
   }
 };
 
 watch(() => filtros.value.categoria, async (newVal) => {
   filtros.value.subcategoria = '';
   if (newVal && newVal !== '') {
-    subcategorias.value = await ObtenerSubCategorias(newVal);
+    const res = await ObtenerSubCategorias(newVal);
+    subcategorias.value = res?.result ?? res ?? [];
   } else {
     subcategorias.value = [];
   }
@@ -540,19 +527,19 @@ watch(() => filtros.value.categoria, async (newVal) => {
 
 const ListarSucursal = async () => {
   try {
-    console.log(hoy)
-      sucursales.value = await listarSucursales(); 
+   
+      sucursales.value = await Listsucursal(); 
   } catch (error) {
-    console.error('Error al cargar usuarios:', error);
+    console.error('Error al cargar sucursales:', error);
   }
 };
 
 const Listarmoviminetos = async () => {
   try {
-   //ss
-      actividadReciente.value = await movimientos(5,filtros.value.sucursal); 
+      actividadReciente.value = await movimientos(5, filtros.value.sucursal);
   } catch (error) {
-    console.error('Error al cargar usuarios:', error);
+    console.error('Error al cargar movimientos:', error);
+    actividadReciente.value = [];
   }
 };
 
@@ -580,7 +567,8 @@ const fetchGraficaData = async () => {
       queryDesde = newDesde.toISOString().slice(0, 10);
     }
 
-    graficaOlap.value = await OlapCube(filtros.value.sucursal, 2025, '', '', queryDesde, filtros.value.hasta, filtros.value.subcategoria);
+    const currentYear = new Date().getFullYear();
+    graficaOlap.value = await OlapCube(filtros.value.sucursal, currentYear, '', '', queryDesde, filtros.value.hasta, filtros.value.subcategoria);
     processAndAssignChartData();
   } catch (error) {
     console.error('Error fetching graph data:', error);
@@ -608,9 +596,9 @@ const ListaRCUbOne = async () => {
         queryDesde = newDesde.toISOString().slice(0, 10);
       }
 
-      OCube.value = await OlapCube(filtros.value.sucursal,2025,'','',filtros.value.desde,filtros.value.hasta, filtros.value.subcategoria); 
-      graficarCube.value = await OlapCube(filtros.value.sucursal,2025,'','',queryDesde,filtros.value.hasta, filtros.value.subcategoria); 
-    console.log( OCube.value )
+      const currentYear = new Date().getFullYear();
+      OCube.value = await OlapCube(filtros.value.sucursal, currentYear, '', '', filtros.value.desde, filtros.value.hasta, filtros.value.subcategoria); 
+   
    
     } catch (error) {
     console.error('Error al cargar usuarios:', error);
@@ -959,12 +947,13 @@ const processAndAssignChartData = () => {
 const actividadReciente = ref([])
 
 const activityConfig = {
-  Venta: { icon: ShoppingCart, color: 'bg-gradient-to-br from-green-500 to-emerald-600', amountKey: 'profit', sign: '+', textColor: 'text-green-600' },
-  Cliente: { icon: User, color: 'bg-gradient-to-br from-blue-500 to-indigo-600' },
-  Compra: { icon: Truck, color: 'bg-gradient-to-br from-yellow-500 to-amber-600', amountKey: 'total', sign: '-', textColor: 'text-red-600' },
-  Producto: { icon: Package, color: 'bg-gradient-to-br from-orange-500 to-red-600' },
-  Pedido: { icon: ClipboardList, color: 'bg-gradient-to-br from-purple-500 to-pink-600', amountKey: 'total', textColor: 'text-purple-600' },
-  default: { icon: Activity, color: 'bg-gradient-to-br from-gray-500 to-slate-600' }
+  Venta: { icon: ShoppingCart, color: 'bg-gradient-to-br from-green-500 to-emerald-600', amountKey: 'profit', sign: '+', textColor: 'text-green-600', badge: 'bg-green-100 text-green-700', bgCard: 'bg-green-50/50' },
+  Cliente: { icon: User, color: 'bg-gradient-to-br from-blue-500 to-indigo-600', badge: 'bg-blue-100 text-blue-700', bgCard: 'bg-blue-50/50' },
+  Compra: { icon: Truck, color: 'bg-gradient-to-br from-yellow-500 to-amber-600', amountKey: 'total', sign: '-', textColor: 'text-red-600', badge: 'bg-yellow-100 text-yellow-700', bgCard: 'bg-yellow-50/50' },
+  Producto: { icon: Package, color: 'bg-gradient-to-br from-orange-500 to-red-600', badge: 'bg-orange-100 text-orange-700', bgCard: 'bg-orange-50/50' },
+  Pedido: { icon: ClipboardList, color: 'bg-gradient-to-br from-purple-500 to-pink-600', amountKey: 'total', textColor: 'text-purple-600', badge: 'bg-purple-100 text-purple-700', bgCard: 'bg-purple-50/50' },
+  Produccion: { icon: Settings, color: 'bg-gradient-to-br from-teal-500 to-cyan-600', amountKey: 'total', textColor: 'text-teal-600', badge: 'bg-teal-100 text-teal-700', bgCard: 'bg-teal-50/50' },
+  default: { icon: Activity, color: 'bg-gradient-to-br from-gray-500 to-slate-600', badge: 'bg-gray-100 text-gray-700', bgCard: 'bg-gray-50/50' }
 };
 
 const productosMasVendidos = computed(() => {
@@ -1161,10 +1150,12 @@ const fechaActual = computed(() => {
 
 // Función para aplicar filtros (simulada)
 const aplicarFiltros = async () => {
-  console.log("Aplicando filtros:", filtros.value);
-  await ListaRCUbOne();
-  await Listarmoviminetos(); // Call Listarmoviminetos here
-  await fetchGraficaData();
+
+  await Promise.all([
+    ListaRCUbOne(),
+    Listarmoviminetos(),
+    fetchGraficaData()
+  ]);
 };
 
 // Observa cambios en los filtros y aplica los filtros automáticamente
@@ -1182,19 +1173,12 @@ watch(periodoSeleccionado, (newPeriodo) => {
 
 // Methods
 onMounted( async () => {
-  await ListarSucursal();
-  await ListarCategorias();
-  aplicarFiltros(); // This function now handles all data fetching
-  createChart(); // Initialize chart on mount
-  // Simular actualizaciones en tiempo real
-  setInterval(() => {
-    // Actualizar métricas aleatoriamente
-    if (Math.random() > 0.7) {
-      // ventasHoy.value += Math.floor(Math.random() * 50) + 10
-      // productosVendidos.value += Math.floor(Math.random() * 3) + 1
-      // clientesAtendidos.value += Math.floor(Math.random() * 2) + 1
-    }
-  }, 10000)
+  await Promise.all([
+    ListarSucursal(),
+    ListarCategorias()
+  ]);
+  await aplicarFiltros();
+  createChart();
 })
 </script>
 
@@ -1259,5 +1243,45 @@ onMounted( async () => {
 .slide-up-leave-to {
   opacity: 0;
   transform: translateY(-20px);
+}
+
+/* Welcome Screen Animations */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.5s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+@keyframes bounce-slow {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-20px);
+  }
+}
+
+.animate-bounce-slow {
+  animation: bounce-slow 2s ease-in-out infinite;
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.8s ease-out forwards;
+  opacity: 0;
 }
 </style>

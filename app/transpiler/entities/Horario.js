@@ -20,6 +20,14 @@ __decorate([
     __metadata("design:type", String)
 ], Horario.prototype, "IdHorario", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ name: "dia", type: "varchar", length: 150, nullable: true }),
+    __metadata("design:type", String)
+], Horario.prototype, "Dia", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: "tipo", type: "varchar", length: 50, nullable: true }),
+    __metadata("design:type", String)
+], Horario.prototype, "Tipo", void 0);
+__decorate([
     (0, typeorm_1.Column)({ name: "horaentrada", type: "time" }),
     __metadata("design:type", String)
 ], Horario.prototype, "HoraEntrada", void 0);
@@ -28,8 +36,9 @@ __decorate([
     __metadata("design:type", String)
 ], Horario.prototype, "HoraSalida", void 0);
 __decorate([
-    (0, typeorm_1.OneToMany)(() => Sucursal_1.Sucursal, (sucursal) => sucursal.Horario),
-    __metadata("design:type", Array)
+    (0, typeorm_1.ManyToOne)(() => Sucursal_1.Sucursal, (sucursal) => sucursal.Horario),
+    (0, typeorm_1.JoinColumn)({ name: "idsucursal" }),
+    __metadata("design:type", Sucursal_1.Sucursal)
 ], Horario.prototype, "Sucursal", void 0);
 exports.Horario = Horario = __decorate([
     (0, typeorm_1.Entity)()

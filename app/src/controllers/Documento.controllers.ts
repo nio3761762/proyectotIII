@@ -3,7 +3,6 @@ import { HttpError } from "../utils/error.handler";
 import { generarIdSecuencial } from "../utils/idGenerator";
 import { verifyComplemento } from "./Complemento.controllers";
 import { verifyPersona } from "./Persona.controllers";
-import { verifyTipoDocumento } from "./TipoDocumento.controllers";
 
 
 export const verifyDocumento = async ({ Documentoid }: { Documentoid: string }) => {
@@ -18,7 +17,7 @@ export const verifyDocumento = async ({ Documentoid }: { Documentoid: string }) 
     return existDocumento;
 };
 
-export const createDocumento = async ({ IdTipoDocumento, IdComplemento, Documentos, PersonaId }: { IdTipoDocumento: string, IdComplemento: string, Documentos: string,PersonaId:string }) => {
+export const createDocumento = async ({  IdComplemento, Documentos, PersonaId }: {  IdComplemento: string, Documentos: string,PersonaId:string }) => {
   if(Documentos){
 const nuevoId = await generarIdSecuencial('DC');
    
@@ -26,8 +25,7 @@ const nuevoId = await generarIdSecuencial('DC');
     nuevoDocumento.IdDocumento = nuevoId;
     if(PersonaId) nuevoDocumento.Persona = await verifyPersona({PersonaId:PersonaId})
     if (Documentos) nuevoDocumento.Documento = Documentos;
-    if(IdTipoDocumento) nuevoDocumento.Tipodocumento = await verifyTipoDocumento({ TipoId: IdTipoDocumento });
-    if (IdComplemento) nuevoDocumento.Complemento = await verifyComplemento({ TipoId: IdComplemento })
+     if (IdComplemento) nuevoDocumento.Complemento = await verifyComplemento({ TipoId: IdComplemento })
 
     await nuevoDocumento.save();
 
@@ -40,7 +38,7 @@ const nuevoId = await generarIdSecuencial('DC');
 
 
 
-export const updateDocumento = async ({ DocumentoId, IdTipoDocumento, IdComplemento, Documentos,PersonaId }: { DocumentoId: string, IdTipoDocumento: string, IdComplemento: string, Documentos: string,PersonaId:string }) => {
+export const updateDocumento = async ({ DocumentoId,  IdComplemento, Documentos,PersonaId }: { DocumentoId: string,  IdComplemento: string, Documentos: string,PersonaId:string }) => {
 
 
     if(DocumentoId){
@@ -48,7 +46,6 @@ export const updateDocumento = async ({ DocumentoId, IdTipoDocumento, IdCompleme
 
     
     if (Documentos) existDocumento.Documento = Documentos;
-    if(IdTipoDocumento) existDocumento.Tipodocumento = await verifyTipoDocumento({ TipoId: IdTipoDocumento });
     if (IdComplemento) existDocumento.Complemento = await verifyComplemento({ TipoId: IdComplemento })
 
     await existDocumento.save();
@@ -56,7 +53,7 @@ export const updateDocumento = async ({ DocumentoId, IdTipoDocumento, IdCompleme
 
     return existDocumento;  
     }else
-        return createDocumento({IdTipoDocumento:IdTipoDocumento,IdComplemento:IdComplemento,Documentos:Documentos,PersonaId:PersonaId})
+        return createDocumento({IdComplemento:IdComplemento,Documentos:Documentos,PersonaId:PersonaId})
    
 };
 

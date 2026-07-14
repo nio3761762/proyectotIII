@@ -48,6 +48,10 @@ __decorate([
     (0, typeorm_1.Column)({ name: "stockminimo", type: "integer", nullable: true }),
     __metadata("design:type", Number)
 ], Productosucursal.prototype, "StockMinimo", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: "fecha_alerta_stock", type: "timestamp", nullable: true }),
+    __metadata("design:type", Object)
+], Productosucursal.prototype, "FechaAlertaStock", void 0);
 exports.Productosucursal = Productosucursal = __decorate([
     (0, typeorm_1.Entity)()
 ], Productosucursal);

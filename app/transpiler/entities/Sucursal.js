@@ -13,12 +13,17 @@ exports.Sucursal = void 0;
 const typeorm_1 = require("typeorm");
 const DIreccion_1 = require("./DIreccion");
 const AdmDatos_1 = require("./AdmDatos");
-const Estado_1 = require("./Estado");
 const Horario_1 = require("./Horario");
-const UsuarioSucursal_1 = require("./UsuarioSucursal");
-const ProductoSucursal_1 = require("./ProductoSucursal");
 const Venta_1 = require("./Venta");
-const Distribucion_1 = require("./Distribucion");
+const Produccion_1 = require("./Produccion");
+const EmpleadoSucursal_1 = require("./EmpleadoSucursal");
+const Transferencia_1 = require("./Transferencia");
+const Inventario_1 = require("./Inventario");
+const MovimientoInventario_1 = require("./MovimientoInventario");
+const Gastos_1 = require("./Gastos");
+const ProduccionEmpleado_1 = require("./ProduccionEmpleado");
+const Horno_1 = require("./Horno");
+const Pedido_1 = require("./Pedido");
 let Sucursal = class Sucursal extends typeorm_1.BaseEntity {
     some(arg0) {
         throw new Error("Method not implemented.");
@@ -46,13 +51,17 @@ __decorate([
     __metadata("design:type", Date)
 ], Sucursal.prototype, "FechaActualizacion", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: "celular", type: "varchar", length: 100 }),
+    (0, typeorm_1.Column)({ name: "celular", type: "varchar", length: 100, nullable: true }),
     __metadata("design:type", String)
 ], Sucursal.prototype, "Celular", void 0);
 __decorate([
     (0, typeorm_1.Column)({ name: "central", type: "integer" }),
     __metadata("design:type", Number)
 ], Sucursal.prototype, "Central", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: "estado", type: "integer", default: 1 }),
+    __metadata("design:type", Number)
+], Sucursal.prototype, "Estado", void 0);
 __decorate([
     (0, typeorm_1.OneToOne)(() => DIreccion_1.Direccion, (direccion) => direccion.Sucursal),
     (0, typeorm_1.JoinColumn)({ name: "iddireccion" }),
@@ -64,31 +73,53 @@ __decorate([
     __metadata("design:type", AdmDatos_1.Administrardatos)
 ], Sucursal.prototype, "Datos", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => Estado_1.Estado, (estado) => estado.Sucursal),
-    (0, typeorm_1.JoinColumn)({ name: "idestado" }),
-    __metadata("design:type", Estado_1.Estado)
-], Sucursal.prototype, "Estado", void 0);
+    (0, typeorm_1.OneToMany)(() => Gastos_1.Gasto, (venta) => venta.Sucursal),
+    __metadata("design:type", Array)
+], Sucursal.prototype, "Gasto", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => Horario_1.Horario, (horario) => horario.Sucursal),
-    (0, typeorm_1.JoinColumn)({ name: "idhorario" }),
-    __metadata("design:type", Horario_1.Horario)
+    (0, typeorm_1.OneToMany)(() => Horario_1.Horario, (horario) => horario.Sucursal),
+    __metadata("design:type", Array)
 ], Sucursal.prototype, "Horario", void 0);
 __decorate([
-    (0, typeorm_1.OneToMany)(() => UsuarioSucursal_1.Usuariosucursal, (usuariosucursal) => usuariosucursal.Sucursal),
+    (0, typeorm_1.OneToMany)(() => Transferencia_1.Transferencia, (venta) => venta.SucursalOrigen),
     __metadata("design:type", Array)
-], Sucursal.prototype, "Usuariosucursal", void 0);
+], Sucursal.prototype, "TransferenciaOrigen", void 0);
+__decorate([
+    (0, typeorm_1.OneToMany)(() => Transferencia_1.Transferencia, (venta) => venta.SucursalDestino),
+    __metadata("design:type", Array)
+], Sucursal.prototype, "TransferenciaDestino", void 0);
+__decorate([
+    (0, typeorm_1.OneToMany)(() => Inventario_1.Inventario, (productosucursal) => productosucursal.Sucursal),
+    __metadata("design:type", Array)
+], Sucursal.prototype, "Inventario", void 0);
+__decorate([
+    (0, typeorm_1.OneToMany)(() => MovimientoInventario_1.MovimientoInventario, (ingrediente) => ingrediente.Sucursal),
+    __metadata("design:type", Array)
+], Sucursal.prototype, "Movimiento", void 0);
 __decorate([
     (0, typeorm_1.OneToMany)(() => Venta_1.Venta, (venta) => venta.Sucursal),
     __metadata("design:type", Array)
 ], Sucursal.prototype, "Venta", void 0);
 __decorate([
-    (0, typeorm_1.OneToMany)(() => Distribucion_1.Distribucion, (venta) => venta.Sucursal),
+    (0, typeorm_1.OneToMany)(() => Pedido_1.Pedido, (venta) => venta.Sucursal),
     __metadata("design:type", Array)
-], Sucursal.prototype, "Distribucion", void 0);
+], Sucursal.prototype, "Pedido", void 0);
 __decorate([
-    (0, typeorm_1.OneToMany)(() => ProductoSucursal_1.Productosucursal, (productosucursal) => productosucursal.Sucursal),
+    (0, typeorm_1.OneToMany)(() => Produccion_1.Produccion, (productosucursal) => productosucursal.Sucursal),
     __metadata("design:type", Array)
-], Sucursal.prototype, "Productosucursal", void 0);
+], Sucursal.prototype, "Produccion", void 0);
+__decorate([
+    (0, typeorm_1.OneToMany)(() => ProduccionEmpleado_1.ProduccionEmpleado, (productosucursal) => productosucursal.Sucursal),
+    __metadata("design:type", Array)
+], Sucursal.prototype, "Produccionempleado", void 0);
+__decorate([
+    (0, typeorm_1.OneToMany)(() => EmpleadoSucursal_1.EmpleadoSucursal, (es) => es.Sucursal),
+    __metadata("design:type", Array)
+], Sucursal.prototype, "EmpleadoSucursales", void 0);
+__decorate([
+    (0, typeorm_1.OneToMany)(() => Horno_1.Horno, (h) => h.Sucursal),
+    __metadata("design:type", Array)
+], Sucursal.prototype, "Hornos", void 0);
 exports.Sucursal = Sucursal = __decorate([
     (0, typeorm_1.Entity)()
 ], Sucursal);

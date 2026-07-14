@@ -2,23 +2,20 @@
 import API from './api';
 
 
-export const listarComisiones = async () => {
-  try {
-    const response = await API.get('Comisiones');
-    return response.data;
-  } catch (error) {
-    console.error('Error al obtener las comisiones:', error);
-    throw error;
-  }
-};
+export const listarComisiones = async (idproducto, estado, search, page, limit) => {
 
-
-export const AddComisiones = async (Comision) => {
   try {
-    const response = await API.post('AddComision', { 
-      Registrar:Comision
-    });
-    console.log(response.data);
+  const params = {
+      page,
+      limit
+    };
+
+    if(search) params.search=search
+    if(idproducto)params.idproducto=idproducto
+    if(estado != -1) params.estado=estado
+
+    const response = await API.get('Comisiones',{ params }); 
+
     return response.data;
   } catch (error) {
     console.error('Error al intentar ingresar datos:', error.response);
@@ -31,7 +28,7 @@ export const UpdateComision = async (Comision) => {
     const response = await API.put(`uptComision/${Comision.IdComision}`, { 
        Registrar: Comision
     });
-    console.log(response.data);
+   
     return response.data;
   } catch (error) {
     console.error('Error al intentar ingresar datos:', error.response);

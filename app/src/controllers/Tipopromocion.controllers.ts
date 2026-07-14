@@ -1,11 +1,18 @@
 import { Request, Response } from "express";
 import { Tipopromocion } from "../entities/Tipopromocion";
 import { HttpError } from "../utils/error.handler";
+import { AppDataSource } from "../db";
 
 export const getTipopromocions = async (req: Request, res: Response) => {
     try {
-        const Tipopromocions = await Tipopromocion.find();
-        return res.json(Tipopromocions);
+         const result = await AppDataSource.query(`
+              SELECT 
+                 tp.idtipopromocion,
+                 tp.nombre
+              FROM tipopromocion tp;
+            `);
+        
+            return res.json({result});
     } catch (error) {
         if (error instanceof Error) {
             return res.status(500).json({ message: error.message });

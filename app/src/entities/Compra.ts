@@ -4,20 +4,23 @@ import bcrypt from "bcryptjs";
 import { Comprobante } from "./Comprobante";
 import { Proveedor } from "./Proveedor";
 import { Detallecompra } from "./DetalleCompra";
-import { Estado } from "./Estado";
-
 
 @Entity()
-//@Check(`"Estado" IN (0, 1)`)
 export class Compra extends BaseEntity {
     @PrimaryColumn({ name: 'idcompra', type: "varchar", length: 50 })
     IdCompra: string;
 
     @Column({ name: "nrocomprobante", type: "varchar", length: 100 })
     NroComprobante: string;
+    
+    @Column({ name: "preciototal", type: "numeric", precision: 10, scale: 2, default:0 })
+    PrecioTotal: number;
 
     @Column({ name: "fechacompra", type: "date" })
-    FechaCompra: Date;
+    FechaCompra: Date; 
+    
+    @Column({ name: 'descripcion', type: "text", nullable: true })
+    Descripcion: string;
 
     @Column({ name: "horacompra", type: "time", nullable:true })
     HoraCompra: string;
@@ -33,8 +36,6 @@ export class Compra extends BaseEntity {
     @OneToMany(() => Detallecompra, (detallecompra) => detallecompra.Compra)
     Detallecompra: Detallecompra[];
 
-      @ManyToOne(() => Estado, (estado) => estado.Compra, {nullable:true})
-  @JoinColumn({ name: "idestado" })
-  Estado: Estado;
-
+    @Column({ name: "estado", type: "integer",default: 1}) 
+    Estado: number; 
 }

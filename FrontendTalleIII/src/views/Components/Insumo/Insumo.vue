@@ -1,706 +1,702 @@
 <template>
-  <div class="min-h-screen ">
-    
-    <!-- Insumo Management View  -->
-    <div v-if="currentView === 'list'">
-      <InsumoHeader @open-add-product-modal="openAddProductoModal" />
+  <div class="min-h-screen">
+    <div class="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-orange-400/5 to-red-500/5 rounded-full blur-3xl pointer-events-none"></div>
+    <div class="absolute bottom-0 left-0 w-80 h-80 bg-gradient-to-tr from-red-400/5 to-orange-500/5 rounded-full blur-2xl pointer-events-none"></div>
 
-      <InsumoFilters :searchQuery="searchQuery" @update:searchQuery="searchQuery = $event" @open-add-product-modal="openAddProductoModal" />
+    <!-- Loading Inicial -->
+    <Transition name="fade" mode="out-in">
+      <div v-if="cargandoInicial" class="flex items-center justify-center py-20">
+        <div class="text-center">
+          <div class="w-20 h-20 mx-auto relative mb-6">
+            <div class="absolute inset-0 rounded-full border-4 border-orange-200 animate-pulse"></div>
+            <div class="absolute inset-0 rounded-full border-4 border-transparent border-t-orange-500 border-r-red-500 animate-spin"></div>
+            <div class="absolute inset-0 flex items-center justify-center">
+              <div class="p-3 bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl shadow-lg">
+                <Package class="h-6 w-6 text-white" />
+              </div>
+            </div>
+          </div>
+          <h3 class="text-lg font-bold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent mb-1">
+            Cargando {{ selec === 'Insumo' ? 'Insumos' : 'Productos' }}
+          </h3>
+          <p class="text-gray-500 text-sm">Preparando datos...</p>
+          <div class="mt-4 w-40 mx-auto h-1 bg-gray-200 rounded-full overflow-hidden">
+            <div class="h-full bg-gradient-to-r from-orange-500 to-red-500 rounded-full animate-pulse"></div>
+          </div>
+        </div>
+      </div>
 
-      <InsumoList
-        :paginatedInsumos="paginatedInsumos"
-        :expandedInsumos="expandedInsumos"
-        @toggle-details="toggleDetails"
-        @edit-product="EditarProducto"
-        @delete-product="eliminarProducto"
-        @open-add-product-modal="openAddProductoModal"
-      />
+      <div v-else>
+        <!-- Vista: Formulario Insumo -->
+        <RegistrarInsumo
+          v-if="modoEdicion && selec === 'Insumo'"
+          :insumo="insumoSeleccionado"
+          :guardando="guardando"
+          :categorias="categorias"
+          :categoriaMedidas="categoriaMedidas"
+          :todasUnidades="todasLasUnidades"
+          @guardar="onGuardar"
+          @cancelar="cerrarFormulario"
+        />
 
-      <InsumoPagination
-        :currentPage="currentPage"
-        :totalPages="totalPages"
-        :paginacionInfo="paginacionInfo"
-        @update:currentPage="currentPage = $event"
-      />
-    </div>
+        <!-- Vista: Formulario Producto -->
+        <RegistrarProducto
+          v-else-if="modoEdicion && selec === 'Producto'"
+          :producto="insumoSeleccionado"
+          :guardando="guardando"
+          :categorias="categorias"
+          :presentaciones="presentaciones"
+          @guardar="onGuardarProducto"
+          @cancelar="cerrarFormulario"
+        />
 
-    <!-- Product Add/Edit View -->
-    <div v-if="currentView === 'form'">
-      <InsumoForm
-        :esEdicionProducto="esEdicionProducto"
-        :newProducto="newProducto"
-        :errors="errors"
-        :marcas="marcas"
-        :categorias="categorias"
-        :selectedCategoria="selectedCategoria"
-        :subcategoria="subcategoria"
-        :previewUrl="previewUrl"
-        :nuevaMedida="nuevaMedida"
-        :medidaErrors="medidaErrors"
-        :categoriaMedidas="categoriaMedidas"
-        :selectedCategoriaMedida="selectedCategoriaMedida"
-        :medidas="medidas"
-        :medidaEnEdicionIndex="medidaEnEdicionIndex"
-        @update:newProducto="newProducto = $event"
-        @update:selectedCategoria="selectedCategoria = $event"
-        @validate-field="validateFieldWrapper"
-        @handle-archivo="handleArchivo"
-        @update:nuevaMedida="nuevaMedida = $event"
-        @update:selectedCategoriaMedida="selectedCategoriaMedida = $event"
-        @validate-medida-field="validateMedidaFieldWrapper"
-        @add-measure="agregarMedida"
-        @edit-measure="EditarMedida"
-        @cancel-edit-measure="cancelarEdicionMedida"
-        @delete-measure="eliminarMedida"
-        @close-product-modal="closeProductModal"
-        @save-product="guardarProducto"
-      />
-    </div>
+        <!-- Vista: Listado -->
+        <div v-else>
 
-    <!-- Delete Confirmation Modal -->
-    <ConfirmacionModal
-      :show="showDeleteModal"
-      :title="productoAEliminar?.Estado?.IdEstado === 1 ? '¿Desactivar Insumo?' : '¿Activar Insumo?'"
-      :confirmText="productoAEliminar?.Estado?.IdEstado === 1 ? 'Sí, Desactivar' : 'Sí, Activar'"
-      cancelText="Cancelar"
-      :confirmButtonClass="productoAEliminar?.Estado?.IdEstado === 1 ? 'bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700' : 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-emerald-600 hover:to-green-500'"
-      :iconComponent="AlertTriangle"
-      iconClass="h-10 w-10 text-orange-500"
-      @confirm="confirmarEliminacion"
-      @cancel="closeDeleteModal"
-    >
-      ¿Está seguro de que desea {{ productoAEliminar?.Estado?.IdEstado === 1 ? 'desactivar' : 'activar' }} el insumo
-      <span class="font-semibold text-gray-800">{{ productoAEliminar?.Nombre }}</span>?
-    </ConfirmacionModal>
+          <!-- Header -->
+          <div class="relative bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl border border-white/50 p-8">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center space-x-4">
+                <div class="p-3 bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl shadow-lg">
+                  <Package class="h-8 w-8 text-white" />
+                </div>
+                <div>
+                  <h1 class="text-4xl font-bold bg-gradient-to-r from-orange-600 via-red-600 to-orange-700 bg-clip-text text-transparent">
+                    Gestión de {{ selec === 'Insumo' ? 'Insumos' : 'Productos' }}
+                  </h1>
+                  <p class="text-gray-600 mt-1 font-medium">Administra tus {{ selec === 'Insumo' ? 'insumos' : 'productos' }}</p>
+                </div>
+              </div>
+              <div class="hidden md:flex items-center space-x-6">
+                <div class="text-center">
+                  <div class="text-2xl font-bold text-gray-800">{{ paginacion.total ?? 0 }}</div>
+                  <div class="text-sm text-gray-500">Total</div>
+                </div>
+                <div class="p-2 bg-green-100 rounded-xl">
+                  <TrendingUp class="h-6 w-6 text-green-600" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Filtros -->
+          <div class="mt-6">
+            <FiltrosInsumo
+              v-model:search="filtros.search"
+              v-model:estado="filtros.estado"
+              v-model:categoria="filtros.categoria"
+              v-model:subcategoria="filtros.subcategoria"
+              v-model:limite="filtros.limite"
+              :categorias="categorias"
+              :subcategorias="subcategoriasParaFiltro"
+              @update:categoria="onCategoriaFiltroChange"
+            >
+              <template #acciones>
+                <div class="flex items-center gap-2">
+                  <button
+                    @click="toggleSelec"
+                    class="flex items-center gap-2 px-4 py-2 bg-white/80 rounded-2xl shadow-md border border-gray-100 text-gray-700 hover:bg-white transition-all group"
+                  >
+                    <component :is="selec === 'Insumo' ? ShoppingBag : Package" class="h-4 w-4 text-orange-500 group-hover:scale-110 transition-transform" />
+                    <span class="font-medium">Ver {{ selec === 'Insumo' ? 'Productos' : 'Insumos' }}</span>
+                  </button>
+
+                  <!-- Selector de Vista -->
+                  <div class="flex items-center bg-gray-100 p-1 rounded-2xl border border-gray-200">
+                    <button 
+                      @click="vistaModo = 'card'"
+                      :class="['p-2 rounded-xl transition-all', vistaModo === 'card' ? 'bg-white shadow-sm text-orange-600' : 'text-gray-500 hover:text-gray-700']"
+                      title="Vista Cuadrícula"
+                    >
+                      <LayoutGrid class="h-4 w-4" />
+                    </button>
+                    <button 
+                      @click="vistaModo = 'table'"
+                      :class="['p-2 rounded-xl transition-all', vistaModo === 'table' ? 'bg-white shadow-sm text-orange-600' : 'text-gray-500 hover:text-gray-700']"
+                      title="Vista Tabla"
+                    >
+                      <ListIcon class="h-4 w-4" />
+                    </button>
+                  </div>
+                  <button
+                    @click="abrirFormularioNuevo"
+                    class="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white rounded-2xl px-6 py-2 shadow-lg hover:shadow-xl transition-all flex items-center gap-2"
+                  >
+                    <Plus class="h-4 w-4" /> {{ selec === 'Insumo' ? 'Nuevo Insumo' : 'Nuevo Producto' }}
+                  </button>
+                </div>
+              </template>
+            </FiltrosInsumo>
+          </div>
+
+          <!-- Grid de cards -->
+          <div class="relative mt-6">
+            <!-- Skeleton Loader -->
+            <div v-if="cargando" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              <div v-for="i in 8" :key="i" class="bg-white rounded-3xl border border-gray-100 p-5 space-y-4 animate-pulse">
+                <div class="h-40 bg-gray-100 rounded-2xl w-full"></div>
+                <div class="space-y-2">
+                  <div class="h-4 bg-gray-100 rounded w-3/4"></div>
+                  <div class="h-3 bg-gray-50 rounded w-1/2"></div>
+                </div>
+                <div class="h-8 bg-gray-50 rounded-xl w-full"></div>
+                <div class="flex gap-2">
+                  <div class="h-9 bg-gray-100 rounded-2xl flex-1"></div>
+                  <div class="h-9 bg-gray-100 rounded-2xl w-9"></div>
+                </div>
+              </div>
+            </div>
+
+            <div v-else-if="items.length === 0" class="bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl border border-white/50 p-16 text-center">
+              <div class="p-4 bg-gradient-to-br from-orange-100 to-red-100 rounded-full w-20 h-20 mx-auto mb-4 flex items-center justify-center">
+                <Package class="h-10 w-10 text-orange-500" />
+              </div>
+              <h3 class="text-xl font-bold text-gray-700 mb-2">No se encontraron {{ selec === 'Insumo' ? 'insumos' : 'productos' }}</h3>
+              <p class="text-gray-500 mb-4">Intenta cambiar los filtros o registra uno nuevo.</p>
+              <button v-if="selec === 'Insumo'" @click="abrirFormularioNuevo"
+                class="bg-gradient-to-r from-orange-500 to-red-600 text-white px-6 py-3 rounded-2xl shadow-lg transition-all flex items-center gap-2 mx-auto">
+                <Plus class="h-4 w-4" /> Crear Insumo
+              </button>
+            </div>
+
+            <div v-else>
+              <!-- Vista Card -->
+              <div v-if="vistaModo === 'card'" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                <template v-if="selec === 'Insumo'">
+                  <InsumoCard
+                    v-for="insumo in items"
+                    :key="insumo.idinsumo"
+                    :insumo="insumo"
+                    @editar="abrirFormularioEditar"
+                    @toggleEstado="abrirModalConfirmacion"
+                    @actualizarFoto="abrirModalFoto"
+                  />
+                </template>
+                <template v-else>
+                  <ProductoCard
+                    v-for="producto in items"
+                    :key="producto.idproducto"
+                    :producto="producto"
+                    @editar="abrirFormularioEditar"
+                    @toggleEstado="abrirModalConfirmacion"
+                    @actualizarFoto="(p) => mostrarNotificacion('La foto de productos se gestiona en su sección', true)"
+                    @administrarReceta="abrirModalIngredientes"
+                    @administrarPreciosMayor="abrirModalPreciosMayor"
+                  />
+                </template>
+              </div>
+
+              <!-- Vista Tabla -->
+              <div v-else class="bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl border border-white/50 overflow-hidden">
+                <div class="overflow-x-auto">
+                  <table class="w-full text-left border-collapse">
+                    <thead>
+                      <tr class="bg-gradient-to-r from-gray-50 to-white border-b border-gray-100">
+                        <th class="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Imagen</th>
+                        <th class="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Nombre</th>
+                        <th class="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Categoría</th>
+                        <th class="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Medidas / Presentaciones</th>
+                        <th class="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Estado</th>
+                        <th class="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-50">
+                      <tr v-for="item in items" :key="selec === 'Insumo' ? item.idinsumo : item.idproducto" class="hover:bg-orange-50/30 transition-colors group">
+                        <!-- Imagen -->
+                        <td class="px-6 py-4">
+                          <div class="w-12 h-12 rounded-xl overflow-hidden bg-gray-100 border border-gray-200">
+                            <img v-if="item.imagen || item.Imagen" :src="item.imagen || item.Imagen" class="w-full h-full object-cover" />
+                            <div v-else class="w-full h-full flex items-center justify-center bg-orange-50">
+                              <Package class="h-6 w-6 text-orange-200" />
+                            </div>
+                          </div>
+                        </td>
+                        <!-- Info -->
+                        <td class="px-6 py-4">
+                          <p class="text-sm font-bold text-gray-800">{{ item.nombre || item.Nombre }}</p>
+                          <p class="text-xs text-gray-400 line-clamp-1 max-w-xs">{{ item.descripcion || item.Descripcion }}</p>
+                        </td>
+                        <!-- Categoría -->
+                        <td class="px-6 py-4">
+                          <span class="text-xs font-medium text-orange-600 bg-orange-50 px-2 py-1 rounded-lg">
+                            {{ item.Subcategoria?.Categoria?.Nombre || item.SubCategoria?.Categoria?.Nombre || 'S/C' }}
+                          </span>
+                        </td>
+                        <!-- Presentaciones / Medidas -->
+                        <td class="px-6 py-4">
+                          <div v-if="selec === 'Producto'" class="flex flex-col gap-1.5 max-w-xs">
+                            <div v-for="pm in (item.Productomedida || item.productomedida || []).filter(pm => (pm.Estado?.idestado ?? pm.Estado?.Idestado ?? pm.Estado) === 1).slice(0, 3)" :key="pm.IdProductoMedida" 
+                              class="text-[10px] bg-gray-50 p-1.5 rounded-lg border border-gray-100">
+                              <div class="flex items-center justify-between mb-1">
+                                <span class="font-bold text-gray-700 truncate mr-2">{{ pm.Presentacion?.Nombre }}:</span>
+                                <span class="text-orange-600 font-bold">Bs {{ pm.PrecioVenta }}</span>
+                              </div>
+                              <div class="flex items-center justify-between text-[9px]">
+                                <span class="text-gray-400">Mayor: Bs {{ pm.PrecioMayor || 0 }}</span>
+                                <span v-if="pm.Comision" class="text-green-600 font-medium">Com: Bs {{ pm.Comision }}</span>
+                              </div>
+                            </div>
+                            <span v-if="(item.Productomedida || item.productomedida || []).filter(pm => (pm.Estado?.idestado ?? pm.Estado?.Idestado ?? pm.Estado) === 1).length > 3" class="text-[10px] text-gray-400 mt-1">
+                              +{{ (item.Productomedida || item.productomedida || []).filter(pm => (pm.Estado?.idestado ?? pm.Estado?.Idestado ?? pm.Estado) === 1).length - 3 }} más...
+                            </span>
+                            <span v-if="!(item.Productomedida || item.productomedida || []).filter(pm => (pm.Estado?.idestado ?? pm.Estado?.Idestado ?? pm.Estado) === 1).length" class="text-[10px] text-gray-400 italic">Sin presentaciones activas</span>
+                          </div>
+                          <div v-else class="flex flex-col gap-1 max-w-xs">
+                             <div v-for="m in (item.Insumomedida || []).filter(m => (m.Estado?.idestado ?? m.Estado?.Idestado ?? m.Estado ?? m.idestado) === 1 || m.Estado === 1).slice(0, 3)" :key="m.IdinsumoMedida"
+                               class="text-[10px] flex items-center gap-1.5 text-gray-700">
+                               <span class="w-1.5 h-1.5 rounded-full bg-orange-400"></span>
+                               <span class="font-bold">{{ m.Cantidad }}</span>
+                               <span>{{ m.Unidadmedida?.Nombre || m.Unidadmedida?.nombre }}</span>
+                               <span class="text-gray-400 text-[9px]">({{ m.Unidadmedida?.Abreviatura }})</span>
+                             </div>
+                             <span v-if="(item.Insumomedida || []).filter(m => (m.Estado?.idestado ?? m.Estado?.Idestado ?? m.Estado ?? m.idestado) === 1 || m.Estado === 1).length > 3" class="text-[10px] text-gray-400">
+                              +{{ (item.Insumomedida || []).filter(m => (m.Estado?.idestado ?? m.Estado?.Idestado ?? m.Estado ?? m.idestado) === 1 || m.Estado === 1).length - 3 }} más...
+                            </span>
+                            <span v-if="!(item.Insumomedida || []).filter(m => (m.Estado?.idestado ?? m.Estado?.Idestado ?? m.Estado ?? m.idestado) === 1 || m.Estado === 1).length" class="text-[10px] text-gray-400 italic">Sin medidas activas</span>
+                          </div>
+                        </td>
+                        <!-- Estado -->
+                        <td class="px-6 py-4">
+                          <span :class="['px-2.5 py-1 rounded-xl text-[10px] font-bold uppercase tracking-wider',
+                            item.estado === 1 ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-500']">
+                            {{ item.estado === 1 ? 'Activo' : 'Inactivo' }}
+                          </span>
+                        </td>
+                        <!-- Acciones -->
+                        <td class="px-6 py-4 text-right">
+                          <div class="flex items-center justify-end gap-2">
+                            <button @click="abrirFormularioEditar(item)" class="p-2 text-orange-500 hover:bg-orange-50 rounded-xl transition-colors" title="Editar">
+                              <Pencil class="h-4 w-4" />
+                            </button>
+                            <template v-if="selec === 'Producto'">
+                              <button @click="abrirModalIngredientes(item)" class="p-2 text-green-600 hover:bg-green-50 rounded-xl transition-colors" title="Ingredientes">
+                                <Utensils class="h-4 w-4" />
+                              </button>
+                              <button @click="abrirModalPreciosMayor(item)" class="p-2 text-blue-600 hover:bg-blue-50 rounded-xl transition-colors" title="Precios Mayor">
+                                <Tag class="h-4 w-4" />
+                              </button>
+                            </template>
+                            <button @click="abrirModalConfirmacion(item)" 
+                              :class="['p-2 rounded-xl transition-colors', item.estado === 1 ? 'text-red-500 hover:bg-red-50' : 'text-green-600 hover:bg-green-50']"
+                              :title="item.estado === 1 ? 'Desactivar' : 'Activar'">
+                              <component :is="item.estado === 1 ? ToggleRight : ToggleLeft" class="h-4 w-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <Paginado
+              :paginaActual="paginacion.paginaActual"
+              :totalPaginas="paginacion.totalPaginas"
+              :total="paginacion.total"
+              :limite="filtros.limite"
+              @update:paginaActual="onCambiarPagina"
+            />
+          </div>
+        </div>
+      </div>
+    </Transition>
 
     <!-- Toast -->
-    <div
-      v-if="showToast"
-      class="fixed top-6 right-6 text-white px-6 py-4 rounded-2xl shadow-xl flex items-center gap-3 z-50 animate-slide-in"
-      :class="{
-        'bg-green-500': toastType === 'success',
-        'bg-red-500': toastType === 'error'
-      }"
-    >
-      <CheckCircle class="h-5 w-5" />
-      <span class="font-semibold">{{ toastMessage }}</span>
-    </div>
+    <Transition name="slide-up">
+      <div v-if="notificacion.visible"
+        class="fixed bottom-6 right-6 text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-2 z-50"
+        :class="notificacion.error ? 'bg-gradient-to-r from-red-500 to-rose-600' : 'bg-gradient-to-r from-orange-500 to-red-600'">
+        <CheckCircle class="h-5 w-5" />
+        {{ notificacion.mensaje }}
+      </div>
+    </Transition>
+
+    <!-- Modal Confirmación -->
+    <ModalConfirmacion
+      :show="modalConfirmacion.visible"
+      :mensaje="modalConfirmacion.accion"
+      :nombreUsuario="modalConfirmacion.nombre"
+      @confirmar="onConfirmar"
+      @cancelar="cerrarModalConfirmacion"
+    />
+
+    <!-- Modal Foto -->
+    <ModalFotoInsumo
+      :show="modalFoto.visible"
+      :nombreInsumo="modalFoto.nombre"
+      :imagenActual="modalFoto.imagen"
+      :subiendo="modalFoto.subiendo"
+      @close="modalFoto.visible = false"
+      @guardar="onGuardarFoto"
+    />
+
+    <!-- Modal Administrar Ingredientes -->
+    <AdministrarIngredientes
+      :show="showIngredienteModal"
+      :product="productoParaIngredientes"
+      :guardando="guardandoIngredientes"
+      :all-insumos="allInsumos"
+      :categoria-medidas="categoriaMedidas"
+      :todas-las-unidades="todasLasUnidades"
+      @close="showIngredienteModal = false"
+      @guardar="onGuardarIngredientes"
+    />
+
+    <!-- Modal Administrar Precios Mayor -->
+    <AdministrarPreciosMayor
+      :show="showPreciosMayorModal"
+      :product="productoParaPrecios"
+      :guardando="guardandoPreciosMayor"
+      @close="showPreciosMayorModal = false"
+      @guardar="onGuardarPreciosMayor"
+    />
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, watch, computed, reactive } from 'vue';
-import { useRoute } from 'vue-router';
-import { AlertTriangle, CheckCircle } from 'lucide-vue-next';
-import ConfirmacionModal from '../Modals/ConfirmacionModal.vue';
-import InsumoHeader from './InsumoHeader.vue';
-import InsumoFilters from './InsumoFilters.vue';
-import InsumoList from './InsumoList.vue';
-import InsumoPagination from './InsumoPagination.vue';
-import InsumoForm from './/InsumoForm.vue';
+import { ref, reactive, onMounted, onUnmounted, watch } from 'vue';
+import { Package, TrendingUp, Plus, CheckCircle, ShoppingBag, LayoutGrid, List as ListIcon, Pencil, ToggleLeft, ToggleRight, Utensils, Tag } from 'lucide-vue-next';
 
-import { listarInsumos, crearInsumo, actualizarInsumo, eliminarInsumo } from '@/Server/Insumo';
-import { listarCategorias, listarSubCategorias, ObtenerCategoria, ObtenerSubCategorias} from '@/Server/Categoria';
-import { ObtenerMedidas, listarCategoriaMedidas, ObtenrCategoriaMedida } from '@/Server/Medida';
-import { getMarcas } from '@/Server/Marca';
-import { SubirFoto } from '@/Server/api';
+import { listarInsumos, crearInsumo, actualizarInsumo, eliminarInsumo, AgregarPhotoInsumo, ListInsumo } from '@/Server/Insumo';
+import { listarProductos, DeleteProducto, addProducto, updateProducto, updateCreatePrecioProducto }    from '@/Server/Producto';
 
-const route = useRoute();
-const currentView = ref('list'); // 'list' or 'form'
+import { listCategorias, ObtenerSubCategorias }                            from '@/Server/Categoria';
+import { listarCategoriaMedidas, ObtenerMedidas }                          from '@/Server/Medida';
+import { SubirFoto }                                                       from '@/Server/api';
+import {  registrarProduccionDeProducto, actualizarIngredienteReceta } from '@/Server/Ingrediente';
+import { listarPresentacionesestado } from '@/Server/Presentacion';
 
-// Modal visibility states
-const esEdicionProducto = ref(false);
-const showDeleteModal = ref(false);
-const productoAEliminar = ref(null);
-const marcas = ref([]);
+import FiltrosInsumo           from './FiltrosInsumo.vue';
+import InsumoCard              from './InsumoCard.vue';
+import ProductoCard            from './Producto/ProductoCard.vue';
+import RegistrarInsumo         from './RegistrarInsumo.vue';
+import RegistrarProducto        from './Producto/RegistrarProducto.vue';
+import ModalFotoInsumo         from './ModalFotoInsumo.vue';
+import AdministrarIngredientes   from './Producto/AdministrarIngredientes.vue';
+import AdministrarPreciosMayor from './Producto/AdministrarPreciosMayor.vue';
+import Paginado                from '@/views/Components/Modals/Paginado.vue';
+import ModalConfirmacion       from '@/views/Components/Modals/ModalConfirmacion.vue';
 
-// Main data refs
-const insumos = ref([]);
-const categorias = ref([]);
-const subcategoria = ref([]);
-const fullSubcategoryList = ref([]);
-const medidas = ref([]);
+// ── Estado ────────────────────────────────────────────────────────────────────
+const cargandoInicial  = ref(true);
+const cargando         = ref(false);
+const guardando        = ref(false);
+const modoEdicion      = ref(false);
+const selec            = ref('Insumo');
+const vistaModo        = ref('card'); // 'card' o 'table'
+const insumoSeleccionado = ref(null);
+const items            = ref([]);
+const categorias       = ref([]);
 const categoriaMedidas = ref([]);
+const subcategoriasParaFiltro = ref([]);
+const allInsumos       = ref([]);
+const presentaciones   = ref([]);
+const todasLasUnidades = ref([]);
 
-// Search and Pagination
-const searchQuery = ref('');
-const currentPage = ref(1);
-const itemsPerPage = 8;
-const expandedInsumos = ref({});
+const paginacion   = reactive({ paginaActual: 1, totalPaginas: 1, total: 0 });
+const filtros      = reactive({ search: '', estado: -1, categoria: '', subcategoria: '', limite: 8 });
+const notificacion = reactive({ visible: false, mensaje: '', error: false });
+const modalConfirmacion = reactive({ visible: false, nombre: '', accion: '', item: null });
+const modalFoto    = reactive({ visible: false, nombre: '', imagen: '', item: null, subiendo: false });
 
-const toggleDetails = (id) => {
-  expandedInsumos.value[id] = !expandedInsumos.value[id];
-};
-const quitarDecimalesCero = (valor) => {
-  return Number(valor).toString();
-};
+const showIngredienteModal     = ref(false);
+const productoParaIngredientes = ref(null);
+const guardandoIngredientes    = ref(false);
 
-const validateField = (field, value, allInsumos = [], isEditing = false, currentInsumoId = null) => {
-  let error = '';
-  switch (field) {
-    case 'nombre':
-      if (!value) error = 'El nombre es requerido.';
-      else if (value.length > 50) error = 'El nombre no puede tener más de 50 caracteres.';
-      else if (!/^[a-zA-Z0-9\s]*$/.test(value)) error = 'El nombre solo puede contener letras, números y espacios.';
-      else {
-        const lowerCaseValue = value.toLowerCase();
-        const isDuplicate = allInsumos.some(ins => {
-          if (isEditing && ins.IdProducto === currentInsumoId) {
-            return false;
-          }
-          return ins.Nombre.toLowerCase() === lowerCaseValue;
-        });
-        if (isDuplicate) error = 'Ya existe un insumo con este nombre.';
-      }
-      break;
-    case 'descripcion':
-      if (!value) error = 'La descripción es requerida.';
-      break;
-    case 'subcategoria':
-      if (!value) error = 'La subcategoría es requerida.';
-      break;
-    case 'marca':
-      if (!value) error = 'La marca es requerida.';
-      break;
-    case 'medidas':
-      if (!value || value.length === 0) error = 'Debe agregar al menos una medida.';
-      break;
-    default:
-      break;
-  }
-  return error;
-};
+const showPreciosMayorModal     = ref(false);
+const productoParaPrecios       = ref(null);
+const guardandoPreciosMayor     = ref(false);
 
-const validateMedidaField = (field, value) => {
-  let error = '';
-  switch (field) {
-    case 'idUnidadMedida':
-      if (!value) error = 'La unidad de medida es requerida.';
-      break;
-    case 'precio':
-      if (value === null || value === undefined || value <= 0) error = 'El precio debe ser mayor que 0.';
-      break;
-    case 'precioMayor':
-      if (value === null || value === undefined || value <= 0) error = 'El precio por mayor debe ser mayor que 0.';
-      break;
-    case 'cantidad':
-      if (value === null || value === undefined || value <= 0) error = 'La cantidad debe ser mayor que 0.';
-      break;
-    case 'categoriaMedida':
-      if (!value) error = 'La categoría de medida es requerida.';
-      break;
-    default:
-      break;
-  }
-  return error;
-};
+// ── Estado de control de peticiones ───────────────────────────────────────────
+let requestId       = 0;
+let debounceTimer   = null;
 
-const validateFieldWrapper = (field, value) => {
-  errors[field] = validateField(field, value, insumos.value, esEdicionProducto.value, newProducto.value.IdProducto);
-};
-
-const validateMedidaFieldWrapper = (field, value) => {
-  medidaErrors[field] = validateMedidaField(field, value);
-};
-
-const validateForm = () => {
-  errors.nombre = validateField('nombre', newProducto.value.Nombre, insumos.value, esEdicionProducto.value, newProducto.value.IdProducto);
-  errors.descripcion = validateField('descripcion', newProducto.value.Descripcion);
-  errors.subcategoria = validateField('subcategoria', newProducto.value.IdSubCategoria);
-  errors.marca = validateField('marca', newProducto.value.IdMarca);
-  errors.medidas = validateField('medidas', newProducto.value.Productomedida);
-
-  return Object.values(errors).every(error => !error);
-};
-
-const validateMedidaForm = () => {
-  medidaErrors.categoriaMedida = validateMedidaField('categoriaMedida', selectedCategoriaMedida.value);
-  medidaErrors.idUnidadMedida = validateMedidaField('idUnidadMedida', nuevaMedida.value.IdUnidadMedida);
-  medidaErrors.precio = validateMedidaField('precio', nuevaMedida.value.Precio);
-  medidaErrors.precioMayor = validateMedidaField('precioMayor', nuevaMedida.value.PrecioMayor);
-  medidaErrors.cantidad = validateMedidaField('cantidad', nuevaMedida.value.Cantidad);
-
-  return Object.values(medidaErrors).every(error => !error);
-};
-
-
-
-// Product form refs
-const initialProduct = {
-  IdProducto: '',
-  Nombre: '',
-  Descripcion: '',
-  IdSubCategoria: '',
-  IdMarca: '',
-  Url: '',
-  IdImagen: '',
-  Productomedida: [],
-  FechaVencimiento: ''
-};
-
-// Validation errors
-const errors = reactive({
-  nombre: '',
-  descripcion: '',
-  subcategoria: '',
-  marca: '',
-  medidas: '', // For the array of product measures
+onUnmounted(() => {
+  clearTimeout(debounceTimer);
 });
 
-const medidaErrors = reactive({
-  idUnidadMedida: '',
-  precio: '',
-  precioMayor: '',
-  cantidad: '',
-  categoriaMedida: '',
-});
-const newProducto = ref({ ...initialProduct });
-const initialMedida = {
-    IdProductomedida:'',
-    IdUnidadMedida: '',
-    Abreviatura:'',
-    Precio: 0,
-    PrecioMayor: 0,
-    Cantidad: 0,
-    CantidadGastada: 0
-};
-const nuevaMedida = ref({...initialMedida});
-const selectedCategoria = ref('');
-const selectedCategoriaMedida = ref('');
-const archivo = ref(null);
-const previewUrl = ref('');
-const medidaEnEdicionIndex = ref(null);
+// ── ÚNICO punto que llama cargarDatos: el watch ───────────────────────────────
+// Watch unificado para filtros y selección
+watch(
+  [
+    () => filtros.search,
+    () => filtros.estado,
+    () => filtros.categoria,
+    () => filtros.subcategoria,
+    () => filtros.limite,
+    () => selec.value,
+    () => paginacion.paginaActual
+  ],
+  (newValues, oldValues) => {
+    // Si cambió cualquier filtro que no sea la página, resetear a página 1
+    const [search, estado, cat, sub, lim, sel, pag] = newValues;
+    const [oSearch, oEstado, oCat, oSub, oLim, oSel, oPag] = oldValues || [];
 
-// Toast state
-const showToast = ref(false);
-const toastMessage = ref('');
-const toastType = ref('success');
-
-// Computed properties for filtering and pagination
-const filteredInsumos = computed(() => {
-  if (!searchQuery.value) {
-    return insumos.value;
-  }
-  const lowerCaseQuery = searchQuery.value.toLowerCase();
-  return insumos.value.filter(insumo => 
-    insumo.Nombre.toLowerCase().includes(lowerCaseQuery) ||
-    insumo.Descripcion.toLowerCase().includes(lowerCaseQuery)
-  );
-});
-
-const totalPages = computed(() => Math.ceil(filteredInsumos.value.length / itemsPerPage));
-
-const paginatedInsumos = computed(() => {
-  const start = (currentPage.value - 1) * itemsPerPage;
-  const end = start + itemsPerPage;
-  return filteredInsumos.value.slice(start, end);
-});
-
-const paginacionInfo = computed(() => {
-  const total = filteredInsumos.value.length;
-  const inicio = total === 0 ? 0 : (currentPage.value - 1) * itemsPerPage + 1;
-  const fin = Math.min(inicio + itemsPerPage - 1, total);
-  return `Mostrando ${inicio}-${fin} de ${total} insumos`;
-});
-
-const visiblePages = computed(() => {
-  const pages = [];
-  const total = totalPages.value;
-  if (total <= 7) {
-    for (let i = 1; i <= total; i++) {
-      pages.push(i);
-    }
-  } else {
-    pages.push(1);
-    let start = Math.max(2, currentPage.value - 2);
-    let end = Math.min(total - 1, currentPage.value + 2);
-
-    if (currentPage.value > 4) {
-      pages.push('...');
+    if (pag !== 1 && (search !== oSearch || estado !== oEstado || cat !== oCat || sub !== oSub || lim !== oLim || sel !== oSel)) {
+      paginacion.paginaActual = 1;
+      // Este cambio disparará el watch de nuevo, así que retornamos
+      return;
     }
 
-    for (let i = start; i <= end; i++) {
-      pages.push(i);
-    }
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(cargarDatos, 300);
+  },
+  { immediate: false }
+);
 
-    if (currentPage.value < total - 3) {
-      pages.push('...');
-    }
-    pages.push(total);
-  }
-  return pages;
-});
-
-
-// Watchers
-watch(selectedCategoria, async (newVal) => {
-  if (newVal) {
-    newProducto.value.IdSubCategoria = '';
-    await obtenersubcategoria(newVal);
-  } else {
-    subcategoria.value = [];
-  }
-});
-
-watch(selectedCategoriaMedida, async (newVal) => {  
-  if (newVal) {
-      nuevaMedida.value.IdUnidadMedida = '';
-     await obtenerMedidas(newVal);
-  } else {
-    medidas.value = [];
-  }
-});
-
-// Data Fetching Functions
-const fetchinsumos = async () => { try { insumos.value = await listarInsumos();  console.log(insumos.value) } catch (e) { console.error(e); } };
-// esto devuelve el backend al metodo listarInsumo
-// [
-//     {
-//         "IdProducto": "09212025PROD-1",
-//         "Nombre": "Harina",
-//         "Descripcion": "Harina",
-//         "FechaRegistro": "2025-09-21",
-//         "HoraRegistro": null,
-//         "Fechaactualizacion": null,
-//         "FechaVencimiento": null,
-//         "StockMinimo": null,
-//         "Estado": {
-//             "IdEstado": 1,
-//             "Nombre": "Activo"
-//         },
-//         "Marca": {
-//             "IdMarca": "MRC-2",
-//             "Nombre": "Emapa"
-//         },
-//         "Tipoproducto": {
-//             "IdTipoProducto": "ITP-1",
-//             "Nombre": "Insumo"
-//         },
-//         "Subcategoria": {
-//             "IdSubCategoria": "09212025SCT-1",
-//             "Nombre": "Insumos",
-//             "Categoria": {
-//                 "IdCategoria": "09212025CAT-1",
-//                 "Nombre": "Alimentos",
-//                 "FechaRegistro": "2025-09-21",
-//                 "FechaActualizacion": null
-//             }
-//         },
-//         "Imagen": {
-//             "IdImagen": "09212025IMG-1",
-//             "Url": "http://localhost:3000/uploads/1758491864845.jpeg"
-//         },
-//         "Productomedida": [
-//             {
-//                 "IdProductoMedida": "09212025PM-21",
-//                 "FechaRegistro": "2025-10-03",
-//                 "Cantidad": "100.000",
-//                 "PrecioVenta": "1.00",
-//                 "PrecioMayor": "0.10",
-//                 "Unidadmedida": {
-//                     "IdUnidadMedida": 1,
-//                     "Nombre": "Kilogramo",
-//                     "Abreviatura": "Kg",
-//                     "Cantidad": "1.000",
-//                     "FechaRegistro": "2025-07-13",
-//                     "Categoria": {
-//                         "IdCategoriaMedida": "CTM-2",
-//                         "Nombre": "Peso",
-//                         "FechaRegistro": "2025-08-29",
-//                         "FechaActualizacion": "2025-10-13"
-//                     }
-//                 }
-//             }
-//         ]
-//     },
-//     {
-//         "IdProducto": "10082025PROD-1",
-//         "Nombre": "Leche",
-//         "Descripcion": "Leche",
-//         "FechaRegistro": "2025-10-08",
-//         "HoraRegistro": null,
-//         "Fechaactualizacion": null,
-//         "FechaVencimiento": null,
-//         "StockMinimo": null,
-//         "Estado": {
-//             "IdEstado": 1,
-//             "Nombre": "Activo"
-//         },
-//         "Marca": {
-//             "IdMarca": "MRC-1",
-//             "Nombre": "Famosa"
-//         },
-//         "Tipoproducto": {
-//             "IdTipoProducto": "ITP-1",
-//             "Nombre": "Insumo"
-//         },
-//         "Subcategoria": {
-//             "IdSubCategoria": "09212025SCT-1",
-//             "Nombre": "Insumos",
-//             "Categoria": {
-//                 "IdCategoria": "09212025CAT-1",
-//                 "Nombre": "Alimentos",
-//                 "FechaRegistro": "2025-09-21",
-//                 "FechaActualizacion": null
-//             }
-//         },
-//         "Imagen": null,
-//         "Productomedida": [
-//             {
-//                 "IdProductoMedida": "10082025PM-1",
-//                 "FechaRegistro": "2025-10-08",
-//                 "Cantidad": "1.000",
-//                 "PrecioVenta": "8.00",
-//                 "PrecioMayor": "7.00",
-//                 "Unidadmedida": {
-//                     "IdUnidadMedida": 4,
-//                     "Nombre": "Litro",
-//                     "Abreviatura": "Lt",
-//                     "Cantidad": "1.000",
-//                     "FechaRegistro": "2025-07-13",
-//                     "Categoria": {
-//                         "IdCategoriaMedida": "CTM-3",
-//                         "Nombre": "Volumen",
-//                         "FechaRegistro": "2025-08-29",
-//                         "FechaActualizacion": "2025-10-13"
-//                     }
-//                 }
-//             }
-//         ]
-//     }
-// ]
-
-
-const fetchCategorias = async () => { try { categorias.value = await listarCategorias(); } catch (e) { console.error(e); } };
-const fetchCategoriaMedidas = async () => { try { categoriaMedidas.value = await listarCategoriaMedidas(); } catch (e) { console.error(e); } };
-const obtenersubcategoria = async (id) => { try { subcategoria.value = await ObtenerSubCategorias(id); } catch (e) { console.error(e); } };
-const obtenerMedidas = async (id) => { try { medidas.value = await ObtenerMedidas(id); } catch (e) { console.error(e); } };
-const fetchAllSubcategories = async () => { try { fullSubcategoryList.value = await listarSubCategorias(); } catch(e) { console.error(e); }};
-const ListarMarcas = async () => { try {marcas.value = await getMarcas();} catch (e) {console.error(e)}};
-
-// Helper Functions
-const showToastMessage = (message, type = 'success') => {
-  toastMessage.value = message;
-  toastType.value = type;
-  showToast.value = true;
-  setTimeout(() => {
-    showToast.value = false;
-  }, 3000);
-};
-
-const openAddProductoModal = () => {
-  esEdicionProducto.value = false;
-  newProducto.value = { ...initialProduct, Productomedida: [] };
-  previewUrl.value = '';
-  archivo.value = null;
-  currentView.value = 'form';
-  // Clear validation errors
-  Object.keys(errors).forEach(key => errors[key] = '');
-  Object.keys(medidaErrors).forEach(key => medidaErrors[key] = '');
-};
-
-
-const closeProductModal = () => {
-    currentView.value = 'list';
-}
-
-const obtenerCategoria = async (Id) => {
-  try {
-    const response = await ObtenerCategoria(Id);
-    selectedCategoria.value = response.IdCategoria;
-  } catch (error) {
-    console.error("Error al obtener los paquetes:", error);
-  }
-};
-
-const EditarProducto = async (producto) => {
-  esEdicionProducto.value = true;
-  const productoToEdit = JSON.parse(JSON.stringify(producto));
-  await obtenerCategoria(producto.Subcategoria.IdSubCategoria);
-  await obtenersubcategoria(selectedCategoria.value);
-  newProducto.value = {
-     IdProducto:producto.IdProducto,
-      Nombre: producto.Nombre,
-      Descripcion: producto.Descripcion,
-      IdSubCategoria: producto.Subcategoria.IdSubCategoria,
-      IdMarca: producto.Marca.IdMarca,
-      Url: producto?.Imagen?.Url,
-      IdImagen:producto?.Imagen?.IdImagen,
-    Productomedida: producto.Productomedida.map(pm => ({
-      IdProductomedida: pm.IdProductoMedida,
-      IdUnidadMedida: pm.Unidadmedida.IdUnidadMedida,
-      Abreviatura: pm.Unidadmedida.Abreviatura,
-      nombreCategoria:pm.Unidadmedida.Categoria.Nombre,
-      nombreUnidad:pm.Unidadmedida.Nombre,
-      Precio: pm.PrecioVenta,
-      PrecioMayor: pm.PrecioMayor,
-      Cantidad: pm.Cantidad
-    }))
-  }
-  previewUrl.value = productoToEdit.Imagen?.Url || '';
-  currentView.value = 'form';
-};
-
-// Product/Insumo Methods
-const handleImageUpload = async () => {
-  if (!archivo.value) return;
-  try {
-    const response = await SubirFoto(archivo.value);
-    if (response) {
-      newProducto.value.Url = response;
-    }
-  } catch (error) {
-    console.error('Error al subir la imagen:', error);
-    showToastMessage('Error al subir la imagen', 'error');
-  }
-};
-
-const guardarProducto = async () => {
-    if (!validateForm()) {
-        return;
-    }
-    try {
-        await handleImageUpload();
-
-        const datosProducto = {
-            Nombre: newProducto.value.Nombre,
-            Descripcion: newProducto.value.Descripcion,
-            Url: newProducto.value?.Url,
-            IdSubCategoria: newProducto.value.IdSubCategoria,
-            IdImagen: newProducto.value?.IdImagen,
-            IdTipo: 'ITP-1',
-            IdMarca: newProducto.value.IdMarca,
-            Productomedida: newProducto.value.Productomedida.map(pm => ({
-                IdProductomedida: pm?.IdProductomedida,
-                Precio: pm.Precio,
-                PrecioMayor: pm.PrecioMayor,
-                IdUnidadMedida: pm.IdUnidadMedida,
-                Cantidad: pm.Cantidad
-            }))
-        };
-        let response;  
-        if (esEdicionProducto.value) {
-          datosProducto.id = newProducto.value.IdProducto;
-          response =  await actualizarInsumo(datosProducto);
-        } else {
-          response =  await crearInsumo(datosProducto);
-        }
-
-        await fetchinsumos();
-        closeProductModal();
-        showToastMessage(response.message, 'success');
-    } catch (error) {
-      console.error('Error al guardar el producto:', error);
-      showToastMessage('Error al guardar el producto', 'error');
-    }
-};
-
-
-
-const formatStock = (productomedida) => {
-  if (!productomedida || productomedida.length === 0) {
-    return 'Sin stock';
-  }
-  return productomedida.map(pm => `${pm.Stock} ${pm.Unidadmedida.Abreviatura}`).join(', ');
-};
-
-const eliminarProducto = (producto) => {
-  productoAEliminar.value = producto;
-  showDeleteModal.value = true;
-};
-
-const confirmarEliminacion = async () => {
-  if (!productoAEliminar.value) return;
-  try {
-   const response = await eliminarInsumo(productoAEliminar.value.IdProducto);
-    await fetchinsumos();
-    showToastMessage(response.message, 'success');
-  } catch (error) {
-    console.error('Error changing product state:', error);
-    showToastMessage('Error al cambiar el estado del producto', 'error');
-  } finally {
-    closeDeleteModal();
-  }
-};
-
-const closeDeleteModal = () => {
-  showDeleteModal.value = false;
-  productoAEliminar.value = null;
-};
-
-// Medida Methods
-const agregarMedida = () => {
-    if (!validateMedidaForm()) {
-        return;
-    }
-    const unit = medidas.value.find(m => m.IdUnidadMedida === nuevaMedida.value.IdUnidadMedida);
-    const category = categoriaMedidas.value.find(c => c.IdCategoriaMedida === selectedCategoriaMedida.value);
-    const medidaConNombres = {
-        ...nuevaMedida.value,
-        nombreUnidad: unit ? unit.Nombre : '?',
-        Abreviatura: unit ? unit.Abreviatura : '?',
-        nombreCategoria: category ? category.Nombre : '?'
-    };
-    if (medidaEnEdicionIndex.value !== null) {
-        newProducto.value.Productomedida[medidaEnEdicionIndex.value] = medidaConNombres;
-    } else {
-        newProducto.value.Productomedida.push(medidaConNombres);
-    }
-    cancelarEdicionMedida();
-};
-const EditarMedida = async (index) => {
-    medidaEnEdicionIndex.value = index;
-    const medidaAEditar = newProducto.value.Productomedida[index];
-    await obtenerCategoriaMedida(medidaAEditar.IdUnidadMedida);
-    nuevaMedida.value = { ...medidaAEditar };
-};
-const cancelarEdicionMedida = () => {
-    medidaEnEdicionIndex.value = null;
-    nuevaMedida.value = { ...initialMedida };
-    selectedCategoriaMedida.value = '';
-};
-const eliminarMedida = (index) => { newProducto.value.Productomedida.splice(index, 1); };
-const obtenerCategoriaMedida = async (Id) => { try { const r = await ObtenrCategoriaMedida(Id); selectedCategoriaMedida.value = r.IdCategoriaMedida; } catch (e) { console.error(e); }};
-
-// Helper Functions
-const handleArchivo = (event) => {
-  const file = event.target.files[0];
-  if (file) {
-    archivo.value = file;
-    const reader = new FileReader();
-    reader.onload = (e) => { previewUrl.value = e.target.result; };
-    reader.readAsDataURL(file);
-  }
-};
-
-// Lifecycle Hook
+// ── Carga inicial ─────────────────────────────────────────────────────────────
 onMounted(async () => {
-  await Promise.all([
-    fetchinsumos(),
-    fetchCategorias(),
-    fetchCategoriaMedidas(),
-    fetchAllSubcategories(),
-    ListarMarcas()
-  ]);
-  if (route.query.action === 'add') {
-    openAddProductoModal();
+  try {
+    const [catRes, catMedRes, insumoRes,presRes] = await Promise.all([
+      listCategorias().catch(() => []),
+      listarCategoriaMedidas().catch(() => []),
+      ListInsumo().catch(() => []),
+      listarPresentacionesestado().catch(()=>[]),
+    ]);
+    categorias.value       = catRes?.result       ?? catRes       ?? [];
+    categoriaMedidas.value = catMedRes?.result    ?? catMedRes    ?? [];
+    allInsumos.value       = insumoRes?.result    ?? insumoRes    ?? [];
+    presentaciones.value   = presRes?.result      ?? presRes      ?? [];
+
+    const responses = await Promise.all(
+      categoriaMedidas.value.map(cat => ObtenerMedidas(cat.idcategoriamedida).catch(() => []))
+    );
+    todasLasUnidades.value = responses.flatMap(r => r.result ?? r ?? []);
+
+    // Llamada inicial
+    await cargarDatos();
+  } catch (err) {
+    console.error('Error en onMounted:', err);
+    mostrarNotificacion('Error al cargar datos iniciales', true);
+  } finally {
+    cargandoInicial.value = false;
   }
 });
+
+// ── cargarDatos ───────────────────────────────────────────────────────────────
+const cargarDatos = async () => {
+  const currentRequestId = ++requestId;
+  cargando.value = true;
+  
+
+
+  try {
+    const fetchMethod = selec.value === 'Insumo' ? listarInsumos : listarProductos;
+
+    const resp = await fetchMethod(
+      filtros.search || undefined,
+      filtros.estado,
+      filtros.categoria || undefined,
+      filtros.subcategoria || undefined,
+      paginacion.paginaActual,
+      filtros.limite
+    );
+
+    // Solo actualizar si esta es la petición más reciente
+    if (currentRequestId === requestId) {
+      if (resp) {
+        items.value             = resp.data ?? [];
+        paginacion.total        = parseInt(resp.total) || 0;
+        paginacion.totalPaginas = resp.totalPages ?? Math.ceil(paginacion.total / filtros.limite);
+      
+      }
+    } else {
+      console.warn(`[CargarDatos] Descartada respuesta #${currentRequestId} (Ya no es la última)`);
+    }
+
+  } catch (err) {
+    if (currentRequestId === requestId) {
+   
+      mostrarNotificacion('Error al cargar datos', true);
+    }
+  } finally {
+    if (currentRequestId === requestId) {
+      cargando.value = false;
+    
+    }
+  }
+};
+
+// ── Cambio de modo (Insumo ↔ Producto) ───────────────────────────────────────
+// NO llama cargarDatos directamente — el watch de selec/filtros lo hará
+const toggleSelec = () => {
+  // Pausar el watch momentáneamente acumulando todos los cambios en un solo tick
+  selec.value          = selec.value === 'Insumo' ? 'Producto' : 'Insumo';
+  filtros.search       = '';
+  filtros.categoria    = '';
+  filtros.subcategoria = '';
+  filtros.estado       = -1;
+  filtros.limite       = filtros.limite; // sin cambio, solo para no omitirlo
+  subcategoriasParaFiltro.value = [];
+  // paginaActual ya se resetea dentro del watch de filtros si es != 1
+};
+
+// ── Filtros ───────────────────────────────────────────────────────────────────
+const onCategoriaFiltroChange = async (val) => {
+  // LIMPIEZA: El v-model ya cambió filtros.categoria y eso disparará el watch principal.
+  filtros.subcategoria          = '';
+  subcategoriasParaFiltro.value = [];
+
+  if (val) {
+    try {
+      const r = await ObtenerSubCategorias(val);
+      subcategoriasParaFiltro.value = r.result ?? r ?? [];
+    } catch (err) {
+      console.error('Error al cargar subcategorías:', err);
+    }
+  }
+  
+  if (paginacion.paginaActual !== 1) {
+    paginacion.paginaActual = 1;
+  }
+};
+
+const onCambiarPagina = (page) => {
+  paginacion.paginaActual = page; // el watch de paginaActual se encarga
+};
+
+// ── Formulario Insumo ─────────────────────────────────────────────────────────
+const abrirFormularioNuevo  = () => { insumoSeleccionado.value = null; modoEdicion.value = true; };
+const abrirFormularioEditar = (item) => { insumoSeleccionado.value = { ...item }; modoEdicion.value = true; };
+const cerrarFormulario      = () => { modoEdicion.value = false; insumoSeleccionado.value = null; };
+
+const onGuardar = async (data) => {
+  guardando.value = true;
+  try {
+    const resp = data.idinsumo
+      ? await actualizarInsumo({ ...data, id: data.idinsumo })
+      : await crearInsumo(data);
+    mostrarNotificacion(resp?.message ?? 'Insumo guardado');
+    cerrarFormulario();
+    await cargarDatos(); // refrescar lista después de guardar
+  } catch (err) {
+    mostrarNotificacion('Error al guardar el insumo', true);
+  } finally {
+    guardando.value = false;
+  }
+};
+
+// ── Guardar Producto ─────────────────────────────────────────────────────────
+const onGuardarProducto = async (data) => {
+  guardando.value = true;
+  try {
+    const resp = data.idproducto
+      ? await updateProducto({ ...data, id: data.idproducto })
+      : await addProducto(data);
+    mostrarNotificacion(resp?.message ?? 'Producto guardado');
+    cerrarFormulario();
+    await cargarDatos();
+  } catch (err) {
+    console.error(err);
+    mostrarNotificacion('Error al guardar el producto', true);
+  } finally {
+    guardando.value = false;
+  }
+};
+
+// ── Modal confirmación ────────────────────────────────────────────────────────
+const abrirModalConfirmacion = (item) => {
+  modalConfirmacion.item    = item;
+  modalConfirmacion.nombre  = item.nombre;
+  modalConfirmacion.accion  = item.estado === 1 ? 'Desactivar' : 'Activar';
+  modalConfirmacion.visible = true;
+};
+const cerrarModalConfirmacion = () => { modalConfirmacion.visible = false; modalConfirmacion.item = null; };
+
+const onConfirmar = async () => {
+  const item = modalConfirmacion.item;
+  cerrarModalConfirmacion();
+  if (!item) return;
+  try {
+    const id   = selec.value === 'Insumo' ? item.idinsumo : item.idproducto;
+    const resp = selec.value === 'Insumo'
+      ? await eliminarInsumo(id)
+      : await DeleteProducto(id);
+    mostrarNotificacion(resp?.message ?? 'Estado actualizado');
+    await cargarDatos(); // refrescar lista después de cambiar estado
+  } catch {
+    mostrarNotificacion('Error al cambiar el estado', true);
+  }
+};
+
+// ── Modal Foto ────────────────────────────────────────────────────────────────
+const abrirModalFoto = (item) => {
+  Object.assign(modalFoto, { visible: true, item, nombre: item.nombre, imagen: item.imagen ?? '', subiendo: false });
+};
+
+const onGuardarFoto = async (archivo) => {
+  modalFoto.subiendo = true;
+  try {
+    const url = await SubirFoto(archivo);
+    await AgregarPhotoInsumo(modalFoto.item.idinsumo, url);
+    mostrarNotificacion('Foto actualizada');
+    modalFoto.visible = false;
+    await cargarDatos();
+  } catch {
+    mostrarNotificacion('Error al subir la imagen', true);
+  } finally {
+    modalFoto.subiendo = false;
+  }
+};
+
+// ── Modal Ingredientes ────────────────────────────────────────────────────────
+const abrirModalIngredientes = (producto) => {
+  productoParaIngredientes.value = producto.Producto ? producto : { Producto: producto };
+  showIngredienteModal.value = true;
+};
+
+const onGuardarIngredientes = async (payload) => {
+  guardandoIngredientes.value = true;
+  try {
+    const resp = payload.idReceta
+      ? await actualizarIngredienteReceta(payload.idReceta, payload.data)
+      : await registrarProduccionDeProducto(payload.data);
+    
+    mostrarNotificacion(resp?.message ?? 'Receta guardada con éxito');
+    showIngredienteModal.value = false;
+  } catch (err) {
+    console.error(err);
+    mostrarNotificacion(err.response?.data?.message ?? 'Error al guardar receta', true);
+  } finally {
+    guardandoIngredientes.value = false;
+  }
+};
+
+// ── Modal Precios Mayor ───────────────────────────────────────────────────────
+const abrirModalPreciosMayor = (producto) => {
+  productoParaPrecios.value = producto;
+  showPreciosMayorModal.value = true;
+};
+
+const onGuardarPreciosMayor = async (payload) => {
+  guardandoPreciosMayor.value = true;
+  try {
+  
+    const resp = await updateCreatePrecioProducto(payload);
+    mostrarNotificacion(resp?.message ?? 'Precios actualizados con éxito');
+    showPreciosMayorModal.value = false;
+    await cargarDatos();
+  } catch (err) {
+    console.error(err);
+    mostrarNotificacion(err.response?.data?.message ?? 'Error al guardar precios', true);
+  } finally {
+    guardandoPreciosMayor.value = false;
+  }
+}; 
+
+// ── Utilidades ────────────────────────────────────────────────────────────────
+const mostrarNotificacion = (mensaje, error = false) => {
+  notificacion.mensaje = mensaje;
+  notificacion.error   = error;
+  notificacion.visible = true;
+  setTimeout(() => { notificacion.visible = false; }, 3000);
+};
 </script>
 
 <style scoped>
-.animate-slide-in {
-  animation: slide-in-right 0.5s forwards;
-}
-
-@keyframes slide-in-right {
-  from {
-    transform: translateX(100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
-}
+.fade-enter-active, .fade-leave-active { transition: opacity 0.2s; }
+.fade-enter-from, .fade-leave-to       { opacity: 0; }
+.slide-up-enter-active, .slide-up-leave-active { transition: all 0.3s ease; }
+.slide-up-enter-from, .slide-up-leave-to       { opacity: 0; transform: translateY(16px); }
 </style>

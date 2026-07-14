@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getProductsByUserId = exports.updateUsuarioSucursal = exports.deleteUsuarioSucursal = exports.getUsuarioSucursalesByUsuario = exports.getUsuarioSucursalesBySucursal = exports.getUsuarioSucursales = exports.Update = exports.Add = exports.createUsuarioSucursal = void 0;
+exports.getProductsByUserId = exports.updateUsuarioSucursal = exports.deleteUsuarioSucursal = exports.getUsuarioSucursalesByUsuario = exports.getUsuarioSucursalesBySucursal = exports.getUsuarioSucursales = exports.Update = exports.Add = exports.Asignar = void 0;
 const UsuarioSucursal_1 = require("../entities/UsuarioSucursal");
 const Sucursal_controllers_1 = require("./Sucursal.controllers");
 const Usuario_1 = require("../entities/Usuario");
@@ -8,7 +8,7 @@ const Estado_controllers_1 = require("./Estado.controllers");
 const ProductoSucursal_1 = require("../entities/ProductoSucursal");
 const idGenerator_1 = require("../utils/idGenerator");
 const Usuario_controllers_1 = require("./Usuario.controllers");
-const createUsuarioSucursal = async (req, res) => {
+const Asignar = async (req, res) => {
     try {
         const { IdUsuarios, IdSucursal } = req.body; // IdUsuarios es array de objetos { id: number }
         if (!Array.isArray(IdUsuarios)) {
@@ -70,7 +70,7 @@ const createUsuarioSucursal = async (req, res) => {
         }
     }
 };
-exports.createUsuarioSucursal = createUsuarioSucursal;
+exports.Asignar = Asignar;
 const Add = async ({ IdSucursal, IdUsuario }) => {
     const nuevo = new UsuarioSucursal_1.Usuariosucursal();
     const nuevoId = await (0, idGenerator_1.generarIdSecuencial)('SU');

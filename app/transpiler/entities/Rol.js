@@ -12,7 +12,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.Rol = void 0;
 const typeorm_1 = require("typeorm");
 const RolMenu_1 = require("./RolMenu");
-const Estado_1 = require("./Estado");
 const RolUsuario_1 = require("./RolUsuario");
 let Rol = class Rol extends typeorm_1.BaseEntity {
 };
@@ -42,9 +41,8 @@ __decorate([
     __metadata("design:type", Array)
 ], Rol.prototype, "Rolusuario", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => Estado_1.Estado, (estado) => estado.Rol),
-    (0, typeorm_1.JoinColumn)({ name: "idestado" }),
-    __metadata("design:type", Estado_1.Estado)
+    (0, typeorm_1.Column)({ name: "estado", type: "integer", default: 1 }),
+    __metadata("design:type", Number)
 ], Rol.prototype, "Estado", void 0);
 exports.Rol = Rol = __decorate([
     (0, typeorm_1.Entity)()

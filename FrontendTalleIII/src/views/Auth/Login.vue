@@ -98,7 +98,7 @@
           </div>
 
           <!-- PIN Field -->
-          <div class="space-y-2">
+          <!-- <div class="space-y-2">
             <label class="block text-sm font-semibold text-gray-700 mb-2">PIN de Seguridad</label>
             <div class="relative group">
               <div class="absolute inset-0 bg-linear-to-r from-orange-500/20 to-red-500/20 rounded-2xl blur opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
@@ -128,7 +128,7 @@
               <AlertCircle class="h-3 w-3" />
               {{ errors.pin }}
             </p>
-          </div>
+          </div> -->
 
           <!-- Error Messages -->
           <div v-if="errorMessage && tiempoRestante === 0" class="p-4 bg-red-50 border border-red-200 rounded-2xl">
@@ -137,7 +137,7 @@
                 <AlertTriangle class="h-4 w-4 text-red-600" />
               </div>
               <div>
-                <p class="text-red-800 font-semibold text-sm">Datos incorreptos para iniciar seion </p>
+                <p class="text-red-800 font-semibold text-sm">Error de autenticación</p>
                 <p class="text-red-600 text-xs">{{ errorMessage }}</p>
               </div>
             </div>
@@ -183,8 +183,8 @@
         </div>
       </div>
 
-      <!-- Additional Features -->
-      <div class="mt-6 bg-white/60 backdrop-blur-sm rounded-3xl shadow-lg border border-white/50 p-6">
+      <!-- Additional Features  Conexión Segura-->
+      <!-- <div class="mt-6 bg-white/60 backdrop-blur-sm rounded-3xl shadow-lg border border-white/50 p-6">
         <div class="flex items-center justify-between text-sm text-gray-600">
           <div class="flex items-center gap-2">
             <Shield class="h-4 w-4 text-green-500" />
@@ -195,7 +195,7 @@
             <span>Acceso Móvil</span>
           </div>
         </div>
-      </div>
+      </div> -->
     </div>
 
     <!-- Footer -->
@@ -207,7 +207,7 @@
           </div>
           <div class="text-center">
             <div class="font-bold text-sm">Masas C'ori</div>
-            <div class="text-xs text-gray-500">© 2025 - Todos los derechos reservados</div>
+            <div class="text-xs text-gray-500">© {{year}} - Todos los derechos reservados</div>
           </div>
         </div>
       </div>
@@ -229,16 +229,17 @@ import { ref, onMounted, onUnmounted, reactive } from 'vue'
 import { login } from '@/Server/api';
 import { startTokenRefreshTimer } from '@/Server/Autapi';
 import { useRouter } from 'vue-router';
+import { useSessionStore } from '@/stores/sessionStore';
 import {
   Mail, Lock, Key, Eye, EyeOff, LogIn, AlertCircle, AlertTriangle,
   Clock, HelpCircle, Shield, Smartphone, Loader2, CheckCircle
 } from 'lucide-vue-next'
 
 // Reactive data
+const sessionStore = useSessionStore();
 const LoginData = ref({
   email: '',
-  password: '',
-  pin: ''
+  password: ''
 })
 
 const showPassword = ref(false)
@@ -248,13 +249,13 @@ const errorMessage = ref('')
 const tiempoRestante = ref(0)
 const intervalId = ref(null)
 const LoginAttempts = ref(0)
+const year = new Date().getFullYear();
 const router = useRouter();
 // Validation errors
 const errors = reactive({
-  email: '',
+  email: '', 
   password: '',
-  pin: ''
-})
+}) 
 
 // Refs for form elements
 const emailRef = ref(null)
@@ -276,27 +277,44 @@ const mostrarMensajePassword = (event) => {
   errors.password = validateField('password', password);
 }
 
-const mostrarMensajePin = (event) => {
-  const pin = event.target.value;
-  // Solo permitir números
-  if (pin && !/^\d*$/.test(pin)) {
-    event.target.value = pin.replace(/\D/g, '');
-    LoginData.value.pin = event.target.value;
-  }
-  errors.pin = validateField('pin', LoginData.value.pin);
-}
+// const mostrarMensajePin = (event) => {
+//   const pin = event.target.value;
+//   // Solo permitir números
+//   if (pin && !/^\d*$/.test(pin)) {
+//     event.target.value = pin.replace(/\D/g, '');
+//     LoginData.value.pin = event.target.value;
+//   }
+//   errors.pin = validateField('pin', LoginData.value.pin);
+// }
 
 const isValidEmail = (email) => {
+  // Verificar que tenga exactamente un @
   if ((email.match(/@/g) || []).length !== 1) {
-    return 'El correo debe contener exactamente un símbolo @';
+    return 'El correo debe contener exactamente un símbolo @'
   }
-  if (!email.endsWith('@gmail.com')) {
-    return 'El correo debe terminar en @gmail.com'
+
+  // Expresión regular para validar formato de email
+  const emailRegex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
+  if (!emailRegex.test(email)) {
+    return 'El formato del correo electrónico no es válido'
   }
-  const localPart = email.split('@')[0]
-  if (!/^[a-zA-Z0-9._]+$/.test(localPart)) {
-    return 'El correo solo puede contener letras, números, "." o "_"'
+
+  const [localPart, domain] = email.split('@')
+
+  // Validar parte local
+  if (localPart.length === 0) {
+    return 'El correo debe tener contenido antes del @'
   }
+
+  if (localPart.startsWith('.') || localPart.endsWith('.')) {
+    return 'El correo no puede iniciar o terminar con un punto'
+  }
+
+  // Validar dominio
+  if (domain.length === 0) {
+    return 'El correo debe tener un dominio válido'
+  }
+
   return '' // No error
 }
 
@@ -336,15 +354,15 @@ const validateField = (field, value) => {
         error = isValidPassword(value);
       }
       break;
-    case 'pin':
-      if (!value) {
-        error = 'El PIN es requerido';
-      } else if (!/^\d*$/.test(value)) {
-        error = 'El PIN solo puede contener números';
-      } else if (value.length !== 4) {
-        error = 'El PIN debe tener exactamente 4 dígitos';
-      }
-      break;
+    // case 'pin':
+    //   if (!value) {
+    //     error = 'El PIN es requerido';
+    //   } else if (!/^\d*$/.test(value)) {
+    //     error = 'El PIN solo puede contener números';
+    //   } else if (value.length !== 4) {
+    //     error = 'El PIN debe tener exactamente 4 dígitos';
+    //   }
+    //   break;
     default:
       break;
   }
@@ -354,7 +372,7 @@ const validateField = (field, value) => {
 const validateForm = () => {
   errors.email = validateField('email', LoginData.value.email);
   errors.password = validateField('password', LoginData.value.password);
-  errors.pin = validateField('pin', LoginData.value.pin);
+ // errors.pin = validateField('pin', LoginData.value.pin);
   
   return Object.values(errors).every(error => !error);
 };
@@ -371,77 +389,78 @@ const startBlockTimer = (seconds) => {
 };
 
 const Login = async () => {
+  // Validar formulario
   if (!validateForm()) {
     return
   }
-  
+
+  // Verificar si está bloqueado
   if (tiempoRestante.value > 0) {
     return
   }
-  
+
   isLoading.value = true
   errorMessage.value = ''
-  
-  try {
-    // Simular llamada a API
-    await new Promise(resolve => setTimeout(resolve, 1500))
-    
-    // Simular validación (reemplazar con lógica real)
-    // const isValidCredentials = LoginData.value.email === 'admin@gmail.com' && 
-    //                           LoginData.value.password === 'Admin123*' && 
-    //                           LoginData.value.pin === '1234'
-   console.log(LoginData.value)
-     const response = await login(LoginData.value);
-    if (response) {
-      console.log("Login successful, response data:", response); // Added console log
-      localStorage.setItem('token', response.RelatioUsuario.Token);
-      localStorage.setItem('refreshToken', response.RelatioUsuario.RToken);
-      localStorage.setItem('usuario', JSON.stringify(response.RelatioUsuario));
-      startTokenRefreshTimer(); // Start the token refresh timer
-     LoginAttempts.value = 0
-      showSuccessToast.value = true;
-      setTimeout(() => {
-        showSuccessToast.value = false;
-         router.push('/home/dashboard')
-        // Redirigir al dashboard
-        console.log('Redirigiendo al dashboard...')
-        // window.location.href = '/dashboard'
-      }, 2000);
-     
-      return true;
-    }else {
-      // Credenciales inválidas
-      LoginAttempts.value++
-      if (LoginAttempts.value >= 3) {
-        errorMessage.value = 'Ha excedido el número de intentos. Su cuenta ha sido bloqueada por 30 segundos.'
-        startBlockTimer(30)
-      } else {
-        errorMessage.value = `usuario o contraseña incorrecto. Intento ${LoginAttempts.value} de 3.`
-      }
-    }
 
-    if (isValidCredentials) {
-      // Login exitoso
+  try {
+    const response = await login(LoginData.value)
+
+    // Login exitoso
+    if (response && response.token) {
+      localStorage.setItem('token', response.token)
+      localStorage.setItem('refreshToken', response.Rtoken)
+      localStorage.setItem('usuario', JSON.stringify(response.RelatioUsuario))
+
+      // Reiniciar contador de intentos
       LoginAttempts.value = 0
+
+      // Iniciar el timer de refresh del token
+      startTokenRefreshTimer()
+
+      // Cargar roles y menús inmediatamente para determinar la redirección
+      await sessionStore.cargarUsuarioYRoles(response.RelatioUsuario.IdUsuario);
+
+      // Determinar a dónde redirigir según permisos
+      let redirectPath = '/home/dashboard';
+      
+      // Obtener todos los enlaces de los menús permitidos
+      const menusPermitidos = sessionStore.menus
+        .filter(m => m.menu?.Visible === 1)
+        .map(m => m.menu?.Enlace?.Enlace?.toLowerCase());
+      
+  
+
+      // Lógica de prioridad: Venta > Producción > Dashboard
+      if (menusPermitidos.includes('/home/venta')) {
+        redirectPath = '/home/venta';
+      } else if (menusPermitidos.includes('/home/produccion')) {
+        redirectPath = '/home/produccion';
+      }
+
+      // Mostrar mensaje de éxito
       showSuccessToast.value = true
+
+      // Redirigir después de 2 segundos
       setTimeout(() => {
         showSuccessToast.value = false
-        // Redirigir al dashboard
-     //   console.log('Redirigiendo al dashboard...')
-        // window.location.href = '/dashboard'
+        router.push(redirectPath)
       }, 2000)
-    } else {
-      // Credenciales inválidas
-      // LoginAttempts.value++
-      // if (LoginAttempts.value >= 3) {
-      //   errorMessage.value = 'Ha excedido el número de intentos. Su cuenta ha sido bloqueada por 30 segundos.'
-      //   startBlockTimer(30)
-      // } else {
-      //   errorMessage.value = `Credenciales inválidas. Intento ${LoginAttempts.value} de 3.`
-      // }
+
+      return true
     }
   } catch (error) {
-    errorMessage.value = 'Error de conexión. Intenta nuevamente.'
+    // Incrementar intentos fallidos
+    LoginAttempts.value++
+
+    // Verificar si se alcanzó el límite de intentos
+    if (LoginAttempts.value >= 3) {
+      errorMessage.value = 'Ha excedido el número de intentos. Su cuenta ha sido bloqueada por 30 segundos.'
+      startBlockTimer(30)
+    } else {
+      // Mostrar mensaje de error con el número de intento
+      const intentosRestantes = 3 - LoginAttempts.value
+      errorMessage.value = `Usuario o contraseña incorrectos. Intento ${LoginAttempts.value} de 3. Te quedan ${intentosRestantes} intento${intentosRestantes > 1 ? 's' : ''}.`
+    }
   } finally {
     isLoading.value = false
   }

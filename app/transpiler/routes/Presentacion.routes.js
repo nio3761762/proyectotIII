@@ -2,11 +2,13 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const Presentacion_controllers_1 = require("../controllers/Presentacion,controllers");
+const verifyToken_1 = require("../middleware/verifyToken");
 const router = (0, express_1.Router)();
+router.use(verifyToken_1.authMiddleware);
 router.post('/addpresentacion', Presentacion_controllers_1.AddPresentacion);
 router.put('/updatePresntacion/:id', Presentacion_controllers_1.updatePresentacion);
-router.get('/presntacion/:id', Presentacion_controllers_1.getpresentacion);
+router.get('/presntacion/:id', Presentacion_controllers_1.getbypresentacion);
 router.delete('/delPresentacion/:id', Presentacion_controllers_1.deletePresentacion);
 router.get('/presentaciones', Presentacion_controllers_1.getPresentacion);
-router.get('/presentacionestado', Presentacion_controllers_1.getPresentacionEstaoo);
+router.get('/getpresentaciones', Presentacion_controllers_1.getPresentaciones);
 exports.default = router;

@@ -1,0 +1,12 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const RevendedorControl_controllers_1 = require("../controllers/RevendedorControl.controllers");
+const verifyToken_1 = require("../middleware/verifyToken");
+const router = (0, express_1.Router)();
+router.use(verifyToken_1.authMiddleware);
+router.post('/revendedorControl', RevendedorControl_controllers_1.registrarRevendedorControl);
+router.get('/revendedorControl', RevendedorControl_controllers_1.getRevendedorControls);
+router.put('/revendedorControlDetalle/:idDetalle', RevendedorControl_controllers_1.actualizarAjusteDetalle);
+router.put('/revendedorControl/:idControl', RevendedorControl_controllers_1.actualizarControlCompleto);
+exports.default = router;

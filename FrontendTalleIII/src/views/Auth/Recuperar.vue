@@ -298,20 +298,22 @@
           </div>
         </form>
       </div>
+    </div>
 
-      <!-- Success Message -->
-      <div v-if="showSuccess" class="mt-6 bg-green-50 border border-green-200 rounded-3xl p-6 text-center">
-        <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <CheckCircle class="h-8 w-8 text-green-600" />
+    <!-- Success Modal Overlay -->
+    <div v-if="showSuccess" class="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-sm">
+      <div class="relative w-full max-w-sm bg-white rounded-3xl shadow-2xl border border-white/50 p-8 text-center animate-slide-in">
+        <div class="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
+          <CheckCircle class="h-10 w-10 text-green-600" />
         </div>
-        <h3 class="text-lg font-bold text-green-800 mb-2">¡Contraseña cambiada exitosamente!</h3>
-        <p class="text-green-600 text-sm mb-4">Tu contraseña ha sido actualizada correctamente.</p>
+        <h3 class="text-2xl font-bold text-gray-800 mb-2">¡Éxito!</h3>
+        <p class="text-gray-600 mb-8">Tu contraseña ha sido actualizada correctamente.</p>
         <button
           @click="$router?.push('/login') || (window.location.href = '/login')"
-          class="bg-linear-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-6 py-3 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02] flex items-center justify-center gap-2 mx-auto font-semibold"
+          class="w-full bg-linear-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white py-4 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02] flex items-center justify-center gap-2 font-bold"
         >
-          <LogIn class="h-4 w-4" />
-          Ir al Login
+          <LogIn class="h-5 w-5" />
+          Iniciar Sesión
         </button>
       </div>
     </div>
@@ -325,7 +327,7 @@
           </div>
           <div class="text-center">
             <div class="font-bold text-sm">Masas C'ori</div>
-            <div class="text-xs text-gray-500">© 2025 - Recuperación de cuenta</div>
+            <div class="text-xs text-gray-500">© {{year}} - Recuperación de cuenta</div>
           </div>
         </div>
       </div>
@@ -351,7 +353,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { RecuperarPassword, mensaje } from '@/Server/api';
+import { cambiarPassword, mensaje } from '@/Server/api';
 import { useRouter } from 'vue-router';
 import {
   Search, Mail, ArrowLeft, Loader2, Shield, Key, Lock, Eye, EyeOff,
@@ -366,6 +368,7 @@ const showPassword = ref(false);
 const showRepeatPassword = ref(false);
 const tiempoReenvio = ref(0);
 const intervalId = ref(null);
+const year = new Date().getFullYear();
 const router = useRouter();
 const esPin = ref('');
 const loginData = ref({
@@ -447,11 +450,11 @@ const buscarUsuario = async () => {
   try {
     // Simular llamada a API
     await new Promise(resolve => setTimeout(resolve, 2000))
-    console.log(loginData.value)
+   
     const response = await mensaje(loginData.value);
-    console.log(response)
+   
     esPin.value= response.PinRecuperar;
-    console.log(esPin.value)
+    
     // Simular búsqueda exitosa
     showToastMessage('Código enviado a tu correo electrónico', 'success')
     paso.value = 'VERIFICAR_PIN'
@@ -505,8 +508,8 @@ const recuperarContrasena = async () => {
   try {
     // Simular cambio de contraseña
     await new Promise(resolve => setTimeout(resolve, 2000))
-    const response = await RecuperarPassword(loginData.value);
-    console.log(response)
+    const response = await cambiarPassword(loginData.value);
+ 
     showToastMessage(response.message, 'success')
     showSuccess.value = true
   } catch (error) {

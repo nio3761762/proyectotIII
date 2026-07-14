@@ -1,5 +1,5 @@
 import API from './api';
-import { Password } from 'primevue';
+
 
 //listar usuarios
 export const listarUsuarios = async () => {
@@ -15,7 +15,6 @@ export const listarUsuarios = async () => {
 export const DeleteUsuario = async (id) => {
   try {
     const response = await API.delete(`Usuarios/${id}`);
-     console.log(response.data)
     return response.data;
    
   } catch (error) {
@@ -29,7 +28,7 @@ export const RecuperarPassword = async (usuario) => {
     const response = await API.post("Recuperar",{
         login: usuario.email,
         Password: usuario.password     });
-     console.log(response.data)
+   
     return response.data;
    
   } catch (error) {
@@ -86,10 +85,10 @@ export const SubirFoto = async (file) => {
 
 export const RegistrarUsuario = async (Dato) => {
   try {
-    const response = await API.post('Usuarios', { 
-     Persona:Dato
+    const response = await API.post('RegUsuarios', { 
+     Personas:Dato
     });
-    console.log(response.data);
+  ;
     return response.data;
   } catch (error) {
     console.error('Error al intentar ingresar datos:', error.response);
@@ -100,7 +99,7 @@ export const RegistrarUsuario = async (Dato) => {
 export const SacarPersona = async (id) => {
   try {
     const response = await API.get(`Persona/${id}`)
-    console.log(response.data)
+  
     return response.data;
   } catch (error) {
     console.error('Error al obtener usuarios:', error);
@@ -111,7 +110,7 @@ export const SacarPersona = async (id) => {
 export const usuariosSinSucursal = async () => {
   try {
     const response = await API.get(`getNoAdmin`)
-    console.log(response.data)
+  
     return response.data;
   } catch (error) {
     console.error('Error al obtener usuarios:', error);
@@ -119,6 +118,25 @@ export const usuariosSinSucursal = async () => {
   }
 };
 
+export const listarUsuarioVendedor = async () => {
+  try {
+    const response = await API.get(`getUsuariosVentas`)
+    return response.data;
+  } catch (error) {
+    console.error('Error al obtener usuarios:', error);
+    throw error;
+  }
+};
+
+export const listarUsuarioSucursal = async (idsucursal) => {
+  try {
+    const response = await API.get(`EmpleadosBySucursal/${idsucursal}`)
+    return response.data;
+   } catch (error) {
+    console.error('Error al obtener usuarios:', error);
+    throw error;
+  }
+};
 
 export const updateUsuario = async (dato) => {
   try {
@@ -126,7 +144,7 @@ export const updateUsuario = async (dato) => {
     Persona:dato
 
     });
-    console.log(response.data);
+  ;
     return response.data;
   } catch (error) {
     console.error('Error al intentar ingresar datos:', error.response);
@@ -137,7 +155,7 @@ export const updateUsuario = async (dato) => {
 export const RolUsuario = async (id) => {
   try {
     const response = await API.get(`UsuarioRol/${id}`);
-    console.log(response.data);
+  ;
     return response.data;
   } catch (error) {
     console.error('Error al intentar ingresar datos:', error.response);
@@ -148,7 +166,7 @@ export const RolUsuario = async (id) => {
 export const SucursalUsuario = async (id) => {
   try {
     const response = await API.get(`UsuarioSucursal/${id}`);
-    console.log(response.data);
+  ;
     return response.data;
   } catch (error) {
     console.error('Error al intentar ingresar datos:', error.response);
@@ -156,9 +174,9 @@ export const SucursalUsuario = async (id) => {
   }
 };
 export const UpdatePersona = async (dato) => {
-  try {
-    const response = await API.put(`putPersona/${dato.IdPersona}`, {Personas:dato});
-    console.log(response.data);
+  try { 
+   const id = dato.IdPersona ?? dato.idpersona;
+    const response = await API.put(`putPersona/${id}`, {Personas:dato});
     return response.data;
   } catch (error) {
     console.error('Error al intentar ingresar datos:', error.response);
@@ -166,47 +184,3 @@ export const UpdatePersona = async (dato) => {
   }
 };
 
-// New functions for user-sucursal assignment
-export const asignarUsuarioASucursal = async (idSucursal, idUsuario) => {
-  try {
-    const response = await API.post(`usuario-sucursal`,{
-      IdUsuarios:idUsuario, IdSucursal:idSucursal
-    });
-    return response.data;
-  } catch (error) {
-    console.error('Error al asignar usuario a sucursal:', error);
-    throw error;
-  }
-};
-
-export const desasignarUsuarioDeSucursal = async (idSucursal, idUsuario) => {
-  try {
-    const response = await API.delete(`Sucursales/${idSucursal}/DesasignarUsuario/${idUsuario}`);
-    return response.data;
-  } catch (error) {
-    console.error('Error al desasignar usuario de sucursal:', error);
-    throw error;
-  }
-};
-
-export const listarUsuariosAsignadosASucursal = async (idSucursal) => {
-  try {
-    const response = await API.get(`Sucursales/${idSucursal}/Usuarios`);
-    return response.data;
-  } catch (error) {
-    console.error('Error al listar usuarios asignados a sucursal:', error);
-    throw error;
-  }
-};
-
-export const listarUsuarioAsignado = async (id) => {
-  try {
-    const response = await API.get(`BuscarSucursal/${id}`);
-     console.log(response.data)
-    return response.data;
-   
-  } catch (error) {
-     console.error('Error al eliminar el Usuario:',error);
-    throw error;
-  }
-};

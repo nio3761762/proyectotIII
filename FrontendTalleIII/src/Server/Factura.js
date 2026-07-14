@@ -6,24 +6,23 @@ export const createFactura = async (factura) => {
        factura: factura
     }
        );
-    console.log(response.data);
     return response.data;
   } catch (error) {
-    console.error('Error al intentar ingresar datos:', error.response);
+    console.warn('Error al intentar ingresar datos:', error.response);
     throw error;
   }
 };
 
 
-export const updatefactura = async (factura) => {
+export const insertarEnlaceFactura = async (factura) => {
   try {
     const response = await API.put(`insertarEnlaceFactura/${factura.IdFactura}`, { 
       factura:factura, 
     });
-    console.log(response.data);
+   
     return response.data;
   } catch (error) {
-    console.error('Error al intentar ingresar datos:', error.response);
+    console.warn('Error al intentar ingresar datos:', error.response);
     throw error;
   }
 };
@@ -32,10 +31,10 @@ export const updatefactura = async (factura) => {
 export const ObtenerFactura = async (id) => {
   try {
     const response = await API.get(`ObtenerFactura/${id}`);
-    console.log(response.data);
+   
     return response.data;
   } catch (error) {
-    console.error('Error al intentar ingresar datos:', error.response);
+    console.warn('Error al intentar ingresar datos:', error.response);
     throw error;
   }
 };

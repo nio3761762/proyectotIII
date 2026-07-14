@@ -1,7 +1,7 @@
 import { HttpError } from "../utils/error.handler";
 import { Complemento } from "../entities/Complemento";
 import { Request, Response } from "express";
-import { Documento } from "../entities/Documento";
+import { AppDataSource } from "../db";
 
 
 export const verifyComplemento = async ({ TipoId }: { TipoId: string }) => {
@@ -17,10 +17,21 @@ export const verifyComplemento = async ({ TipoId }: { TipoId: string }) => {
 
 export const getComplemento = async (req: Request, res: Response) => {
     try {
+        const result = await AppDataSource.query(`
+      SELECT COALESCE(
+        json_agg(
+          json_build_object(
+            'idcomplemento', b.IdComplemento,
+            'nombre', b.Nombre
+          )
+        ),
+        '[]'::json
+      ) AS complementos
+      FROM Complemento b;
+    `);
 
-        const complemento = await Complemento.find();
-        
-        return res.json(complemento)
+    return res.json(result[0].complementos);
+
     } catch (error) {
         if (error instanceof Error) {
             return res.status(500).json({ message: error.message })
@@ -28,14 +39,18 @@ export const getComplemento = async (req: Request, res: Response) => {
     }
 }
 
+
+
 export const getDocumento = async (req: Request, res: Response) => {
     try {
+      
+       const result = await AppDataSource.query(`
+      SELECT d.documento
+      FROM Documento d;
+    `);
 
-        const complemento = await Documento.find({
-            relations:['Tipodocumento']
-        });
-        
-        return res.json(complemento)
+    return res.json(result);
+
     } catch (error) {
         if (error instanceof Error) {
             return res.status(500).json({ message: error.message })

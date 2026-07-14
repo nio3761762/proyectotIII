@@ -3,10 +3,16 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.verifyTipoPromocion = exports.getTipopromocions = void 0;
 const Tipopromocion_1 = require("../entities/Tipopromocion");
 const error_handler_1 = require("../utils/error.handler");
+const db_1 = require("../db");
 const getTipopromocions = async (req, res) => {
     try {
-        const Tipopromocions = await Tipopromocion_1.Tipopromocion.find();
-        return res.json(Tipopromocions);
+        const result = await db_1.AppDataSource.query(`
+              SELECT 
+                 tp.idtipopromocion,
+                 tp.nombre
+              FROM tipopromocion tp;
+            `);
+        return res.json({ result });
     }
     catch (error) {
         if (error instanceof Error) {

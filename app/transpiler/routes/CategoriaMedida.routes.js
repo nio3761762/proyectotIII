@@ -1,9 +1,10 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
+const verifyToken_1 = require("../middleware/verifyToken");
 const CategoriaMedida_controllers_1 = require("../controllers/CategoriaMedida.controllers");
 const router = (0, express_1.Router)();
-//router.use(authMiddleware)
+router.use(verifyToken_1.authMiddleware);
 router.post("/createCategoriaMedida", CategoriaMedida_controllers_1.createCategoriaMedida);
 router.put('/updateCateriaMedida/:id', CategoriaMedida_controllers_1.updateCateriaMedida);
 router.get('/getMedidas', CategoriaMedida_controllers_1.getMedidas);

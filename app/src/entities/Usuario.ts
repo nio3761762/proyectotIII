@@ -1,10 +1,9 @@
 import { BaseEntity, Check, OneToMany, Column, Entity, PrimaryColumn, OneToOne, JoinColumn, ManyToOne } from "typeorm";
 import bcrypt from "bcryptjs";
 import { Persona } from "./Persona";
-import { Estado } from "./Estado";
 import { Rolusuario } from "./RolUsuario";
 import { Venta } from "./Venta";
-import { Usuariosucursal } from "./UsuarioSucursal";
+import { Pedido } from "./Pedido";
 
 @Entity()
 //@Check(`"Estado" IN (0, 1)`)
@@ -14,15 +13,12 @@ export class Usuario extends BaseEntity {
 
   @Column({ name: 'contrasena', type: "varchar", length: 150 })
   Contrasena: string;
+  
+  @Column({ name: 'username', type: "varchar", length: 150, nullable:true })
+  Username   : string;  
 
-  @Column({ name: 'pin', type: "varchar", length: 150 })
-  Pin: string;
-
-  @Column({ type: "varchar", length: 255, nullable: true })
-  Token: string | null;
-
-  @Column({ type: "varchar", length: 255, nullable: true })
-  RToken: string | null;
+  // @Column({ name: 'pin', type: "varchar", length: 150 })
+  // Pin: string;
 
   @Column({ type: "varchar", length: 10, nullable: true })
   PinRecuperacion: string | null;
@@ -31,16 +27,15 @@ export class Usuario extends BaseEntity {
   @JoinColumn({ name: "idpersona" })
   Persona: Persona;
 
-  @ManyToOne(() => Estado, (estado) => estado.Usuario)
-  @JoinColumn({ name: "idestado" })
-  Estado: Estado;
+  @Column({ name: "estado", type: "integer",default: 1}) 
+  Estado: number; 
 
   @OneToMany(() => Rolusuario, (rolusuario) => rolusuario.Usuario)
   Rolusuario: Rolusuario[];
 
-   @OneToMany(() => Usuariosucursal, (usuariosucursal) =>  usuariosucursal.Usuario)
-   Usuariosucursal:  Usuariosucursal[];
-
   @OneToMany(() => Venta, (venta) => venta.Usuario)
   Venta: Venta[];
+
+  @OneToMany(() => Pedido, (pedido) => pedido.Usuario)
+  Pedido: Pedido[];
 }

@@ -1,6 +1,5 @@
 import { BaseEntity, Check, Column, OneToMany, Entity, PrimaryGeneratedColumn, PrimaryColumn, ManyToOne, JoinColumn } from "typeorm";
 import { Rolmenu } from "./RolMenu";
-import { Estado } from "./Estado";
 import { Rolusuario } from "./RolUsuario";
 
 @Entity()
@@ -23,7 +22,6 @@ export class Rol extends BaseEntity {
     @OneToMany(() => Rolusuario, (rolusuario) => rolusuario.Rol)
     Rolusuario: Rolusuario[];
 
-    @ManyToOne(() => Estado, (estado) => estado.Rol)
-    @JoinColumn({ name: "idestado" })
-    Estado: Estado;
+    @Column({ name: "estado", type: "integer",default: 1}) 
+    Estado: number; 
 }
