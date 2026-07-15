@@ -719,7 +719,7 @@ const validateField = (field, value) => {
     case 'email':
       if (!value) error = 'El correo electronico es requerido.';
       else if ((value.match(/@/g) || []).length !== 1) error = 'El correo debe contener exactamente un @';
-      else if (!value.endsWith('@gmail.com')) error = 'El correo debe terminar en @gmail.com';
+      else if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(value)) error = 'El correo no tiene un formato valido.';
       else if (!/^[a-zA-Z0-9._]+@/.test(value)) error = 'El correo contiene caracteres no validos.';
       else if (emailsRegistrados.value.some((e) => {
         const mail = (e.email || e.Email || '').toLowerCase();
@@ -743,7 +743,7 @@ const validateField = (field, value) => {
       const currentCel = props.persona?.celulares?.[0]?.numero ?? props.persona?.celulares?.[0]?.Numero;
       if (!value?.trim()) error = 'El celular es requerido.';
       else if (/\D/.test(value)) error = 'Solo debe contener numeros.';
-      else if (value.length < 7 || value.length > 8) error = 'Debe tener 7 u 8 digitos.';
+      else if (value.length < 7) error = 'Debe tener al menos 7 digitos.';
       else if (numerosRegistrados.value.some((c) => {
         const numVal = c.numero || c.Numero;
         return numVal === value && (!editing || numVal !== currentCel);

@@ -37,6 +37,7 @@
           :complementos="complementos"
           :barrios="barrios"
           @guardar="onGuardar"
+          @finalizar="onFinalizar"
           @cancelar="cerrarFormulario"
         />
 
@@ -435,6 +436,10 @@ const onGuardar = async (data) => {
   } finally {
     guardando.value = false;
   }
+};
+
+const onFinalizar = async () => {
+  await cargarPersonas();
 };
 
 // ── Modal confirmación ────────────────────────────────────────────────────────

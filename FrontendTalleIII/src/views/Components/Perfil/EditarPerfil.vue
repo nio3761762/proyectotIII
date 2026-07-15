@@ -293,7 +293,7 @@ const validar = (campo) => {
       const v = form.email?.trim();
       if (!v) { errores.email = 'El email es requerido.'; break; }
       if ((v.match(/@/g)||[]).length !== 1) { errores.email = 'Debe tener exactamente un @.'; break; }
-      if (!v.endsWith('@gmail.com')) { errores.email = 'Debe terminar en @gmail.com.'; break; }
+      if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(v)) { errores.email = 'El correo no tiene un formato valido.'; break; }
       if (!/^[a-zA-Z0-9._]+@/.test(v)) { errores.email = 'Caracteres inválidos antes del @.'; break; }
       // Verificar duplicado ignorando el email actual del usuario
       const dup = props.emailsOcupados
@@ -321,7 +321,7 @@ const validarCelular = (idx) => {
   if (!errores.celulares) errores.celulares = [];
   if (!v) { errores.celulares[idx] = 'El número es requerido.'; return; }
   if (!/^\d+$/.test(v)) { errores.celulares[idx] = 'Solo números.'; return; }
-  if (v.length < 7 || v.length > 8) { errores.celulares[idx] = 'Debe tener 7 u 8 dígitos.'; return; }
+  if (v.length < 7) { errores.celulares[idx] = 'Debe tener al menos 7 dígitos.'; return; }
   // Duplicado ignorando los números actuales del usuario
   const mismosCelulares = props.persona?.celulares?.map(c => c.numero) ?? [];
   const dup = props.numerosOcupados

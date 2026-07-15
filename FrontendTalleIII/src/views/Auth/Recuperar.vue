@@ -590,8 +590,8 @@ const isValidEmail = (email) => {
   if ((email.match(/@/g) || []).length !== 1) {
     return 'El correo debe contener exactamente un símbolo @';
   }
-  if (!email.endsWith('@gmail.com')) {
-    return 'El correo debe terminar en @gmail.com'
+  if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email)) {
+    return 'El correo no tiene un formato valido.'
   }
   const localPart = email.split('@')[0]
   if (!/^[a-zA-Z0-9._]+$/.test(localPart)) {

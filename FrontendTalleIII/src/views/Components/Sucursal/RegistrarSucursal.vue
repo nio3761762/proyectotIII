@@ -437,7 +437,7 @@ const validar = (campo) => {
         : !/^\d+$/.test(form.nro) ? 'Solo números.' : '';
       break;
     case 'celular':
-      errores.celular = form.celular && !/^\d{7,8}$/.test(form.celular) ? 'Debe tener 7 u 8 dígitos.' : '';
+      errores.celular = form.celular && form.celular.length < 7 ? 'Debe tener al menos 7 dígitos.' : '';
       break;
     case 'departamento':
       errores.departamento = !selDepartamento.value ? 'Seleccione un departamento.' : '';

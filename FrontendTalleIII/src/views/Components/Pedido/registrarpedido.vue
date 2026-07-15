@@ -828,7 +828,7 @@ const validarCampoCliente = (campo, value) => {
     case 'email':
       if (!value) error = 'El correo es requerido.';
       else if ((value.match(/@/g) || []).length !== 1) error = 'Debe contener exactamente un @';
-      else if (!value.endsWith('@gmail.com')) error = 'Debe terminar en @gmail.com';
+      else if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(value)) error = 'El correo no tiene un formato valido.';
       else if (!/^[a-zA-Z0-9._]+@/.test(value)) error = 'Caracteres no válidos en el correo.';
       else if (emailsRegistrados.value.some(e => (e.email || e.Email || '').toLowerCase() === value.toLowerCase())) {
         error = 'Este correo ya está en uso.';
@@ -844,7 +844,7 @@ const validarCampoCliente = (campo, value) => {
     case 'celular':
       if (!value?.trim()) error = 'El celular es requerido.';
       else if (/\D/.test(value)) error = 'Solo números.';
-      else if (value.length < 7 || value.length > 8) error = 'Debe tener 7 u 8 dígitos.';
+      else if (value.length < 7) error = 'Debe tener al menos 7 dígitos.';
       else if (numerosRegistrados.value.some(c => (c.numero || c.Numero) === value)) {
         error = 'Este número ya está registrado.';
       }

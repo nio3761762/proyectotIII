@@ -222,7 +222,7 @@ const validar = (campo) => {
       const v = form.email?.trim();
       if (!v) { errores.email = 'El email es requerido.'; break; }
       if ((v.match(/@/g) || []).length !== 1) { errores.email = 'Debe tener exactamente un @.'; break; }
-      if (!v.endsWith('@gmail.com')) { errores.email = 'Debe terminar en @gmail.com.'; break; }
+      if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(v)) { errores.email = 'El correo no tiene un formato valido.'; break; }
       if (!/^[a-zA-Z0-9._]+@/.test(v)) { errores.email = 'Caracteres no válidos antes del @.'; break; }
       // Validar duplicado — ignorar el email actual de la empresa
       const emailActual = (props.dato.email ?? props.dato.Email?.Email ?? '').toLowerCase();
@@ -237,7 +237,7 @@ const validar = (campo) => {
       const v = form.celular?.trim();
       if (!v) { errores.celular = 'El celular es requerido.'; break; }
       if (!/^\d+$/.test(v)) { errores.celular = 'Solo números.'; break; }
-      if (v.length < 7 || v.length > 8) { errores.celular = 'Debe tener 7 u 8 dígitos.'; break; }
+      if (v.length < 7) { errores.celular = 'Debe tener al menos 7 dígitos.'; break; }
       // Validar duplicado — ignorar el número actual de la empresa
       const numActual = (props.dato.celular ?? props.dato.Celular ?? '').toString();
       const dup = props.numeros
