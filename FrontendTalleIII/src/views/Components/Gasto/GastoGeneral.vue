@@ -1,7 +1,5 @@
 <template>
-  <div class="min-h-screen">
-    <div class="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-orange-400/5 to-red-500/5 rounded-full blur-3xl"></div>
-    <div class="absolute bottom-0 left-0 w-80 h-80 bg-gradient-to-tr from-red-400/5 to-orange-500/5 rounded-full blur-2xl"></div>
+  <div>
 
     <Transition name="page" mode="out-in">
       <div v-if="showForm" class="relative">
@@ -52,7 +50,7 @@
               <button type="submit"
                 class="px-8 py-3.5 bg-gradient-to-r from-orange-500 to-red-600 text-white font-bold rounded-2xl hover:shadow-lg hover:shadow-orange-200 transition-all flex items-center gap-2">
                 <Check class="h-5 w-5" />
-                {{ editingItem ? 'Actualizar Gasto' : 'Registrar Gasto' }}
+                {{ editingItem ? 'Actualizar Gasto' : 'Agregar a lista' }}
               </button>
               <button type="button" @click="cancelForm"
                 class="px-8 py-3.5 bg-gray-100 text-gray-700 font-bold rounded-2xl hover:bg-gray-200 transition-all">
@@ -61,27 +59,50 @@
             </div>
           </form>
         </div>
+
+        <!-- Pending List -->
+        <div v-if="registeredGastos.length > 0" class="bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl border-2 border-orange-200 p-6 animate-fade-in">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+              <ClipboardList class="h-5 w-5 text-orange-500" /> Gastos Pendientes ({{ registeredGastos.length }})
+            </h3>
+            <button @click="finalizeAll" :disabled="isSubmitting"
+              class="px-6 py-2.5 bg-gradient-to-r from-orange-500 to-red-600 text-white font-bold rounded-xl hover:shadow-lg transition-all disabled:opacity-50 flex items-center gap-2">
+              <CheckCircle v-if="!isSubmitting" class="h-4 w-4" />
+              <div v-else class="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+              {{ isSubmitting ? 'Guardando...' : 'Finalizar Todos' }}
+            </button>
+          </div>
+          <div class="overflow-x-auto rounded-2xl border border-gray-100">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="bg-gradient-to-r from-orange-50 to-red-50">
+                  <th class="text-left p-3 font-black text-gray-700 text-xs uppercase tracking-widest">#</th>
+                  <th class="text-left p-3 font-black text-gray-700 text-xs uppercase tracking-widest">Nombre</th>
+                  <th class="text-left p-3 font-black text-gray-700 text-xs uppercase tracking-widest">Fecha</th>
+                  <th class="text-right p-3 font-black text-gray-700 text-xs uppercase tracking-widest">Costo</th>
+                  <th class="text-center p-3 font-black text-gray-700 text-xs uppercase tracking-widest">Acción</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(item, idx) in registeredGastos" :key="idx" class="border-t border-gray-50 hover:bg-gray-50/50">
+                  <td class="p-3 font-bold text-gray-400">{{ idx + 1 }}</td>
+                  <td class="p-3 font-semibold text-gray-800">{{ item.nombre }}</td>
+                  <td class="p-3 text-gray-600">{{ item.fecha }}</td>
+                  <td class="p-3 font-black text-orange-600 text-right">{{ Number(item.costo).toFixed(2) }} Bs.</td>
+                  <td class="p-3 text-center">
+                    <button @click="removeRegisteredGasto(idx)" class="text-red-400 hover:text-red-600 p-1.5 rounded-xl hover:bg-red-50 transition-all">
+                      <Trash2 class="h-4 w-4" />
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
       <div v-else class="relative space-y-8">
-        <!-- Header -->
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div class="flex items-center gap-4">
-            <div class="w-14 h-14 bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl shadow-lg shadow-orange-200 flex items-center justify-center">
-              <DollarSign class="h-7 w-7 text-white" />
-            </div>
-            <div>
-              <h1 class="text-2xl font-bold text-gray-800">Gastos Generales</h1>
-              <p class="text-sm text-gray-500">Administración de gastos operativos y administrativos</p>
-            </div>
-          </div>
-          <button @click="showForm = true"
-            class="px-6 py-3 bg-gradient-to-r from-orange-500 to-red-600 text-white font-bold rounded-2xl hover:shadow-lg hover:shadow-orange-200 transition-all flex items-center gap-2 shadow-md">
-            <Plus class="h-5 w-5" />
-            Nuevo Gasto
-          </button>
-        </div>
-
         <!-- Search & Filters -->
         <div class="bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl border border-white/50 p-5">
           <div class="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
@@ -215,13 +236,16 @@
 
 <script setup>
 import { ref, watch, onMounted } from 'vue';
-import { Search, Plus, DollarSign, Pencil, Trash2, ArrowLeft, FileText, Calendar as CalendarIcon, Check } from 'lucide-vue-next';
+import { Search, Plus, DollarSign, Pencil, Trash2, ArrowLeft, FileText, Calendar as CalendarIcon, Check, ClipboardList, CheckCircle } from 'lucide-vue-next';
 import { listarGastosGenerales, registrarGastoGeneral, anularGastoGeneral, updateGastoGeneral } from '@/Server/Gasto';
 import { getLocalDate } from '@/utils/formatters';
 import Paginado from '../Modals/Paginado.vue';
 import AnularModal from '../Shared/AnularModal.vue';
 
 const emit = defineEmits(['toast']);
+
+const registeredGastos = ref([]);
+const isSubmitting = ref(false);
 
 const showForm = ref(false);
 const editingItem = ref(null);
@@ -299,18 +323,49 @@ const fetchGastos = async () => {
 };
 
 const handleSubmit = async () => {
-  try {
-    if (editingItem.value) {
+  if (editingItem.value) {
+    try {
       await updateGastoGeneral(editingItem.value.idgastogeneral, form.value.nombre, form.value.fecha, form.value.costo);
       emit('toast', { message: 'Gasto actualizado correctamente', type: 'success' });
-    } else {
-      await registrarGastoGeneral(form.value.nombre, form.value.fecha, form.value.costo);
-      emit('toast', { message: 'Gasto registrado correctamente', type: 'success' });
+      cancelForm();
+      fetchGastos();
+    } catch (error) {
+      emit('toast', { message: 'Error al actualizar el gasto', type: 'error' });
     }
+    return;
+  }
+
+  registeredGastos.value.push({
+    nombre: form.value.nombre,
+    fecha: form.value.fecha,
+    costo: form.value.costo
+  });
+
+  emit('toast', { message: 'Gasto agregado a la lista', type: 'success' });
+
+  form.value = { nombre: '', fecha: getLocalDate(), costo: 0 };
+};
+
+const removeRegisteredGasto = (index) => {
+  registeredGastos.value.splice(index, 1);
+};
+
+const finalizeAll = async () => {
+  if (registeredGastos.value.length === 0) return;
+
+  isSubmitting.value = true;
+  try {
+    for (const item of registeredGastos.value) {
+      await registrarGastoGeneral(item.nombre, item.fecha, item.costo);
+    }
+    emit('toast', { message: `${registeredGastos.value.length} gasto(s) registrado(s) con éxito`, type: 'success' });
+    registeredGastos.value = [];
     cancelForm();
     fetchGastos();
   } catch (error) {
-    emit('toast', { message: 'Error al guardar el gasto', type: 'error' });
+    emit('toast', { message: 'Error al registrar uno o más gastos', type: 'error' });
+  } finally {
+    isSubmitting.value = false;
   }
 };
 
@@ -346,6 +401,14 @@ const confirmAnular = async () => {
     showAnularModal.value = false;
   }
 };
+
+const openForm = () => {
+  showForm.value = true;
+  editingItem.value = null;
+  form.value = { nombre: '', fecha: getLocalDate(), costo: 0 };
+};
+
+defineExpose({ openForm });
 
 watch(currentPage, () => {
   fetchGastos();

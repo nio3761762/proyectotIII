@@ -11,7 +11,7 @@
             <h1 class="text-2xl md:text-3xl font-bold bg-linear-to-r from-orange-600 via-red-600 to-orange-700 bg-clip-text text-transparent">
               Registro de Entregas y Ajustes
             </h1>
-            <p class="text-gray-600 text-sm">Gestiona entregas y liquidaciones para varios revendedores en un solo lote</p>
+            <p class="text-gray-600 text-sm">Gestiona entregas y liquidaciones para varias personas en un solo lote</p>
           </div>
         </div>
         
@@ -116,37 +116,37 @@
           </div>
 
           <div class="space-y-1.5">
-            <label class="text-sm font-semibold text-gray-700">Revendedor Actual</label>
+            <label class="text-sm font-semibold text-gray-700">Persona Actual</label>
             <div class="flex gap-2">
               <div class="relative flex-1 z-10">
-                <Combobox v-model="currentEmpleadoId" nullable>
+                <Combobox v-model="currentPersonaId" nullable>
                   <div class="relative">
                     <ComboboxInput
                       class="w-full pl-10 pr-4 py-3 bg-gray-50/80 border-0 rounded-2xl focus:bg-white focus:ring-2 focus:ring-orange-500/20 text-gray-700 placeholder-gray-400 outline-none transition-all shadow-inner"
-                      :displayValue="(id) => { if (!id) return ''; const e = empleadosDisponibles.find(emp => emp.idempleado === id); return e ? `${e.nombre} ${e.apellidopaterno}` : ''; }"
-                      @change="queryRevendedor = $event.target.value"
-                      placeholder="Buscar revendedor..."
+                      :displayValue="(id) => { if (!id) return ''; const p = personasDisponibles.find(per => (per.idpersona ?? per.idempleado ?? per.empleado?.idempleado) === id); return p ? `${p.nombre ?? p.Nombre} ${p.apellidopaterno ?? p.ApellidoPaterno}` : ''; }"
+                      @change="queryPersona = $event.target.value"
+                      placeholder="Buscar persona..."
                     />
                     <Search class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-5 w-5 pointer-events-none" />
                     <ComboboxButton class="absolute inset-y-0 right-0 flex items-center pr-3">
                       <ChevronUpDownIcon class="h-5 w-5 text-gray-400" />
                     </ComboboxButton>
                   </div>
-                  <TransitionRoot leave="transition ease-in duration-100" leaveFrom="opacity-100" leaveTo="opacity-0" @after-leave="queryRevendedor = ''">
+                  <TransitionRoot leave="transition ease-in duration-100" leaveFrom="opacity-100" leaveTo="opacity-0" @after-leave="queryPersona = ''">
                     <ComboboxOptions class="absolute z-50 mt-1 w-full bg-white rounded-2xl shadow-lg border border-gray-200 max-h-60 overflow-auto py-1">
-                      <div v-if="filteredRevendedores.length === 0 && queryRevendedor !== ''" class="px-4 py-3 text-gray-500 text-sm text-center">
-                        No se encontraron revendedores.
+                      <div v-if="filteredPersonas.length === 0 && queryPersona !== ''" class="px-4 py-3 text-gray-500 text-sm text-center">
+                        No se encontraron personas.
                       </div>
-                      <ComboboxOption v-for="e in filteredRevendedores" :key="e.idempleado" :value="e.idempleado" v-slot="{ selected, active }">
+                      <ComboboxOption v-for="p in filteredPersonas" :key="p.idpersona ?? p.idempleado ?? p.empleado?.idempleado" :value="p.idpersona ?? p.idempleado ?? p.empleado?.idempleado" v-slot="{ selected, active }">
                         <li :class="['relative cursor-default select-none py-3 pl-10 pr-4', active ? 'bg-orange-500 text-white' : 'text-gray-900']">
-                          <div :class="[selected ? 'font-medium' : 'font-normal']" class="flex items-center gap-3">
-                            <div class="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center text-sm font-bold text-gray-600 shrink-0">
-                              {{ (e.nombre?.charAt(0) || '') + (e.apellidopaterno?.charAt(0) || '') }}
-                            </div>
-                            <div class="flex flex-col min-w-0">
-                              <span class="truncate">{{ e.nombre }} {{ e.apellidopaterno }}</span>
-                            </div>
-                          </div>
+                            <div :class="[selected ? 'font-medium' : 'font-normal']" class="flex items-center gap-3">
+                             <div class="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center text-sm font-bold text-gray-600 shrink-0">
+                               {{ ((p.nombre ?? p.Nombre)?.charAt(0) || '') + ((p.apellidopaterno ?? p.ApellidoPaterno)?.charAt(0) || '') }}
+                             </div>
+                             <div class="flex flex-col min-w-0">
+                               <span class="truncate">{{ p.nombre ?? p.Nombre }} {{ p.apellidopaterno ?? p.ApellidoPaterno }}</span>
+                             </div>
+                           </div>
                           <span v-if="selected" class="absolute inset-y-0 left-0 flex items-center pl-3">
                             <CheckIcon class="h-5 w-5" :class="active ? 'text-white' : 'text-orange-500'" />
                           </span>
@@ -156,7 +156,7 @@
                   </TransitionRoot>
                 </Combobox>
               </div>
-              <button @click="abrirModalNuevaPersona" title="Agregar nuevo revendedor"
+              <button @click="abrirModalNuevaPersona" title="Agregar nueva persona"
                 class="px-4 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-2xl shadow-lg transition-all flex items-center gap-1 font-semibold text-sm">
                 <UserPlus class="h-5 w-5" />
               </button>
@@ -169,7 +169,7 @@
           <div class="flex items-center justify-between mb-4">
             <h3 class="text-base font-bold text-gray-800 flex items-center gap-2 uppercase tracking-tight">
               <ShoppingCart class="h-4 w-4 text-orange-500" />
-              Preparación: {{ currentEmpleadoNombre }}
+              Preparación: {{ currentPersonaNombre }}
             </h3>
           </div>
 
@@ -206,7 +206,7 @@
                    <div class="flex items-center gap-2">
                       <div class="flex items-center gap-1 bg-orange-50 rounded-lg p-1">
                         <button @click="updateQtyCurrent(idx, -1)" class="w-6 h-6 flex items-center justify-center bg-white rounded-md text-orange-600 text-[10px] font-black shadow-sm">-</button>
-                        <span class="w-8 text-center text-[10px] font-black">{{ det.cantidadEntregada }}</span>
+                        <input v-model.number="det.cantidadEntregada" type="number" min="0" class="w-14 text-center text-[10px] font-black bg-white border-0 rounded-md outline-none shadow-sm py-1 [&::-webkit-inner-spin-button]:opacity-100" />
                         <button @click="updateQtyCurrent(idx, 1)" class="w-6 h-6 flex items-center justify-center bg-white rounded-md text-orange-600 text-[10px] font-black shadow-sm">+</button>
                       </div>
                       <span class="text-[8px] font-black text-gray-400 uppercase">Entregados</span>
@@ -252,7 +252,7 @@
             </div>
             <div>
                <h3 class="text-xl font-bold text-gray-800 uppercase tracking-tight">Lote de Envío Preparado</h3>
-               <p class="text-gray-500 text-xs font-bold uppercase tracking-widest">{{ loteRegistros.length }} Registros Unitarios</p>
+               <p class="text-gray-500 text-xs font-bold uppercase tracking-widest">{{ loteRegistros.length }} Registros</p>
             </div>
          </div>
 
@@ -274,7 +274,7 @@
         <table class="w-full text-left border-collapse">
           <thead class="bg-gray-50/50 border-b border-gray-100">
             <tr>
-              <th class="px-6 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Revendedor e Información General</th>
+              <th class="px-6 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Persona e Información General</th>
               <th class="px-6 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Resumen Financiero</th>
               <th class="px-6 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Acciones</th>
             </tr>
@@ -286,10 +286,10 @@
                 <td class="px-6 py-6 align-top">
                   <div class="flex items-center gap-4">
                     <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-orange-500 to-red-600 shadow-lg flex items-center justify-center text-white font-black text-sm">
-                      {{ getEmpleadoNombre(reg.idEmpleado)[0] }}
+                       {{ getPersonaNombre(reg.idpersona ?? reg.idEmpleado)[0] }}
                     </div>
                     <div class="flex flex-col">
-                      <span class="font-black text-gray-800 text-lg leading-none">{{ getEmpleadoNombre(reg.idEmpleado) }}</span>
+                      <span class="font-black text-gray-800 text-lg leading-none">{{ getPersonaNombre(reg.idpersona ?? reg.idEmpleado) }}</span>
                       <span v-if="reg.observacion" class="text-[10px] text-gray-400 italic mt-1 font-bold">Obs: {{ reg.observacion }}</span>
                     </div>
                   </div>
@@ -470,15 +470,15 @@
       </div>
     </Transition>
 
-    <!-- Modal: Nueva Persona / Revendedor -->
+    <!-- Modal: Nueva Persona -->
     <Transition name="fade-backdrop">
       <div v-if="showNuevaPersonaModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[500] flex items-center justify-center p-4">
         <div class="bg-white rounded-[3rem] w-full max-w-xl overflow-hidden shadow-2xl animate-scale-in">
           <div class="bg-linear-to-r from-orange-600 to-red-700 p-8 text-white relative">
             <div class="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl"></div>
-            <h3 class="text-2xl font-bold tracking-tight relative z-10">Nuevo Revendedor</h3>
+            <h3 class="text-2xl font-bold tracking-tight relative z-10">Nueva Persona</h3>
             <p class="text-orange-100 text-sm font-medium mt-1 relative z-10">
-              Registra una nueva persona como Vendedor Ambulante
+              Registra una nueva persona como Cliente Revendedor
             </p>
           </div>
 
@@ -611,7 +611,7 @@
               <button @click="guardarNuevaPersona" :disabled="!nuevaPersonaValida || guardandoNuevaPersona"
                 class="w-full py-4 bg-orange-600 text-white rounded-2xl font-bold text-sm uppercase tracking-widest shadow-xl hover:bg-orange-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2">
                 <Loader2 v-if="guardandoNuevaPersona" class="h-5 w-5 animate-spin" />
-                <template v-else><UserPlus class="h-5 w-5" /> REGISTRAR REVENDEDOR</template>
+                <template v-else><UserPlus class="h-5 w-5" /> REGISTRAR PERSONA</template>
               </button>
               <button @click="showNuevaPersonaModal = false" class="w-full py-4 bg-gray-100 text-gray-500 rounded-2xl font-semibold text-sm hover:bg-gray-200">
                 CANCELAR
@@ -652,10 +652,10 @@ import Paginado from '../../Modals/Paginado.vue';
 
 // Services
 import { ListarProductosOnSucursal } from '@/Server/Producto';
-import { getEmpleadosVendedores, registrarEmpleado, listarCargo } from '@/Server/Empleado';
+
 import { listarCategorias, ObtenerSubCategorias } from '@/Server/Categoria';
 import { registrarcontrolRevendedor } from '@/Server/ControlRevendedor';
-import { RegistrarPersona } from '@/Server/persona';
+import { RegistrarPersona, listarTodasPersonas } from '@/Server/persona';
 import { listarComplemento, listarDocumento, listarEmail, listarNumero } from '@/Server/Complemento';
 import { SubirFoto, listarBarrios } from '@/Server/api';
 import { SucursalUsuario } from '@/Server/Usuario';
@@ -670,7 +670,7 @@ const emit = defineEmits(['cancel', 'saved']);
 // State
 const submitting = ref(false);
 const loadingItems = ref(false);
-const empleados = ref([]);
+const personas = ref([]);
 const productos = ref([]);
 const categorias = ref([]);
 const subcategorias = ref([]);
@@ -678,19 +678,18 @@ const notification = ref(null);
 
 // Batch Flow State
 const idSucursalGeneral = ref('');
-const loteRegistros = ref([]); // Array of objects {idEmpleado, detalles, observacion}
+const loteRegistros = ref([]); // Array of objects {idpersona, idEmpleado, detalles, observacion}
 const fechaRegistro = ref(new Date().toLocaleDateString('en-CA'));
 const horaRegistro = ref(new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }));
 
 // Current Editor State
-const currentEmpleadoId = ref('');
+const currentPersonaId = ref('');
 const currentDetalles = ref([]);
 const currentObservacion = ref('');
 
 // Nueva Persona Modal State
 const showNuevaPersonaModal = ref(false);
 const guardandoNuevaPersona = ref(false);
-const cargos = ref([]);
 const docsRegistrados = ref([]);
 const emailsRegistrados = ref([]);
 const numerosRegistrados = ref([]);
@@ -858,7 +857,7 @@ const guardarNuevaPersona = async () => {
       IdBarrio: nuevaPersona.barrio?.idbarrio ?? null,
       Direccion: nuevaPersona.direccion.trim(),
       Referencia: nuevaPersona.referencia.trim(),
-      Tipo: 'REVENDEDOR'
+      Tipo: 'CLIENTE_REVENDEDOR'
     };
 
     const respPersona = await RegistrarPersona(personaPayload);
@@ -866,42 +865,20 @@ const guardarNuevaPersona = async () => {
 
     if (!idPersona) throw new Error('No se pudo obtener el ID de la persona creada');
 
-    const cargoVendedor = cargos.value.find(c =>
-      c.nombre?.toUpperCase() === 'VENDEDOR AMBULANTE'
-    );
-    const cargosAsignar = cargoVendedor ? [cargoVendedor.idcargo] : [];
-
-    await registrarEmpleado({
-      IdPersona: idPersona,
-      FechaIngreso: new Date().toISOString().substring(0, 10),
-      Salario: 0,
-      IdSucursal: idSucursalGeneral.value || null,
-      Cargos: cargosAsignar
-    });
-
     showNuevaPersonaModal.value = false;
-    showNotification('Revendedor registrado correctamente', 'success');
-    await cargarRevendedores();
+    showNotification('Persona registrada correctamente', 'success');
+    await cargarPersonas();
 
-    if (empleadosDisponibles.value.length > 0) {
-      const ids = empleadosDisponibles.value.map(e => e.idempleado);
-      const nuevo = empleados.value.find(e => !ids.includes(e.idempleado)) || empleadosDisponibles.value[empleadosDisponibles.value.length - 1];
-      currentEmpleadoId.value = nuevo.idempleado;
+    if (personasDisponibles.value.length > 0) {
+      const ids = personasDisponibles.value.map(p => p.idpersona ?? p.idempleado ?? p.empleado?.idempleado);
+      const nuevo = personas.value.find(p => !ids.includes(p.idpersona ?? p.idempleado ?? p.empleado?.idempleado)) || personasDisponibles.value[personasDisponibles.value.length - 1];
+      currentPersonaId.value = nuevo.idpersona ?? nuevo.idempleado ?? nuevo.empleado?.idempleado;
     }
   } catch (error) {
     console.error(error);
-    showNotification('Error al registrar el revendedor', 'error');
+    showNotification('Error al registrar la persona', 'error');
   } finally {
     guardandoNuevaPersona.value = false;
-  }
-};
-
-const cargarCargos = async () => {
-  try {
-    const res = await listarCargo();
-    cargos.value = res?.result || res?.data || res || [];
-  } catch (error) {
-    console.error('Error al cargar cargos:', error);
   }
 };
 
@@ -935,13 +912,13 @@ const paginacionProd = reactive({ paginaActual: 1, totalPaginas: 1, total: 0, li
 let debounceTimer = null;
 
 // Computed
-const currentEmpleadoNombre = computed(() => {
-  const e = empleados.value.find(emp => emp.idempleado === currentEmpleadoId.value);
-  return e ? `${e.nombre} ${e.apellidopaterno}` : '...';
+const currentPersonaNombre = computed(() => {
+  const p = personas.value.find(per => (per.idpersona ?? per.idempleado ?? per.empleado?.idempleado) === currentPersonaId.value);
+  return p ? `${p.nombre ?? p.Nombre} ${p.apellidopaterno ?? p.ApellidoPaterno}` : '...';
 });
 
 const isCurrentValid = computed(() => {
-  return currentEmpleadoId.value && currentDetalles.value.length > 0;
+  return currentPersonaId.value && currentDetalles.value.length > 0;
 });
 
 const totalLote = computed(() => {
@@ -952,18 +929,25 @@ const isFormValid = computed(() => {
   return idSucursalGeneral.value && loteRegistros.value.length > 0;
 });
 
-const empleadosDisponibles = computed(() => {
-  const idsInBatch = loteRegistros.value.map(r => r.idEmpleado);
-  return empleados.value.filter(e => !idsInBatch.includes(e.idempleado));
+const personasDisponibles = computed(() => {
+  return personas.value.filter(p => {
+    const pid = p.idpersona ?? p.IdPersona;
+    const eid = p.idempleado ?? p.empleado?.idempleado;
+    return !loteRegistros.value.some(r => r.idpersona === pid || (eid && r.idEmpleado === eid));
+  });
 });
 
-const queryRevendedor = ref('');
-const filteredRevendedores = computed(() => {
-  if (!queryRevendedor.value) return empleadosDisponibles.value;
-  const q = queryRevendedor.value.toLowerCase();
-  return empleadosDisponibles.value.filter(e =>
-    `${e.nombre} ${e.apellidopaterno} ${e.apellidomaterno || ''}`.toLowerCase().includes(q)
+const queryPersona = ref('');
+const filteredPersonas = computed(() => {
+  if (!queryPersona.value) return personasDisponibles.value;
+  const q = queryPersona.value.toLowerCase();
+  return personasDisponibles.value.filter(p =>
+    `${p.nombre ?? p.Nombre} ${p.apellidopaterno ?? p.ApellidoPaterno} ${(p.apellidomaterno ?? p.ApellidoMaterno) || ''}`.toLowerCase().includes(q)
   );
+});
+
+const selectedPersona = computed(() => {
+  return personas.value.find(p => (p.idpersona ?? p.IdPersona ?? p.idempleado ?? p.empleado?.idempleado) === currentPersonaId.value);
 });
 
 // Actions
@@ -1029,16 +1013,20 @@ const calcDetalleNeto = (d) => calcDetalleFinanzas(d).neto;
 
 const calcTotalReg = (reg) => calcRowTotals(reg).neto;
 
-const getEmpleadoNombre = (id) => {
-  const emp = empleados.value.find(e => e.idempleado === id);
-  return emp ? `${emp.nombre} ${emp.apellidopaterno}` : '...';
+const getPersonaNombre = (id) => {
+  const p = personas.value.find(per => (per.idpersona ?? per.idempleado ?? per.empleado?.idempleado) === id);
+  return p ? `${p.nombre ?? p.Nombre} ${p.apellidopaterno ?? p.ApellidoPaterno}` : '...';
 };
 
-const cargarRevendedores = async () => {
+const cargarPersonas = async () => {
   try {
-    const res = await getEmpleadosVendedores();
-    const data = res.result || res || [];
-    empleados.value = Array.isArray(data) ? data : [];
+    const res = await listarTodasPersonas();
+    const lista = Array.isArray(res) ? res : (res?.data ?? res?.result ?? res ?? []);
+    personas.value = Array.isArray(lista) ? lista.map(p => ({
+      ...p,
+      idpersona: p.idpersona,
+      idempleado: p.empleado?.idempleado ?? null
+    })) : [];
   } catch (error) { console.error(error); }
 };
 
@@ -1068,8 +1056,8 @@ const onSucursalChange = () => {
 };
 
 const agregarProductoACurrent = ({ producto, medida }) => {
-  if (!currentEmpleadoId.value) {
-    showNotification("Selecciona un revendedor para añadir productos", "error");
+  if (!currentPersonaId.value) {
+    showNotification("Selecciona una persona para añadir productos", "error");
     return;
   }
 
@@ -1134,9 +1122,12 @@ const saveAjuste = () => {
 
 const stageRegistro = () => {
   if (!isCurrentValid.value) return;
+
+  const personaSel = selectedPersona.value;
   
   loteRegistros.value.push({
-    idEmpleado: currentEmpleadoId.value,
+    idpersona: personaSel?.idpersona ?? personaSel?.IdPersona ?? null,
+    idEmpleado: personaSel?.idempleado ?? personaSel?.empleado?.idempleado ?? null,
     idSucursal: idSucursalGeneral.value,
     fecha: fechaRegistro.value,
     hora: horaRegistro.value,
@@ -1145,7 +1136,7 @@ const stageRegistro = () => {
   });
 
   // Clear for next unitary entry without closing component
-  currentEmpleadoId.value = '';
+  currentPersonaId.value = '';
   currentDetalles.value = [];
   currentObservacion.value = '';
   showNotification("Registro unitario añadido al lote", "success");
@@ -1160,6 +1151,7 @@ const handleSubmit = async () => {
   submitting.value = true;
   try {
     const payload = loteRegistros.value.map(r => ({
+      idpersona: r.idpersona,
       idEmpleado: r.idEmpleado,
       idSucursal: idSucursalGeneral.value,
       fecha: r.fecha || fechaRegistro.value,
@@ -1226,8 +1218,7 @@ onMounted(async () => {
   try {
     const [cats] = await Promise.all([
       listarCategorias(),
-      cargarRevendedores(),
-      cargarCargos(),
+      cargarPersonas(),
       cargarValidaciones()
     ]);
     categorias.value = cats.result|| cats.data || cats || [];

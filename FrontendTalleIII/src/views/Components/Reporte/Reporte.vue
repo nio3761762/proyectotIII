@@ -14,6 +14,7 @@
       :active-tab="activeTab"
       :sucursales="sucursales"
       :empleados="empleados"
+      :revendedores="revendedores"
       :usuario-vendedor="usuarioVendedor"  
       :clientes="clientes"
       :metodo="metodo"
@@ -131,6 +132,7 @@ import * as XLSX from 'xlsx'
 import { listarPago } from "@/Server/Pago"
 import { listarTipopedido } from "@/Server/Pedido"
 import { ReporteComisionDetallado,ReporteComisionConsolidado , ReproteFinanciero, ReporteProduccion, ReporteProduccionConsolidado, ReporteKardex, ReporteInventario, ReportePresioHistorico, ReporteCompraConsolidada, ReporteVenta, ReporteVentaConsolidada, ReporteTransferencia, ReporteTransferenciaConsolidada, ReportePedido, ReportePedidoConsolidado, ReporteGastosGenerales, ReporteSemanalGeneral } from "@/Server/Reporte"
+import { getRevendedores } from "@/Server/ControlRevendedor"
 import { listarCategorias, ObtenerSubCategorias } from '@/Server/Categoria'
 import { getEmpleadosVendedores } from "@/Server/Empleado.js"
 import { listarUsuarioVendedor } from "@/Server/Usuario"
@@ -500,14 +502,16 @@ const pedidosConsolidado = ref({});
 const transferencias = ref({});
 const transferenciasConsolidada = ref({});
 const clientes = ref([]);
+const revendedores = ref([]);
 
 const cargarSucursales = async () => { 
   try { 
-    const [respSuc, respEmp] = await Promise.all([Listsucursal(), getEmpleadosVendedores()]);
+    const [respSuc, respEmp, respRev] = await Promise.all([Listsucursal(), getEmpleadosVendedores(), getRevendedores()]);
     sucursales.value = respSuc.result || respSuc || []; 
     empleados.value = respEmp.result || respEmp || [];
+    revendedores.value = respRev.result || respRev || [];
   } catch (error) { 
-    console.error('Error al cargar sucursales o empleados:', error); 
+    console.error('Error al cargar sucursales, empleados o revendedores:', error); 
   } 
 };
 const cargarventas = async () => { 

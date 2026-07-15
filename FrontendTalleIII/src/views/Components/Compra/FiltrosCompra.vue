@@ -94,22 +94,14 @@
         </div>
       </div>
 
-      <!-- Nueva Compra Button -->
-      <button 
-        @click="$emit('add')" 
-        type="button"
-        class="bg-gradient-to-r from-orange-500 to-red-600 hover:from-red-600 hover:to-orange-500 text-white px-6 py-3 rounded-2xl shadow-lg hover:shadow-orange-200 transition-all duration-300 flex items-center gap-2 group font-bold transform hover:scale-[1.02] active:scale-95 ml-auto"
-      >
-        <Plus class="h-5 w-5 group-hover:rotate-90 transition-transform duration-300" />
-        <span class="hidden sm:inline">Nueva Compra</span>
-      </button>
+
     </div>
   </div>
 </template>
 
 <script setup>
 import { reactive, ref, onMounted } from 'vue';
-import { Search, Plus, Calendar, LayoutGrid, List } from 'lucide-vue-next';
+import { Search, Calendar, LayoutGrid, List } from 'lucide-vue-next';
 import { getLocalDate } from '../../../utils/formatters';
 
 const props = defineProps({
@@ -117,7 +109,7 @@ const props = defineProps({
   viewMode: { type: String, default: 'cards' }
 });
 
-const emit = defineEmits(['filter', 'add', 'update:viewMode']);
+const emit = defineEmits(['filter', 'update:viewMode']);
 
 const datePicker = ref(null);
 

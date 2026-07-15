@@ -1,6 +1,5 @@
 
-import { BaseEntity, Check, OneToMany, Column, Entity, PrimaryColumn, OneToOne, ManyToOne, JoinColumn } from "typeorm";
-import bcrypt from "bcryptjs";
+import { BaseEntity, OneToMany, Column, Entity, PrimaryColumn, ManyToOne, JoinColumn } from "typeorm";
 import { Comprobante } from "./Comprobante";
 import { Proveedor } from "./Proveedor";
 import { Detallecompra } from "./DetalleCompra";
@@ -24,6 +23,9 @@ export class Compra extends BaseEntity {
 
     @Column({ name: "horacompra", type: "time", nullable:true })
     HoraCompra: string;
+
+    @Column({ name: "lugarcompra", type: "varchar", length: 255, nullable: true })
+    LugarCompra: string;
 
     @ManyToOne(() => Comprobante, (comprobante) => comprobante.Compra, { nullable: true })
     @JoinColumn({ name: "idcomprobante" })

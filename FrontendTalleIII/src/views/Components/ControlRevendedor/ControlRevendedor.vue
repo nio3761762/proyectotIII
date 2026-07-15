@@ -20,7 +20,7 @@
             </div>
           </div>
           <h3 class="text-lg font-bold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent mb-1">
-            Cargando Panel de Revendedores...
+            Cargando Panel de Personas...
           </h3>
         </div>
       </div>
@@ -38,7 +38,7 @@
                 </div>
                 <div>
                   <h1 class="text-2xl md:text-3xl font-bold bg-linear-to-r from-orange-600 via-red-600 to-orange-700 bg-clip-text text-transparent">
-                    Control de Revendedores
+                    Control de Personas
                   </h1>
                   <p class="text-gray-600 text-sm">Gestiona entregas y liquidaciones</p>
                 </div>

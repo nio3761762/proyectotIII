@@ -10,36 +10,49 @@
       <!-- Provider Header -->
       <div class="flex items-start justify-between mb-6">
         <div class="flex items-center gap-4">
-          <!-- Imagen del Proveedor -->
-          <div class="relative group/img">
-            <div class="absolute -inset-1 bg-gradient-to-r from-orange-400 to-red-500 rounded-2xl blur opacity-20 group-hover/img:opacity-40 transition duration-300"></div>
-            <div class="relative w-16 h-16 rounded-2xl overflow-hidden border-2 border-white shadow-md bg-gray-50 flex items-center justify-center">
-              <img 
-                v-if="compra.proveedor.persona.imagen" 
-                :src="compra.proveedor.persona.imagen" 
-                class="w-full h-full object-cover transition-transform duration-500 group-hover/img:scale-110"
-                alt="Proveedor"
-              />
-              <User v-else class="w-8 h-8 text-gray-300" />
+          <template v-if="compra.proveedor">
+            <!-- Imagen del Proveedor -->
+            <div class="relative group/img">
+              <div class="absolute -inset-1 bg-gradient-to-r from-orange-400 to-red-500 rounded-2xl blur opacity-20 group-hover/img:opacity-40 transition duration-300"></div>
+              <div class="relative w-16 h-16 rounded-2xl overflow-hidden border-2 border-white shadow-md bg-gray-50 flex items-center justify-center">
+                <img 
+                  v-if="compra.proveedor.persona?.imagen" 
+                  :src="compra.proveedor.persona.imagen" 
+                  class="w-full h-full object-cover transition-transform duration-500 group-hover/img:scale-110"
+                  alt="Proveedor"
+                />
+                <User v-else class="w-8 h-8 text-gray-300" />
+              </div>
             </div>
-          </div>
 
-          <div class="flex flex-col gap-0.5">
-            <!-- Nombre y Apellido -->
-            <h3 class="text-base font-bold text-gray-800 leading-tight">
-              {{ compra.proveedor.persona.nombre }} {{ compra.proveedor.persona.apellidopaterno }}
-            </h3>
-            <!-- Razón Social -->
-            <p class="text-sm text-orange-600 font-bold">
-              {{ compra.proveedor.razonsocial }}
-            </p>
-            <!-- Tipo de Proveedor -->
-            <div class="mt-1">
-              <span class="text-[10px] bg-orange-100 text-orange-700 px-2 py-0.5 rounded-lg font-black border border-orange-200 uppercase tracking-wider">
-                {{ compra.proveedor.tipoproveedor?.nombre || 'General' }}
-              </span>
+            <div class="flex flex-col gap-0.5">
+              <h3 class="text-base font-bold text-gray-800 leading-tight">
+                {{ compra.proveedor.persona?.nombre || '' }} {{ compra.proveedor.persona?.apellidopaterno || '' }}
+              </h3>
+              <p class="text-sm text-orange-600 font-bold">
+                {{ compra.proveedor.razonsocial }}
+              </p>
+              <div class="mt-1">
+                <span class="text-[10px] bg-orange-100 text-orange-700 px-2 py-0.5 rounded-lg font-black border border-orange-200 uppercase tracking-wider">
+                  {{ compra.proveedor.tipoproveedor?.nombre || 'General' }}
+                </span>
+              </div>
             </div>
-          </div>
+          </template>
+          <template v-else>
+            <div class="relative group/img">
+              <div class="relative w-16 h-16 rounded-2xl overflow-hidden border-2 border-white shadow-md bg-gray-100 flex items-center justify-center">
+                <Building class="w-8 h-8 text-gray-400" />
+              </div>
+            </div>
+            <div class="flex flex-col gap-1">
+              <h3 class="text-base font-bold text-gray-800 leading-tight">Sin proveedor</h3>
+              <p v-if="compra.lugarcompra" class="text-sm text-gray-500 font-medium italic">
+                {{ compra.lugarcompra }}
+              </p>
+              <p v-else class="text-sm text-gray-400">Compra directa</p>
+            </div>
+          </template>
         </div>
 
         <!-- Status Badge -->
@@ -143,7 +156,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue';
-import { ChevronDown, X, User, Tag, Calendar, Package, Info, Clock, Pencil } from 'lucide-vue-next';
+import { ChevronDown, X, User, Tag, Calendar, Package, Info, Clock, Pencil, Building } from 'lucide-vue-next';
 
 const props = defineProps({
   compra: { type: Object, required: true }

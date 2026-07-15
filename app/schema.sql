@@ -77,9 +77,12 @@ CREATE TABLE Compra (
     nrocomprobante VARCHAR(100),
     fechacompra DATE,
     horacompra TIME,
+    preciototal NUMERIC(10, 2) DEFAULT 0,
+    descripcion TEXT,
+    lugarcompra VARCHAR(255),
     idcomprobante VARCHAR(50),
     idproveedor VARCHAR(50),
-    idestado INTEGER,
+    idestado INTEGER DEFAULT 1,
     FOREIGN KEY (idcomprobante) REFERENCES Comprobante(idcomprobante),
     FOREIGN KEY (idproveedor) REFERENCES Proveedor(idproveedor),
     FOREIGN KEY (idestado) REFERENCES Estado(idestado)

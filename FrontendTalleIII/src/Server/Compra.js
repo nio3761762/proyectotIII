@@ -33,7 +33,8 @@ export const registrarCompra = async (compraData) => {
           Descripcion: compraData.Descripcion,
           Comprobante: compraData.Comprobante,
           Fecha: compraData.Fecha,
-          PrecioTotal: compraData.PrecioTotal
+          PrecioTotal: compraData.PrecioTotal,
+          LugarCompra: compraData.LugarCompra
         }, 
         detalles: compraData.detalles,
         Destinos: compraData.destinos

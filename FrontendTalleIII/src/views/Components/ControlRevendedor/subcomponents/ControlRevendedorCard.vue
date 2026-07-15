@@ -8,7 +8,7 @@
       <div class="flex items-start justify-between mb-4">
         <div class="flex items-center gap-3">
           <div class="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center overflow-hidden shadow-lg text-orange-600">
-            <img v-if="control.Empleado?.Imagen" :src="control.Empleado.Imagen" class="w-full h-full object-cover" />
+            <img v-if="control.Persona?.Imagen" :src="control.Persona.Imagen" class="w-full h-full object-cover" />
             <UserIcon v-else class="h-6 w-6" />
           </div>
           <div>
@@ -16,7 +16,7 @@
               Control #{{ control.idrevendedorcontrol }}
             </h3>
             <p class="text-gray-600 text-xs font-bold uppercase tracking-wider">
-              {{ control.Empleado?.Nombre }} {{ control.Empleado?.ApellidoPaterno }}
+              {{ control.Persona?.Nombre }} {{ control.Persona?.ApellidoPaterno }}
             </p>
           </div>
         </div> 

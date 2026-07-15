@@ -83,8 +83,8 @@
           <option v-for="sucursal in sucursales" :key="sucursal.idsucursal" :value="sucursal.idsucursal">{{ sucursal.nombre }}</option>
         </select>
         <select v-model="filtros.idempleado" class="w-full pl-4 pr-4 py-3 border-0 bg-gray-50/80 rounded-2xl focus:bg-white focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500/30 transition-all duration-300 text-gray-700 placeholder:text-gray-400 outline-none">
-          <option value="">Todos los empleados</option>
-          <option v-for="emp in empleados" :key="emp.idempleado" :value="emp.idempleado">{{ emp.nombre + ' ' + (emp.apellidopaterno || '') }}</option>
+          <option value="">Todos los revendedores</option>
+          <option v-for="rev in revendedores" :key="rev.idrevendedor" :value="rev.idrevendedor">{{ rev.nombre + ' ' + (rev.apellidopaterno || '') }} <template v-if="rev.tipo === 'PERSONA'">(Persona)</template></option>
         </select>
       </template>
 
@@ -176,6 +176,10 @@ const props = defineProps({
     required: true
   },
   empleados: {
+    type: Array,
+    default: () => []
+  },
+  revendedores: {
     type: Array,
     default: () => []
   },

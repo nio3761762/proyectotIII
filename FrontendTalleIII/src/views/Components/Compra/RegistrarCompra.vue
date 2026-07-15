@@ -30,57 +30,19 @@
             
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div class="space-y-1">
-                <label class="text-xs font-semibold text-gray-600  ml-1 flex items-center gap-1">
-                  Proveedor <span class="text-red-500">*</span>
+                <label class="text-xs font-semibold text-gray-600 ml-1 flex items-center gap-1">
+                  Proveedor <span class="text-gray-400 text-[10px]">(opcional)</span>
                 </label>
                 <select 
-                  v-model="form.IdProveedor" 
-                  @change="errors.IdProveedor = validateField('IdProveedor', form.IdProveedor)"
-                  @blur="errors.IdProveedor = validateField('IdProveedor', form.IdProveedor)"
-                  :class="[
-                    'w-full px-4 py-3 text-gray-700 bg-white border rounded-2xl focus:ring-2 focus:ring-orange-500 outline-none transition-all shadow-sm font-semibold',
-                    errors.IdProveedor ? 'border-red-500 bg-red-50/30' : 'border-orange-200'
-                  ]"
-                  required
+                  v-model="form.IdProveedor"
+                  class="w-full px-4 py-3 text-gray-700 bg-white border border-orange-200 rounded-2xl focus:ring-2 focus:ring-orange-500 outline-none transition-all shadow-sm font-semibold"
                 >
-                  <option value="" disabled>Seleccione Proveedor</option>
+                  <option value="">Sin proveedor</option>
                   <option v-for="p in proveedores" :key="p.idproveedor" :value="p.idproveedor">
                     {{ p.razonsocial }} ({{ p.nombre }})
                   </option>
                 </select>
-                <p v-if="errors.IdProveedor" class="text-red-500 text-xs italic mt-1">{{ errors.IdProveedor }}</p>
               </div>
-
-              <div class="space-y-1">
-                <label class="text-xs font-semibold text-gray-600 ml-1 flex items-center gap-1">
-                  Comprobante <span class="text-gray-400 text-[10px]">(opcional)</span>
-                </label>
-                <select 
-                  v-model="form.Comprobante" 
-                  :class="[
-                    'w-full px-4 py-3 text-gray-700 bg-white border rounded-2xl focus:ring-2 focus:ring-orange-500 outline-none transition-all shadow-sm font-semibold',
-                    'border-orange-200'
-                  ]"
-                >
-                  <option value="" disabled>Tipo Comprobante</option>
-                  <option value="">Sin comprobante</option>
-                  <option v-for="c in comprobantes" :key="c.idcomprobante" :value="c.idcomprobante">
-                    {{ c.nombre }}
-                  </option>
-                </select>
-              </div>
-            </div>
-
-            <div class="space-y-1">
-              <label class="text-xs font-semibold text-gray-600 ml-1">
-                Nro. Comprobante <span class="text-gray-400 text-[10px]">(opcional)</span>
-              </label>
-              <input 
-                v-model="form.Numero" 
-                type="text" 
-                placeholder="000-000-000000"
-                class="w-full px-4 py-3 bg-white border border-orange-200 rounded-2xl focus:ring-2 focus:ring-orange-500 outline-none transition-all shadow-sm font-semibold"
-              />
             </div>
 
             <div class="space-y-1">
@@ -94,16 +56,28 @@
               />
             </div>
 
-            <div class="space-y-1">
-              <label class="text-xs font-semibold text-gray-600  ml-1">Descripción (Opcional)</label>
-              <textarea 
-                v-model="form.Descripcion" 
-                rows="2"
-                class="w-full px-4 py-3 bg-white border border-orange-200 rounded-2xl focus:ring-2 focus:ring-orange-500 outline-none transition-all shadow-sm resize-none"
-                placeholder="Notas adicionales sobre la compra..."
-              ></textarea>
+              <div class="space-y-1">
+                <label class="text-xs font-semibold text-gray-600  ml-1">Descripción (Opcional)</label>
+                <textarea 
+                  v-model="form.Descripcion" 
+                  rows="2"
+                  class="w-full px-4 py-3 bg-white border border-orange-200 rounded-2xl focus:ring-2 focus:ring-orange-500 outline-none transition-all shadow-sm resize-none"
+                  placeholder="Notas adicionales sobre la compra..."
+                ></textarea>
+              </div>
+
+              <div class="space-y-1">
+                <label class="text-xs font-semibold text-gray-600 ml-1 flex items-center gap-1">
+                  Lugar de Compra <span class="text-gray-400 text-[10px]">(opcional)</span>
+                </label>
+                <input
+                  v-model="form.LugarCompra"
+                  type="text"
+                  placeholder="Ej: Mercado Central, Distribuidora XYZ, etc."
+                  class="w-full px-4 py-3 bg-white border border-orange-200 rounded-2xl focus:ring-2 focus:ring-orange-500 outline-none transition-all shadow-sm font-semibold"
+                />
+              </div>
             </div>
-          </div>
 
           <!-- Selección de Productos -->
           <div class="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-6">
@@ -372,8 +346,6 @@
             <tr class="bg-gradient-to-r from-orange-50 to-red-50">
               <th class="text-left p-4 font-black text-gray-700 text-xs uppercase tracking-widest">#</th>
               <th class="text-left p-4 font-black text-gray-700 text-xs uppercase tracking-widest">Proveedor</th>
-              <th class="text-left p-4 font-black text-gray-700 text-xs uppercase tracking-widest">Comprobante</th>
-              <th class="text-left p-4 font-black text-gray-700 text-xs uppercase tracking-widest">Nro. Comprobante</th>
               <th class="text-left p-4 font-black text-gray-700 text-xs uppercase tracking-widest">Fecha</th>
               <th class="text-right p-4 font-black text-gray-700 text-xs uppercase tracking-widest">Total</th>
               <th class="text-left p-4 font-black text-gray-700 text-xs uppercase tracking-widest">Insumos</th>
@@ -384,8 +356,6 @@
             <tr v-for="(item, idx) in registeredCompras" :key="idx" class="border-t border-gray-50 hover:bg-gray-50/50 transition-colors">
               <td class="p-4 font-bold text-gray-400">{{ idx + 1 }}</td>
               <td class="p-4 font-semibold text-gray-800">{{ item.proveedorNombre }}</td>
-              <td class="p-4 text-gray-600">{{ item.comprobanteNombre || '—' }}</td>
-              <td class="p-4 text-gray-600">{{ item.Numero || '—' }}</td>
               <td class="p-4 text-gray-600">{{ item.FechaCompra }}</td>
               <td class="p-4 font-black text-orange-600 text-right">{{ item.PrecioTotal.toFixed(2) }} Bs.</td>
               <td class="p-4 text-gray-500 text-xs">{{ item.detallesCount }} insumos</td>
@@ -419,7 +389,6 @@ import { ref, reactive, onMounted, computed, watch } from 'vue';
 import { Truck, X, Plus, Trash2, Info, Package, ClipboardList, PackageOpen, Building, CheckCircle, Calendar, ChevronDown, Check, Save } from 'lucide-vue-next';
 import { listarProveedores } from '@/Server/Proveedor';
 import { ListInsumo, listarInsumoConMedidas } from '@/Server/Insumo';
-import { Comprobante } from '@/Server/comprobante';
 import { Listsucursal } from '@/Server/Sucural';
 import { registrarCompra, updateCompra } from '@/Server/Compra';
 import { getLocalDate } from '@/utils/formatters';
@@ -439,24 +408,16 @@ const showInsumoDropdown = ref(false);
 // Data Sources
 const proveedores = ref([]);
 const insumosList = ref([]);
-const comprobantes = ref([]);
 const sucursales = ref([]);
 
 // Form State
 const isSubmitting = ref(false);
 const submitted = ref(false);
-const errors = reactive({
-  IdProveedor: '',
-  Comprobante: '',
-  Numero: '',
-  detalles: ''
-});
 
 const form = reactive({
   IdProveedor: '',
-  Comprobante: '',
-  Numero: '',
   Descripcion: '',
+  LugarCompra: '',
   FechaCompra: getLocalDate()
 });
 
@@ -491,14 +452,6 @@ const selectedMedida = computed(() => {
   return medidasList.value.find(m => m.idinsumomedida === selectedMedidaId.value);
 });
 
-// Validations
-const validateField = (name, value) => {
-  if (!value) {
-    if (name === 'IdProveedor') return 'El proveedor es obligatorio';
-  }
-  return '';
-};
-
 const isItemFormValid = computed(() => {
   return selectedInsumoId.value && 
          selectedMedidaId.value && 
@@ -507,22 +460,20 @@ const isItemFormValid = computed(() => {
 });
 
 const isMainFormValid = computed(() => {
-  const vProveedor = !!form.IdProveedor;
   const vDetalles = detalles.value.length > 0;
   const vDistribucion = !hasUndistributedItems.value;
   const vFecha = !!form.FechaCompra;
 
-  return vProveedor && vDetalles && vDistribucion && vFecha;
+  return vDetalles && vDistribucion && vFecha;
 });
 
 // Pre-fill form when editing
 watch(() => props.compraToEdit, (compra) => {
   if (!compra) return;
   form.IdProveedor = compra.proveedor?.idproveedor || '';
-  form.Comprobante = compra.comprobante?.idcomprobante || '';
-  form.Numero = compra.nrocomprobante || '';
   form.FechaCompra = compra.fechacompra ? compra.fechacompra.split('T')[0] : getLocalDate();
   form.Descripcion = compra.descripcion || '';
+  form.LugarCompra = compra.lugarcompra || '';
 
   // Rebuild detalles
   detalles.value = (compra.detalles || []).map(d => {
@@ -555,15 +506,13 @@ watch(() => props.compraToEdit, (compra) => {
 // Load Initial Data
 onMounted(async () => {
   try { 
-    const [p, i, c, s] = await Promise.all([
+    const [p, i, s] = await Promise.all([
       listarProveedores(),
       ListInsumo(),
-      Comprobante(),
       Listsucursal()
     ]);
     proveedores.value = p.result || p;
     insumosList.value = i.result || i;
-    comprobantes.value = c.result || c;
     sucursales.value = s;
   } catch (error) {
     console.error("Error loading registry data:", error);
@@ -735,9 +684,8 @@ const handleSubmit = async () => {
 
   const ComprasPayload = {
     IdProveedor: form.IdProveedor,
-    Numero: form.Numero,
     Descripcion: form.Descripcion,
-    Comprobante: form.Comprobante,
+    LugarCompra: form.LugarCompra,
     Fecha: form.FechaCompra,
     PrecioTotal: totalCompra.value
   };
@@ -766,19 +714,14 @@ const handleSubmit = async () => {
   }
 
   const proveedor = proveedores.value.find(p => p.idproveedor === form.IdProveedor);
-  const comprobante = form.Comprobante
-    ? comprobantes.value.find(c => c.idcomprobante === form.Comprobante)
-    : null;
 
   registeredCompras.value.push({
     IdProveedor: form.IdProveedor,
-    Comprobante: form.Comprobante,
-    Numero: form.Numero,
     Descripcion: form.Descripcion,
+    LugarCompra: form.LugarCompra,
     FechaCompra: form.FechaCompra,
     PrecioTotal: totalCompra.value,
     proveedorNombre: proveedor ? `${proveedor.razonsocial} (${proveedor.nombre})` : 'S/N',
-    comprobanteNombre: comprobante ? comprobante.nombre : null,
     detallesCount: detalles.value.length,
     detalles: detallesApi,
     destinos: destinosApi
@@ -788,9 +731,8 @@ const handleSubmit = async () => {
 
   // Reset form
   form.IdProveedor = '';
-  form.Comprobante = '';
-  form.Numero = '';
   form.Descripcion = '';
+  form.LugarCompra = '';
   form.FechaCompra = getLocalDate();
   detalles.value = [];
   distForms.value = [];
@@ -813,9 +755,8 @@ const finalizeAll = async () => {
     for (const item of registeredCompras.value) {
       const payload = {
         IdProveedor: item.IdProveedor,
-        Numero: item.Numero,
         Descripcion: item.Descripcion,
-        Comprobante: item.Comprobante,
+        LugarCompra: item.LugarCompra,
         Fecha: item.FechaCompra,
         PrecioTotal: item.PrecioTotal,
         detalles: item.detalles,

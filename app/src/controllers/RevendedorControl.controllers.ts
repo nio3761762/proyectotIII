@@ -4,6 +4,7 @@ import { Revendedorcontrol } from "../entities/RevendedorControl ";
 import { Revendedorcontroldetalle } from "../entities/RevendedorControlDetalle ";
 import { Revendedorcontrolprecio } from "../entities/RevendedorControlPrecio";
 import { Empleado } from "../entities/Empleado";
+import { Persona } from "../entities/Persona";
 import { Sucursal } from "../entities/Sucursal";
 import { Productomedida } from "../entities/ProductoMedida";
 import { HttpError } from "../utils/error.handler";
@@ -31,13 +32,21 @@ export const registrarRevendedorControl = async (req: Request, res: Response) =>
     const resultados = [];
 
     for (const data of controles) {
-      const { idEmpleado, idSucursal, observacion, detalles } = data;
+      const { idEmpleado, idpersona, idSucursal, observacion, detalles } = data;
 
-      if (!idEmpleado || !idSucursal) {
-        throw new HttpError(400, "Empleado y Sucursal son requeridos para cada control.");
+      if (!idSucursal) {
+        throw new HttpError(400, "Sucursal es requerida para cada control.");
+      }
+      if (!idEmpleado && !idpersona) {
+        throw new HttpError(400, "Se requiere idEmpleado o idpersona para cada control.");
       }
 
-      // 1. Crear cabecera
+      let empleado: Empleado | null = null;
+      if (idEmpleado) {
+        empleado = await verifyEmpleado(idEmpleado);
+      }
+
+      // 2. Crear cabecera
       const nuevoIdControl = await generarIdSecuencial('RC');
       const control = new Revendedorcontrol();
       control.IdRevendedorControl = nuevoIdControl;
@@ -45,9 +54,12 @@ export const registrarRevendedorControl = async (req: Request, res: Response) =>
       control.Hora = data.hora || horaActual;
       control.Observacion = observacion;
       
-      const empleado = await verifyEmpleado(idEmpleado);
-  
       control.Empleado = empleado;
+      if (idpersona) {
+        const persona = await AppDataSource.manager.findOne(Persona, { where: { IdPersona: idpersona } as any });
+        if (!persona) throw new HttpError(404, `Persona con ID ${idpersona} no encontrada.`);
+        control.Persona = persona;
+      }
       const sucursal = await verifySucursal({SucursalId:idSucursal});
       
       control.Sucursal = sucursal;
@@ -147,7 +159,7 @@ export const getRevendedorControls = async (req: Request, res: Response) => {
         FROM revendedorcontrol rc
         WHERE rc.estado = 1
           AND ($1::date IS NULL OR rc.fecha = $1)
-          AND ($2::varchar IS NULL OR rc.idempleado = $2)
+          AND ($2::varchar IS NULL OR rc.idempleado = $2 OR rc.idpersona = $2)
           AND ($3::varchar IS NULL OR rc.idsucursal = $3)
       ),
       detalles_calc AS (
@@ -176,14 +188,15 @@ export const getRevendedorControls = async (req: Request, res: Response) => {
         rc.estado,
         COUNT(*) OVER() AS total,
 
-        -- EMPLEADO
+        -- PERSONA
         json_build_object(
+          'IdPersona', COALESCE(per.idpersona, per_dir.idpersona),
           'IdEmpleado', e.idempleado,
-          'Nombre', per.nombre,
-          'ApellidoPaterno', per.apellidopaterno,
-          'ApellidoMaterno', per.apellidomaterno,
-          'Imagen', per.imagen
-        ) AS "Empleado",
+          'Nombre', COALESCE(per.nombre, per_dir.nombre),
+          'ApellidoPaterno', COALESCE(per.apellidopaterno, per_dir.apellidopaterno),
+          'ApellidoMaterno', COALESCE(per.apellidomaterno, per_dir.apellidomaterno),
+          'Imagen', COALESCE(per.imagen, per_dir.imagen)
+        ) AS "Persona",
 
         -- SUCURSAL
         json_build_object(
@@ -232,6 +245,7 @@ export const getRevendedorControls = async (req: Request, res: Response) => {
       FROM filtered_rc rc
       LEFT JOIN empleado e ON e.idempleado = rc.idempleado
       LEFT JOIN persona per ON per.idpersona = e.idpersona
+      LEFT JOIN persona per_dir ON per_dir.idpersona = rc.idpersona
       LEFT JOIN sucursal s ON s.idsucursal = rc.idsucursal
       LEFT JOIN detalles_calc dc ON dc.idrevendedorcontrol = rc.idrevendedorcontrol
       LEFT JOIN productomedida pm ON pm.idproductomedida = dc.idproductomedida
@@ -239,7 +253,8 @@ export const getRevendedorControls = async (req: Request, res: Response) => {
       LEFT JOIN producto prod ON prod.idproducto = pm.idproducto
       GROUP BY 
         rc.idrevendedorcontrol, rc.fecha, rc.hora, rc.observacion, rc.estado,
-        e.idempleado, per.nombre, per.apellidopaterno, per.apellidomaterno, per.imagen,
+        e.idempleado, per.idpersona, per.nombre, per.apellidopaterno, per.apellidomaterno, per.imagen,
+        per_dir.idpersona, per_dir.nombre, per_dir.apellidopaterno, per_dir.apellidomaterno, per_dir.imagen,
         s.idsucursal, s.nombre
       ORDER BY rc.fecha DESC
       LIMIT $4 OFFSET $5;
@@ -424,5 +439,29 @@ export const actualizarControlCompleto = async (req: Request, res: Response) => 
     });
   } finally {
     await queryRunner.release();
+  }
+};
+
+export const getRevendedores = async (req: Request, res: Response) => {
+  try {
+    const result = await AppDataSource.query(`
+      SELECT DISTINCT ON (COALESCE(per_emp.idpersona, per_dir.idpersona))
+        COALESCE(e.idempleado, per_dir.idpersona) as idrevendedor,
+        COALESCE(per_emp.nombre, per_dir.nombre) as nombre,
+        COALESCE(per_emp.apellidopaterno, per_dir.apellidopaterno) as apellidopaterno,
+        COALESCE(per_emp.apellidomaterno, per_dir.apellidomaterno) as apellidomaterno,
+        CASE WHEN e.idempleado IS NOT NULL THEN 'EMPLEADO' ELSE 'PERSONA' END as tipo
+      FROM revendedorcontrol rc
+      LEFT JOIN empleado e ON rc.idempleado = e.idempleado
+      LEFT JOIN persona per_emp ON e.idpersona = per_emp.idpersona
+      LEFT JOIN persona per_dir ON rc.idpersona = per_dir.idpersona
+      WHERE rc.estado = 1
+        AND (per_emp.idpersona IS NOT NULL OR per_dir.idpersona IS NOT NULL)
+      ORDER BY COALESCE(per_emp.idpersona, per_dir.idpersona), e.idempleado DESC
+    `);
+    return res.json({ result });
+  } catch (error) {
+    console.error("Error al obtener revendedores:", error);
+    return res.status(500).json({ message: "Error al obtener revendedores." });
   }
 };

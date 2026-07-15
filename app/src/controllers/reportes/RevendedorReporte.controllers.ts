@@ -14,7 +14,8 @@ export const getReporteRevendedorConsolidado = async (req: Request, res: Respons
 
     let empleadoCond = "";
     if (idempleado && idempleado !== 'TODOS') {
-      empleadoCond = ` AND rc.idempleado = $${filterIdx++}`;
+      empleadoCond = ` AND (rc.idempleado = $${filterIdx} OR rc.idpersona = $${filterIdx})`;
+      filterIdx++;
       params.push(idempleado);
     }
 
@@ -46,6 +47,8 @@ export const getReporteRevendedorConsolidado = async (req: Request, res: Respons
           d.*,
           rc.fecha,
           rc.idempleado,
+          rc.idpersona,
+          COALESCE((SELECT e_sub.idpersona FROM empleado e_sub WHERE e_sub.idempleado = rc.idempleado), rc.idpersona) as persona_id,
           (d.cantidadentregada - d.cantidaddevuelta) as vendido_total,
           (
             ((d.cantidadentregada - d.cantidaddevuelta - COALESCE(pa.total_cantidad_ajustada, 0)) * d.precioventa) +
@@ -65,23 +68,24 @@ export const getReporteRevendedorConsolidado = async (req: Request, res: Respons
       ),
       por_producto AS (
         SELECT 
-          dc.idempleado,
-          per.nombre || ' ' || COALESCE(per.apellidopaterno, '') as empleado,
+          dc.persona_id,
+          COALESCE(per.nombre, per_dir.nombre) || ' ' || COALESCE(COALESCE(per.apellidopaterno, per_dir.apellidopaterno), '') as empleado,
           prod.idproducto,
           prod.nombre as producto,
           SUM(dc.vendido_total) as cantidad_total,
           SUM(dc.comision_total) as comision,
           SUM(dc.liquido_panaderia) as liquido_panaderia
         FROM detalles_calc dc
-        JOIN empleado e ON dc.idempleado = e.idempleado
-        JOIN persona per ON e.idpersona = per.idpersona
+        LEFT JOIN empleado e ON dc.idempleado = e.idempleado
+        LEFT JOIN persona per ON e.idpersona = per.idpersona
+        LEFT JOIN persona per_dir ON per_dir.idpersona = dc.idpersona
         JOIN productomedida pm ON dc.idproductomedida = pm.idproductomedida
         JOIN producto prod ON pm.idproducto = prod.idproducto
-        GROUP BY dc.idempleado, e.idempleado, per.nombre, per.apellidopaterno, prod.idproducto, prod.nombre
+        GROUP BY dc.persona_id, COALESCE(per.nombre, per_dir.nombre), COALESCE(per.apellidopaterno, per_dir.apellidopaterno), prod.idproducto, prod.nombre
       ),
       por_empleado AS (
         SELECT 
-          idempleado,
+          persona_id as idempleado,
           empleado,
           json_agg(json_build_object(
             'producto', producto,
@@ -93,7 +97,7 @@ export const getReporteRevendedorConsolidado = async (req: Request, res: Respons
           SUM(comision) as total_comision,
           SUM(liquido_panaderia) as total_liquido_panaderia
         FROM por_producto
-        GROUP BY idempleado, empleado
+        GROUP BY persona_id, empleado
       )
       SELECT 
         json_agg(json_build_object(
@@ -144,7 +148,8 @@ export const getReporteRevendedorDetallado = async (req: Request, res: Response)
 
     let filterCond = "";
     if (idempleado && idempleado !== 'TODOS') {
-      filterCond += ` AND rc.idempleado = $${filterIdx++}`;
+      filterCond += ` AND (rc.idempleado = $${filterIdx} OR rc.idpersona = $${filterIdx})`;
+      filterIdx++;
       params.push(idempleado);
     }
     if (idsucursal && idsucursal !== 'TODOS') {
@@ -170,6 +175,9 @@ export const getReporteRevendedorDetallado = async (req: Request, res: Response)
       detalles_calc AS (
         SELECT 
           d.*,
+          rc.idempleado,
+          rc.idpersona,
+          COALESCE((SELECT e_sub.idpersona FROM empleado e_sub WHERE e_sub.idempleado = rc.idempleado), rc.idpersona) as persona_id,
           (d.cantidadentregada - d.cantidaddevuelta) as vendido_total,
           (
             ((d.cantidadentregada - d.cantidaddevuelta - COALESCE(pa.total_cantidad_ajustada, 0)) * d.precioventa) +
@@ -193,8 +201,9 @@ export const getReporteRevendedorDetallado = async (req: Request, res: Response)
           rc.fecha,
           rc.idrevendedorcontrol,
           rc.observacion,
-          per.nombre || ' ' || COALESCE(per.apellidopaterno, '') as empleado,
-          rc.idempleado,
+          rc.idpersona,
+          COALESCE(per.nombre, per_dir.nombre) || ' ' || COALESCE(COALESCE(per.apellidopaterno, per_dir.apellidopaterno), '') as empleado,
+          COALESCE(rc.idempleado, rc.idpersona) as idempleado,
           s.nombre as sucursal,
           json_agg(json_build_object(
             'iddetalle', dc.idrevendedorcontroldetalle,
@@ -241,13 +250,14 @@ export const getReporteRevendedorDetallado = async (req: Request, res: Response)
           SUM(dc.liquido_panaderia) as total_liquido_panaderia
         FROM filtered_rc rc
         JOIN detalles_calc dc ON rc.idrevendedorcontrol = dc.idrevendedorcontrol
-        JOIN empleado e ON rc.idempleado = e.idempleado
-        JOIN persona per ON e.idpersona = per.idpersona
+        LEFT JOIN empleado e ON rc.idempleado = e.idempleado
+        LEFT JOIN persona per ON e.idpersona = per.idpersona
+        LEFT JOIN persona per_dir ON per_dir.idpersona = rc.idpersona
         JOIN sucursal s ON rc.idsucursal = s.idsucursal
         JOIN productomedida pm ON dc.idproductomedida = pm.idproductomedida
         JOIN producto prod ON pm.idproducto = prod.idproducto
         JOIN presentacion pre ON pm.idpresentacion = pre.idpresentacion
-        GROUP BY rc.fecha, rc.idrevendedorcontrol, rc.observacion, per.nombre, per.apellidopaterno, rc.idempleado, s.nombre
+        GROUP BY rc.fecha, rc.idrevendedorcontrol, rc.observacion, COALESCE(per.nombre, per_dir.nombre), COALESCE(per.apellidopaterno, per_dir.apellidopaterno), COALESCE(rc.idempleado, rc.idpersona), rc.idempleado, rc.idpersona, per_dir.idpersona, per_dir.nombre, per_dir.apellidopaterno, per_dir.apellidomaterno, s.nombre
       )
       SELECT 
         fecha,

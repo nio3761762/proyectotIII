@@ -13,16 +13,16 @@
       </select>
     </div>
 
-    <!-- Empleado Filter -->
+    <!-- Persona Filter -->
     <div class="w-64">
-      <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Revendedor</label>
+      <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Persona</label>
       <select 
         :value="modelValue.idempleado" 
         @change="$emit('update:modelValue', { ...modelValue, idempleado: $event.target.value })"
         class="w-full px-4 py-3 bg-gray-50 border-0 rounded-2xl focus:ring-2 focus:ring-orange-500 font-bold text-xs text-gray-700 transition-all shadow-inner"
       >
-        <option value="">Todos los Revendedores</option>
-        <option v-for="e in revendedores" :key="e.idempleado" :value="e.idempleado">{{ e.nombre }} {{ e.apellidopaterno }}</option>
+        <option value="">Todas las Personas</option>
+        <option v-for="p in personas" :key="p.idpersona ?? p.idempleado ?? p.empleado?.idempleado" :value="p.empleado?.idempleado ?? p.idempleado ?? p.idpersona">{{ p.nombre ?? p.Nombre }} {{ p.apellidopaterno ?? p.ApellidoPaterno }}</option>
       </select>
     </div>
 
@@ -76,7 +76,7 @@
 <script setup>
 import { ref, watch, onMounted } from 'vue';
 import { LayoutGrid, List as ListIcon } from 'lucide-vue-next';
-import { getEmpleadosVendedores } from '@/Server/Empleado';
+import { listarTodasPersonas } from '@/Server/persona';
 
 const props = defineProps({
   modelValue: { type: Object, required: true },
@@ -87,15 +87,19 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue', 'update:limit', 'update:vistaModo', 'filter']);
 
-const revendedores = ref([]);
+const personas = ref([]);
 
-const cargarRevendedores = async () => {
+const cargarPersonas = async () => {
   try {
-    const res = await getEmpleadosVendedores();
-    const data = res.result || res || [];
-    revendedores.value = Array.isArray(data) ? data : [];
+    const res = await listarTodasPersonas();
+    const lista = Array.isArray(res) ? res : (res?.data ?? res?.result ?? res ?? []);
+    personas.value = Array.isArray(lista) ? lista.map(p => ({
+      ...p,
+      idpersona: p.idpersona,
+      idempleado: p.empleado?.idempleado ?? null
+    })) : [];
   } catch (error) {
-    console.error("Error al cargar revendedores para filtros", error);
+    console.error("Error al cargar personas para filtros", error);
   }
 };
 
@@ -105,6 +109,6 @@ watch(() => props.modelValue, () => {
 }, { deep: true });
 
 onMounted(() => {
-  cargarRevendedores();
+  cargarPersonas();
 });
 </script>

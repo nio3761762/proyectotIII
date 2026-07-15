@@ -5,7 +5,7 @@ export const uploadFile = (req: Request, res: Response) => {
     return res.status(400).send({ message: 'No file uploaded' });
   }
 
-  const fileUrl = `${req.protocol}://${req.get('host')}/uploads/files/${req.file.filename}`;
+  const fileUrl = `/uploads/files/${req.file.filename}`;
 
   res.status(200).send({
     message: 'File uploaded successfully',

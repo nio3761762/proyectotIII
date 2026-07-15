@@ -31,23 +31,18 @@ export const registrarCompra = async (req: Request, res: Response) => {
   try {
     const { Compras, detalles, Destinos } = req.body;
 
-    // 1. Validaciones básicas
-    if (!Compras.IdProveedor) {
-      throw new HttpError(400, "Proveedor es requerido.");
-    }
-
-    // 2. Preparar cabecera de Compra
     const nuevoId = await generarIdSecuencial('COM');
     const compra = new Compra();
     compra.IdCompra = nuevoId;
 
-if (Compras.IdProveedor) compra.Proveedor = await verifyProveedor({ TipoproveedorId: Compras.IdProveedor });
+    if (Compras.IdProveedor) compra.Proveedor = await verifyProveedor({ TipoproveedorId: Compras.IdProveedor });
     compra.FechaCompra = Compras.Fecha || fecha;
     compra.HoraCompra = hora;
     compra.NroComprobante = Compras.Numero || '';
     compra.Descripcion = Compras.Descripcion || '';
+    compra.LugarCompra = Compras.LugarCompra || '';
     compra.PrecioTotal = Number(Compras.PrecioTotal) || 0;
-   
+    
     if(Compras.Comprobante)compra.Comprobante = await verifyComprobante(Compras.Comprobante);
     
     // Guardar la compra dentro de la transacción
@@ -157,10 +152,6 @@ export const updateCompra = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { Compras, detalles, Destinos } = req.body;
-
-    if (!Compras || !Compras.IdProveedor) {
-      throw new HttpError(400, "Proveedor es requerido.");
-    }
 
     const compra = await queryRunner.manager.findOne(Compra, {
       where: { IdCompra: id }
@@ -305,11 +296,14 @@ await queryRunner.manager.query(
     await queryRunner.manager.delete(Detallecompra, { Compra: { IdCompra: id } });
 
     // Actualizar cabecera
-    compra.Proveedor = await verifyProveedor({ TipoproveedorId: Compras.IdProveedor });
+    if (Compras.IdProveedor) {
+      compra.Proveedor = await verifyProveedor({ TipoproveedorId: Compras.IdProveedor });
+    } 
     compra.FechaCompra = Compras.Fecha || fecha;
     compra.HoraCompra = hora;
     compra.NroComprobante = Compras.Numero || '';
     compra.Descripcion = Compras.Descripcion || '';
+    compra.LugarCompra = Compras.LugarCompra || '';
     compra.PrecioTotal = Number(Compras.PrecioTotal) || 0;
 
     if (Compras.Comprobante) {
@@ -370,15 +364,18 @@ export const getCompras = async (req: Request, res: Response) => {
         SELECT *
         FROM compra c
         WHERE 
-          ($1::text IS NULL OR EXISTS (
-            SELECT 1 
-            FROM proveedor p
-            LEFT JOIN persona per ON per.idpersona = p.idpersona
-            WHERE p.idproveedor = c.idproveedor
-            AND (
-              per.nombre ILIKE '%' || $1 || '%' 
-              OR p.razonsocial ILIKE '%' || $1 || '%'
+          ($1::text IS NULL OR (
+            EXISTS (
+              SELECT 1 
+              FROM proveedor p
+              LEFT JOIN persona per ON per.idpersona = p.idpersona
+              WHERE p.idproveedor = c.idproveedor
+              AND (
+                per.nombre ILIKE '%' || $1 || '%' 
+                OR p.razonsocial ILIKE '%' || $1 || '%'
+              )
             )
+            OR c.lugarcompra ILIKE '%' || $1 || '%'
           ))
           AND ($2::date IS NULL OR c.fechacompra = $2)
           AND ($3::int IS NULL OR c.estado = $3)
@@ -391,6 +388,7 @@ export const getCompras = async (req: Request, res: Response) => {
         c.fechacompra,
         c.horacompra,
         c.descripcion,
+        c.lugarcompra,
         c.estado,
 
         COUNT(*) OVER() AS total,
@@ -402,23 +400,25 @@ export const getCompras = async (req: Request, res: Response) => {
         ) AS comprobante,
 
         -- 🟢 PROVEEDOR
-        json_build_object(
-          'idproveedor', p.idproveedor,
-          'razonsocial', p.razonsocial,
-          'nit', p.nit,
-          'estado', p.estado,
-          'tipoproveedor', json_build_object(
-            'idtipoproveedor', tp.idtipoproveedor,
-            'nombre', tp.nombre
-          ),
-          'persona', json_build_object(
-            'nombre', per.nombre,
-            'apellidopaterno', per.apellidopaterno,
-            'apellidomaterno', per.apellidomaterno,
-            'email', per.email,
-            'imagen', per.imagen
+        CASE WHEN p.idproveedor IS NOT NULL THEN
+          json_build_object(
+            'idproveedor', p.idproveedor,
+            'razonsocial', p.razonsocial,
+            'nit', p.nit,
+            'estado', p.estado,
+            'tipoproveedor', json_build_object(
+              'idtipoproveedor', tp.idtipoproveedor,
+              'nombre', tp.nombre
+            ),
+            'persona', json_build_object(
+              'nombre', per.nombre,
+              'apellidopaterno', per.apellidopaterno,
+              'apellidomaterno', per.apellidomaterno,
+              'email', per.email,
+              'imagen', per.imagen
+            )
           )
-        ) AS proveedor,
+        ELSE NULL END AS proveedor,
 
         -- 🟢 DETALLES
         COALESCE(
@@ -490,7 +490,7 @@ export const getCompras = async (req: Request, res: Response) => {
       LEFT JOIN comprobante comp 
         ON comp.idcomprobante = c.idcomprobante
 
-      JOIN proveedor p 
+      LEFT JOIN proveedor p 
         ON p.idproveedor = c.idproveedor
 
       LEFT JOIN tipoproveedor tp 
@@ -525,12 +525,13 @@ export const getCompras = async (req: Request, res: Response) => {
 
       GROUP BY 
          c.idcompra,
-  c.nrocomprobante,
-  c.preciototal,
-  c.fechacompra,
-  c.horacompra,
-  c.descripcion,
-  c.estado,
+	c.nrocomprobante,
+	c.preciototal,
+	c.fechacompra,
+	c.horacompra,
+	c.descripcion,
+	c.lugarcompra,
+	c.estado,
   comp.idcomprobante,
   p.idproveedor,
   tp.idtipoproveedor,

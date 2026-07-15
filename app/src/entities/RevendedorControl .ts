@@ -8,6 +8,7 @@ import {
   OneToMany,
 } from "typeorm";
 import { Empleado } from "./Empleado";
+import { Persona } from "./Persona";
 import { Sucursal } from "./Sucursal";
 import { Revendedorcontroldetalle } from "./RevendedorControlDetalle ";
 
@@ -29,9 +30,13 @@ export class Revendedorcontrol extends BaseEntity {
   @Column({name: "estado", type: "integer", default: 1})
   Estado: number;
 
-  @ManyToOne(() => Empleado)
+  @ManyToOne(() => Persona, { nullable: true })
+  @JoinColumn({ name: "idpersona" })
+  Persona: Persona | null;
+
+  @ManyToOne(() => Empleado, { nullable: true })
   @JoinColumn({ name: "idempleado" })
-  Empleado: Empleado;
+  Empleado: Empleado | null;
 
   @ManyToOne(() => Sucursal)
   @JoinColumn({ name: "idsucursal" })

@@ -12,7 +12,7 @@
               </div>
               <div>
                 <h3 class="text-xl font-black uppercase tracking-tight">Ajustar Detalle</h3>
-                <p class="text-orange-100 text-[10px] font-bold uppercase tracking-widest">Control de Revendedor</p>
+                <p class="text-orange-100 text-[10px] font-bold uppercase tracking-widest">Control de Personas</p>
               </div>
             </div>
             <button @click="$emit('close')" class="p-2 hover:bg-white/10 rounded-xl transition-all">

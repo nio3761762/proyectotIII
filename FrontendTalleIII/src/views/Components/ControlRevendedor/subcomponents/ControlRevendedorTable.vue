@@ -4,7 +4,7 @@
       <table class="w-full text-left border-collapse">
         <thead class="bg-gray-50/50 border-b border-gray-100">
           <tr>
-            <th class="px-6 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Revendedor e Información General</th>
+            <th class="px-6 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Persona e Información General</th>
             <th class="px-6 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Resumen Financiero</th>
             <th class="px-6 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Estado</th>
           </tr>
@@ -16,11 +16,11 @@
               <td class="px-6 py-6 align-top">
                 <div class="flex items-center gap-4">
                   <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-orange-500 to-red-600 shadow-lg flex items-center justify-center text-white font-black text-sm overflow-hidden">
-                    <img v-if="c.Empleado?.Imagen" :src="c.Empleado.Imagen" class="w-full h-full object-cover" />
-                    <span v-else>{{ c.Empleado?.Nombre?.[0] }}</span>
+                    <img v-if="c.Persona?.Imagen" :src="c.Persona.Imagen" class="w-full h-full object-cover" />
+                    <span v-else>{{ c.Persona?.Nombre?.[0] }}</span>
                   </div>
                   <div class="flex flex-col">
-                    <span class="font-black text-gray-800 text-lg leading-none">{{ c.Empleado?.Nombre }} {{ c.Empleado?.ApellidoPaterno }}</span>
+                    <span class="font-black text-gray-800 text-lg leading-none">{{ c.Persona?.Nombre }} {{ c.Persona?.ApellidoPaterno }}</span>
                     <div class="flex items-center gap-2 mt-2">
                        <span class="text-[9px] font-black text-orange-600 px-2 py-0.5 bg-orange-50 rounded-lg">#{{ c.idrevendedorcontrol }}</span>
                        <span class="text-[9px] text-gray-400 font-bold uppercase">{{ formatDate(c.fecha) }}</span>

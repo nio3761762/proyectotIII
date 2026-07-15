@@ -26,23 +26,36 @@
                 </div>
               </td>
               <td class="px-6 py-4">
-                <div class="flex items-center gap-3">
-                  <div class="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 font-bold overflow-hidden shrink-0">
-                    <img
-                      v-if="compra.proveedor?.persona?.imagen"
-                      :src="compra.proveedor.persona.imagen"
-                      class="w-full h-full object-cover"
-                      alt=""
-                    />
-                    <span v-else class="text-sm">{{ (compra.proveedor?.persona?.nombre || 'P')[0] }}</span>
+                <template v-if="compra.proveedor">
+                  <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 font-bold overflow-hidden shrink-0">
+                      <img
+                        v-if="compra.proveedor.persona?.imagen"
+                        :src="compra.proveedor.persona.imagen"
+                        class="w-full h-full object-cover"
+                        alt=""
+                      />
+                      <span v-else class="text-sm">{{ (compra.proveedor.persona?.nombre || 'P')[0] }}</span>
+                    </div>
+                    <div class="flex flex-col min-w-0">
+                      <span class="font-bold text-gray-800 truncate">
+                        {{ compra.proveedor.persona?.nombre }} {{ compra.proveedor.persona?.apellidopaterno }}
+                      </span>
+                      <span class="text-xs text-gray-500 truncate">{{ compra.proveedor.razonsocial }}</span>
+                    </div>
                   </div>
-                  <div class="flex flex-col min-w-0">
-                    <span class="font-bold text-gray-800 truncate">
-                      {{ compra.proveedor?.persona?.nombre }} {{ compra.proveedor?.persona?.apellidopaterno }}
-                    </span>
-                    <span class="text-xs text-gray-500 truncate">{{ compra.proveedor?.razonsocial }}</span>
+                </template>
+                <template v-else>
+                  <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 font-bold overflow-hidden shrink-0">
+                      <Building class="w-5 h-5" />
+                    </div>
+                    <div class="flex flex-col min-w-0">
+                      <span class="font-bold text-gray-800">Sin proveedor</span>
+                      <span class="text-xs text-gray-500 truncate italic">{{ compra.lugarcompra || 'Compra directa' }}</span>
+                    </div>
                   </div>
-                </div>
+                </template>
               </td>
               <td class="px-6 py-4">
                 <div class="flex flex-col">
@@ -135,7 +148,7 @@
 
 <script setup>
 import { ref } from 'vue';
-import { Calendar, Package, ChevronDown, X, Pencil } from 'lucide-vue-next';
+import { Calendar, Package, ChevronDown, X, Pencil, Building } from 'lucide-vue-next';
 
 const props = defineProps({
   compras: { type: Array, required: true }

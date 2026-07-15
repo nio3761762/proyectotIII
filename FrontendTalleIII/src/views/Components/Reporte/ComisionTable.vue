@@ -40,7 +40,7 @@
               <table class="w-full text-left border-collapse">
                 <thead>
                   <tr class="bg-gray-50/30">
-                    <th rowspan="2" class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-r min-w-[160px]">Empleado</th>
+                    <th rowspan="2" class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-r min-w-[160px]">Revendedor</th>
                     <th v-for="prod in weeklyConsolidados[sem.fecha]?.productosUnicos || []" :key="prod"
                         class="p-3 text-[10px] font-black text-gray-600 uppercase tracking-widest border-b border-r text-center min-w-[90px]">
                       <div class="flex flex-col items-center">
@@ -125,7 +125,7 @@
                   <table class="w-full text-left border-collapse">
                     <thead>
                       <tr class="bg-gray-50/30">
-                        <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b">Empleado</th>
+                        <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b">Revendedor</th>
                         <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b">Sucursal</th>
                         <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b">Producto</th>
                         <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b">Presentación</th>
@@ -345,7 +345,7 @@
             <table class="w-full text-left border-collapse">
               <thead>
                 <tr class="bg-gray-50/30">
-                  <th class="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b">Empleado</th>
+                  <th class="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b">Revendedor</th>
                   <th class="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b">Sucursal</th>
                   <th class="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b">Producto</th>
                   <th class="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b">Presentación</th>

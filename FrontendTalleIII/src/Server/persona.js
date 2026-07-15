@@ -1,6 +1,16 @@
 import API from './api';
 
 
+export const listarTodasPersonas = async () => {
+  try {
+    const response = await API.get('getAllPersonas');
+    return response.data;
+  } catch (error) {
+    console.error('Error al obtener todas las personas:', error);
+    throw error;
+  }
+};
+
 export const listarCliente = async () => {
   try {
     const response = await API.get('Clientes');

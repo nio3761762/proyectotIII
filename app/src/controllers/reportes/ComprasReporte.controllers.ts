@@ -29,7 +29,7 @@ export const getReporteComprasConsolidado = async (req: Request, res: Response) 
 
         const sqlDetalle = `
             SELECT
-                p.nombre || ' ' || COALESCE(p.apellidopaterno, '') as proveedor,
+                COALESCE(p.nombre || ' ' || COALESCE(p.apellidopaterno, ''), c.lugarcompra, 'Sin proveedor') as proveedor,
                 i.nombre as insumo,
                 um.nombre as medida,
                 um.abreviatura as medida_abreviatura,
@@ -38,13 +38,16 @@ export const getReporteComprasConsolidado = async (req: Request, res: Response) 
                 SUM(dc.preciototal) as inversion
             FROM detallecompra dc
             JOIN compra c ON dc.idcompra = c.idcompra
-            JOIN proveedor prov ON c.idproveedor = prov.idproveedor
-            JOIN persona p ON prov.idpersona = p.idpersona
+            LEFT JOIN proveedor prov ON c.idproveedor = prov.idproveedor
+            LEFT JOIN persona p ON prov.idpersona = p.idpersona
             JOIN insumo i ON dc.idinsumo = i.idinsumo
             LEFT JOIN insumomedida im ON dc.idinsumomedida = im.idinsumomedida
             LEFT JOIN unidadmedida um ON im.idunidadmedida = um.idunidadmedida
             ${baseWhere}
-            GROUP BY prov.idproveedor, p.nombre, p.apellidopaterno, i.idinsumo, i.nombre, um.nombre, um.abreviatura, im.cantidad
+            GROUP BY
+                CASE WHEN prov.idproveedor IS NOT NULL THEN prov.idproveedor ELSE c.lugarcompra END,
+                p.nombre, p.apellidopaterno, c.lugarcompra,
+                i.idinsumo, i.nombre, um.nombre, um.abreviatura, im.cantidad
             ORDER BY proveedor, cantidad DESC
         `;
 
@@ -125,7 +128,7 @@ export const getReportePreciosHistorico = async (req: Request, res: Response) =>
         const sqlPrecios = `
             SELECT 
                 c.idcompra,
-                p.nombre || ' ' || COALESCE(p.apellidopaterno, '') as proveedor, 
+                COALESCE(p.nombre || ' ' || COALESCE(p.apellidopaterno, ''), c.lugarcompra, 'Sin proveedor') as proveedor, 
                 c.fechacompra as fecha, 
                 c.preciototal as total_compra,
                 JSON_AGG(JSON_BUILD_OBJECT(
@@ -139,13 +142,13 @@ export const getReportePreciosHistorico = async (req: Request, res: Response) =>
                 )) as detalles
             FROM detallecompra dc 
             JOIN compra c ON dc.idcompra = c.idcompra 
-            JOIN proveedor prov ON c.idproveedor = prov.idproveedor 
-            JOIN persona p ON prov.idpersona = p.idpersona
+            LEFT JOIN proveedor prov ON c.idproveedor = prov.idproveedor 
+            LEFT JOIN persona p ON prov.idpersona = p.idpersona
             JOIN insumo i ON dc.idinsumo = i.idinsumo
             LEFT JOIN insumomedida im ON dc.idinsumomedida = im.idinsumomedida
             LEFT JOIN unidadmedida um ON im.idunidadmedida = um.idunidadmedida
             WHERE c.estado = 1 ${insumoCond} ${provCond} ${dateCond}
-            GROUP BY c.idcompra, p.nombre, p.apellidopaterno, c.fechacompra, c.preciototal
+            GROUP BY c.idcompra, p.nombre, p.apellidopaterno, c.fechacompra, c.preciototal, c.lugarcompra
             ORDER BY c.fechacompra ASC
         `;
 

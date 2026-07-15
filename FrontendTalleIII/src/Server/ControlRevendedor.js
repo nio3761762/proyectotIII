@@ -4,8 +4,8 @@ export const listarControlRevendedor = async (fecha, idEmpleado, idSucursal, pag
   try {
     const params = {
       fecha,
-      idEmpleado,
-      idSucursal,
+      idempleado: idEmpleado,
+      idsucursal: idSucursal,
       page,
       limit
     };
@@ -29,6 +29,16 @@ export const registrarcontrolRevendedor = async (controles) => {
    
   } catch (error) {
     console.error('Error al intentar ingresar datos:', error.response);
+    throw error;
+  }
+};
+
+export const getRevendedores = async () => {
+  try {
+    const response = await API.get('revendedores');
+    return response.data;
+  } catch (error) {
+    console.error('Error al obtener revendedores:', error);
     throw error;
   }
 };

@@ -61,6 +61,7 @@
                   <option value="NORMAL">NORMAL</option>
                   <option value="REVENDEDOR">REVENDEDOR</option>
                   <option value="EMPRESA">EMPRESA</option>
+                   <option value="CLIENTE_REVENDEDOR">CLIENTE_REVENDEDOR</option>
                 </select>
               </div>
 

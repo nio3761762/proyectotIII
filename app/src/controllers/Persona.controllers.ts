@@ -744,6 +744,29 @@ export const getPersonas = async (req: Request, res: Response) => {
     }
   }
 };
+export const getAllPersonas = async (_req: Request, res: Response) => {
+  try {
+    const result = await AppDataSource.query(`
+      SELECT
+        p.idpersona,
+        p.nombre,
+        p.apellidopaterno,
+        p.apellidomaterno,
+        p.imagen,
+        json_build_object('idempleado', e.idempleado) AS empleado
+      FROM persona p
+      LEFT JOIN empleado e ON e.idpersona = p.idpersona
+      ORDER BY p.idpersona ASC
+    `);
+
+    return res.json(result);
+  } catch (error) {
+    if (error instanceof Error) {
+      return res.status(500).json({ message: error.message });
+    }
+  }
+};
+
    export const getEmail = async (req: Request, res: Response) => {
   try {
 
