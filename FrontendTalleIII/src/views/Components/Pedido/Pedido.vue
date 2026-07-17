@@ -425,6 +425,7 @@
             :initialItems="itemsPreseleccionados"
             :editingPedido="pedidoEnEdicion"
             :pedidosSesion="pedidosSesion"
+            :isAdmin="isAdmin"
             @cancel="cancelarRegistro"
             @success="onPedidoSuccess"
             @success-rapido="onPedidoRapidoSuccess"

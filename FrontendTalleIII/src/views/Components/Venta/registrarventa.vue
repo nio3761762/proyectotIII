@@ -446,7 +446,7 @@
                 </div>
               </td>
               <td class="px-4 py-4">
-                <span class="font-bold text-green-600">Bs. {{ parseFloat(venta.Monto).toFixed(2) }}</span>
+                <span class="font-bold text-green-600">Bs. {{ parseFloat(venta.preciototal).toFixed(2) }}</span>
               </td>
               <td class="px-4 py-4">
                 <span class="px-3 py-1 bg-gray-100 text-gray-600 rounded-lg text-xs font-bold">
@@ -702,6 +702,7 @@ import { Listsucursal } from '@/Server/Sucural';
 import { RegistrarPersona } from '@/Server/persona';
 import { listarComplemento, listarDocumento, listarEmail, listarNumero } from '@/Server/Complemento';
 import { SubirFoto, listarBarrios } from '@/Server/api';
+import { useSessionStore } from '@/stores/sessionStore';
 
 const props = defineProps({
   sucursalId: {
@@ -1084,6 +1085,12 @@ const onDirectQtyChange = (index, val) => {
   item.cantidad = newQty;
 };
 
+const sessionStore = useSessionStore();
+
+const esAdmin = computed(() => {
+  return sessionStore.rolSeleccionado?.Nombre?.toUpperCase() === 'ADMINISTRADOR';
+});
+
 const cargarUsuariosSucursal = async () => {
   if (!selectedSucursalId.value) {
     usuariosSucursal.value = [];
@@ -1092,6 +1099,21 @@ const cargarUsuariosSucursal = async () => {
   try {
     const res = await listarUsuarioSucursal(selectedSucursalId.value);
     usuariosSucursal.value = Array.isArray(res) ? res : (res.data || res.result || []);
+
+    if (esAdmin.value) {
+      const u = JSON.parse(localStorage.getItem('usuario'));
+      if (u?.IdUsuario && !usuariosSucursal.value.find(us => us.IdUsuario === u.IdUsuario)) {
+        usuariosSucursal.value.push({
+          IdUsuario: u.IdUsuario,
+          Persona: {
+            nombre: u.Persona?.Nombre || u.nombre || '',
+            apellidopaterno: u.Persona?.ApellidoPaterno || u.apellidopaterno || ''
+          },
+          nombre: u.Persona?.Nombre || u.nombre || '',
+          apellidopaterno: u.Persona?.ApellidoPaterno || u.apellidopaterno || ''
+        });
+      }
+    }
 
     const u = JSON.parse(localStorage.getItem('usuario'));
     if (u?.IdUsuario) {
@@ -1284,7 +1306,7 @@ onMounted(async () => {
       listarNumero(),
       listarComplemento()
     ]);
-    categorias.value = cats.result || cats || [];
+    categorias.value = cats.data || cats.result || cats || [];
     clientes.value = Array.isArray(clis) ? clis : (clis.data || clis.result || []);
     metodosPago.value = pagos || [];
     docsRegistrados.value = docs?.result || docs?.data || docs || [];
@@ -1395,8 +1417,10 @@ watch(() => props.pendingPersona, (newVal) => {
 
 watch(filtroCategoria, async (v) => {
   filtroSubcategoria.value = 'TODOS';
-  if (v !== 'TODOS') subcategorias.value = await ObtenerSubCategorias(v);
-  else subcategorias.value = [];
+  if (v !== 'TODOS') {
+    const res = await ObtenerSubCategorias(v);
+    subcategorias.value = res.result || res || [];
+  } else subcategorias.value = [];
   paginacionProd.paginaActual = 1; fetchItems();
 });
 

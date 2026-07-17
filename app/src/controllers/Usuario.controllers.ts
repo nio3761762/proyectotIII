@@ -524,9 +524,10 @@ export const getUsuarioSucursal = async (req: Request, res: Response) => {
 `, [id]);
 
 if (result.length === 0) {
-  return res.status(404).json({
-    message: "Usuario no encontrado o sin sucursal activa"
-  });
+  return res.json({})
+  // return res.status(404).json({
+  //   message: "Usuario no encontrado o sin sucursal activa"
+  // });
 }
 
 return res.json(result[0]);

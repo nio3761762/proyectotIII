@@ -656,7 +656,8 @@ const props = defineProps({
   sucursalId: { type: String, default: '' },
   initialItems: { type: Array, default: () => [] },
   editingPedido: { type: Object, default: null },
-  pedidosSesion: { type: Array, default: () => [] }
+  pedidosSesion: { type: Array, default: () => [] },
+  isAdmin: { type: Boolean, default: false }
 });
 
 const emit = defineEmits(['cancel', 'open-new-client', 'success', 'success-rapido', 'editar', 'anular', 'open-comprobante']);
@@ -737,6 +738,21 @@ const cargarUsuariosSucursal = async () => {
   try {
     const res = await listarUsuarioSucursal(selectedSucursalId.value);
     usuariosSucursal.value = Array.isArray(res) ? res : (res?.data || res?.result || []);
+
+    if (props.isAdmin) {
+      const u = JSON.parse(localStorage.getItem('usuario'));
+      if (u?.IdUsuario && !usuariosSucursal.value.find(us => us.IdUsuario === u.IdUsuario)) {
+        usuariosSucursal.value.push({
+          IdUsuario: u.IdUsuario,
+          Persona: {
+            nombre: u.Persona?.Nombre || u.nombre || '',
+            apellidopaterno: u.Persona?.ApellidoPaterno || u.apellidopaterno || ''
+          },
+          nombre: u.Persona?.Nombre || u.nombre || '',
+          apellidopaterno: u.Persona?.ApellidoPaterno || u.apellidopaterno || ''
+        });
+      }
+    }
   } catch (e) { console.error(e); usuariosSucursal.value = []; }
 };
 
@@ -1137,7 +1153,7 @@ onMounted(async () => {
       listarCategorias(), listarCliente(), listarPago(), listarTipopedido(),
       listarDocumento(), listarEmail(), listarNumero(), listarComplemento()
     ]);
-    categorias.value = cats.result || cats || [];
+    categorias.value = cats.data || cats.result || cats || [];
     clientes.value = Array.isArray(clis) ? clis : (clis.data || clis.result || []);
     metodosPago.value = pagos || [];
     tiposPedido.value = tipos || [];
@@ -1205,7 +1221,14 @@ onMounted(async () => {
 });
 
 watch(isMayorista, actualizarTodosLosPrecios);
-watch(filtroCategoria, async (v) => { filtroSubcategoria.value = 'TODOS'; subcategorias.value = v !== 'TODOS' ? await ObtenerSubCategorias(v) : []; paginacionProd.paginaActual = 1; fetchItems(); });
+watch(filtroCategoria, async (v) => {
+  filtroSubcategoria.value = 'TODOS';
+  if (v !== 'TODOS') {
+    const res = await ObtenerSubCategorias(v);
+    subcategorias.value = res.result || res || [];
+  } else subcategorias.value = [];
+  paginacionProd.paginaActual = 1; fetchItems();
+});
 watch([filtroSubcategoria, filtroNombre], () => { clearTimeout(debounceTimer); debounceTimer = setTimeout(() => { paginacionProd.paginaActual = 1; fetchItems(); }, 400); });
 watch(() => props.sucursalId, (id) => {
   if (id && !selectedSucursalId.value) {

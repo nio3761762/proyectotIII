@@ -33,7 +33,6 @@ export const updateEmpleadoSucursal = async ({
   idSucursal: string;
 }) => {
 
-  // sucursal activa actual
   const existPersona = await EmpleadoSucursal
     .createQueryBuilder("es")
     .leftJoinAndSelect("es.Sucursal", "s")
@@ -44,24 +43,28 @@ export const updateEmpleadoSucursal = async ({
     .andWhere("es.fechafin IS NULL")
     .getOne();
 
-  // si no existe relación activa
-  if (!existPersona) {
-    return await createEmpleadoSucursal({
-      Idempleado,
-      idSucursal,
-    });
+  // si no se asigna sucursal, cerrar relación activa si existe y salir
+  if (!idSucursal) {
+    if (existPersona) {
+      existPersona.FechaFin = new Date();
+      existPersona.Estado = 0;
+      await existPersona.save();
+    }
+    return null;
   }
 
-  // si ya tiene la misma sucursal
-  if (existPersona.Sucursal.IdSucursal === idSucursal) {
-    return existPersona;
+  // si hay registro activo con la misma sucursal, no hay cambios
+  if (existPersona) {
+    const sucursalActual = existPersona.Sucursal?.IdSucursal ?? null;
+    if (sucursalActual === idSucursal) {
+      return existPersona;
+    }
+
+    // cerrar relación actual
+    existPersona.FechaFin = new Date();
+    existPersona.Estado = 0;
+    await existPersona.save();
   }
-
-  // cerrar relación actual
-  existPersona.FechaFin = new Date();
-  existPersona.Estado = 0;
-
-  await existPersona.save();
 
   // crear nueva relación
   return await createEmpleadoSucursal({
