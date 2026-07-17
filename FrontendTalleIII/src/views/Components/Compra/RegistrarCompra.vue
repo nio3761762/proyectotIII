@@ -316,15 +316,12 @@
             <div class="mt-8 pt-6 border-t border-gray-100 space-y-4">
               <button 
                 type="submit" 
-                :disabled="detalles.length === 0 || hasUndistributedItems || isSubmitting"
+                :disabled="detalles.length === 0 || isSubmitting"
                 class="w-full py-5 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-[2rem] font-black text-lg tracking-[0.2em] shadow-2xl hover:shadow-blue-300 disabled:opacity-40 transition-all transform hover:scale-[1.01] active:scale-95 flex items-center justify-center gap-3"
               >
                 <component :is="isEditing ? Save : Plus" class="h-7 w-7" />
                 {{ isEditing ? 'Guardar Cambios' : 'Agregar Compra a la Lista' }}
               </button>
-              <p v-if="hasUndistributedItems" class="text-xs text-red-500 font-black text-center tracking-widest animate-pulse">
-                * Complete la distribución de todos los insumos para continuar
-              </p>
             </div>
           </div>
         </div>
@@ -440,10 +437,6 @@ const totalCompra = computed(() => {
   return detalles.value.reduce((acc, curr) => acc + (curr.Cantidad * curr.Precio), 0);
 });
 
-const hasUndistributedItems = computed(() => {
-  return detalles.value.some((_, idx) => getRemainingQty(idx) > 0);
-});
-
 const selectedInsumo = computed(() => {
   return insumosList.value.find(i => i.idinsumo === selectedInsumoId.value);
 });
@@ -461,10 +454,9 @@ const isItemFormValid = computed(() => {
 
 const isMainFormValid = computed(() => {
   const vDetalles = detalles.value.length > 0;
-  const vDistribucion = !hasUndistributedItems.value;
   const vFecha = !!form.FechaCompra;
 
-  return vDetalles && vDistribucion && vFecha;
+  return vDetalles && vFecha;
 });
 
 // Pre-fill form when editing
@@ -658,8 +650,6 @@ const handleSubmit = async () => {
   if (!isMainFormValid.value) {
     if (detalles.value.length === 0) {
       emit('toast', 'Debe agregar al menos un insumo a la lista', 'warning');
-    } else if (hasUndistributedItems.value) {
-      emit('toast', 'Debe completar la distribución de todos los insumos', 'warning');
     } else {
       emit('toast', 'Por favor complete todos los campos obligatorios de la transacción', 'warning');
     }

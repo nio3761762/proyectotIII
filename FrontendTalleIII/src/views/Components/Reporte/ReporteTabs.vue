@@ -33,7 +33,6 @@ const tabs = [
   { id: 'inventario', label: 'Inventario' },
   { id: 'kardex', label: 'Kardex' },
   { id: 'comision', label: 'Comisiones' },
-  { id: 'gastos-generales',  label: 'Gastos Generales' },
-  { id: 'resumen-semanal',  label: 'Resumen Semanal' }
+  { id: 'gastos-generales',  label: 'Gastos Generales' }
 ]
 </script>

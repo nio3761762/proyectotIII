@@ -531,20 +531,22 @@ const confirmAnular = async (id) => {
   }
 };
 
-const handleSaved = (sucursalId) => {
+const handleSaved = async (sucursalId) => {
   showRegistration.value = false;
   if (sucursalId && sucursalId !== '-1') {
     currentFilters.value.idsucursal = sucursalId;
   }
   currentPage.value = 1;
-  fetchProducciones();
+  showActivePanel.value = true;
+  await fetchProducciones();
   mostrarNotificacion('Producción iniciada con éxito');
 };
 
-const handleGestionar = (p) => {
+const handleGestionar = async (p) => {
   if (p.sucursal?.IdSucursal) {
     currentFilters.value.idsucursal = p.sucursal.IdSucursal;
-    fetchProducciones();
+    showActivePanel.value = true;
+    await fetchProducciones();
   }
 };
 

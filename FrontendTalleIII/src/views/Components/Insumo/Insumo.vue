@@ -474,6 +474,16 @@ onMounted(async () => {
   }
 });
 
+// ── Refrescar allInsumos ─────────────────────────────────────────────────────
+const refrescarAllInsumos = async () => {
+  try {
+    const res = await ListInsumo();
+    allInsumos.value = res?.result ?? res ?? [];
+  } catch {
+    // silencioso
+  }
+};
+
 // ── cargarDatos ───────────────────────────────────────────────────────────────
 const cargarDatos = async () => {
   const currentRequestId = ++requestId;
@@ -569,7 +579,7 @@ const onGuardar = async (data) => {
       : await crearInsumo(data);
     mostrarNotificacion(resp?.message ?? 'Insumo guardado');
     cerrarFormulario();
-    await cargarDatos(); // refrescar lista después de guardar
+    await Promise.all([cargarDatos(), refrescarAllInsumos()]);
   } catch (err) {
     mostrarNotificacion('Error al guardar el insumo', true);
   } finally {
@@ -614,7 +624,8 @@ const onConfirmar = async () => {
       ? await eliminarInsumo(id)
       : await DeleteProducto(id);
     mostrarNotificacion(resp?.message ?? 'Estado actualizado');
-    await cargarDatos(); // refrescar lista después de cambiar estado
+    await cargarDatos();
+    if (selec.value === 'Insumo') await refrescarAllInsumos();
   } catch {
     mostrarNotificacion('Error al cambiar el estado', true);
   }

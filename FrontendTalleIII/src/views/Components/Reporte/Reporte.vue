@@ -112,13 +112,7 @@
         />
       </div>
 
-      <div v-if="activeTab === 'resumen-semanal'">
-        <ResumenSemanalTable 
-          :fechadesde="filtros.fechadesde"
-          :fechahasta="filtros.fechahasta"
-          :idsucursal="filtros.idsucursal"
-        />
-      </div>
+      
 
     </div>
   </div>  
@@ -157,7 +151,6 @@ import KardexTable from './KardexTable.vue'
 import FinancieroTable from './FinancieroTable.vue'
 import ComisionTable from './ComisionTable.vue'
 import GastosGeneralesTable from './GastosGeneralesTable.vue'
-import ResumenSemanalTable from './ResumenSemanalTable.vue'
 
 import logoMasasCori from '@/views/assets/LogoMasasCorir.png';
 

@@ -289,6 +289,17 @@ const onGuardarDatos = async (data) => {
     dato.value.nombre  = data.nombre;
     dato.value.celular = data.celular;
     dato.value.email   = data.email;
+    dato.value.idemail = data.idemail;
+
+    // Si cambió el propietario, buscar la nueva persona en la lista
+    if (data.idpersona) {
+      const prop = propietarios.value.find(
+        u => (u.idpersona ?? u.IdPersona ?? u.persona?.idpersona ?? u.Persona?.IdPersona) === data.idpersona
+      );
+      if (prop) {
+        dato.value.persona = prop.persona ?? prop.Persona ?? prop;
+      }
+    }
 
     mostrarNotificacion(response?.message ?? 'Datos actualizados');
     cerrarModalEditar();

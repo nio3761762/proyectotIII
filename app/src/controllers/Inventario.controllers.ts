@@ -32,7 +32,7 @@ export const createLoteInventario = async (
 
   const nuevo = new Inventario();
 
-  nuevo.IdInventario = await generarIdSecuencial("INV");
+  nuevo.IdInventario = await generarIdSecuencial("INV", queryRunner);
   nuevo.Stock = Number(stockBase);
   nuevo.CostoUnitario = Number(costoUnitario);
   nuevo.Preciounitario = Number(precioUnitario);
@@ -70,7 +70,7 @@ export const registrarMovimientoEntrada = async (
 
   const mov = new MovimientoInventario();
 
-  mov.IdMovimiento = await generarIdSecuencial("MOINV");
+  mov.IdMovimiento = await generarIdSecuencial("MOINV", queryRunner);
   mov.Tipo = tipo;
   mov.Cantidad = cantidad !== undefined ? cantidad : lote.Stock;
   mov.CostoUnitario = lote.CostoUnitario;

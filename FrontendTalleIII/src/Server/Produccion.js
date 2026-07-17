@@ -370,8 +370,9 @@ export const registrarSalidaProducto = async ( IdProduccion, IdProducto, IdEmple
     return response.data;
 
   } catch (error) {
-    console.error('Error al intentar ingresar datos:', error.response);
-    throw error;
+    const msg = error.response?.data?.message || error.message || 'Error desconocido';
+    console.error('Error al registrar salida:', msg);
+    throw new Error(msg);
   }
 };
 

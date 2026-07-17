@@ -242,15 +242,18 @@ export const getReporteProduccionDetallado = async (req: Request, res: Response)
           INNER JOIN persona per ON e.idpersona = per.idpersona
           WHERE phd.idproduccion = p.idproduccion ${productCond}
         ) as "DetalleLotes",
-        -- RESUMEN DE MANO DE OBRA (CON APELLIDOS)
+        -- RESUMEN DE MANO DE OBRA (CON APELLIDOS Y HORARIOS)
         (
           SELECT json_agg(json_build_object(
             'empleado', per.nombre || ' ' || COALESCE(per.apellidopaterno, ''), 
             'horas', pe_sub.h,
-            'costo', pe_sub.c
+            'costo', pe_sub.c,
+            'horainicio', pe_sub.hora_inicio,
+            'horafin', pe_sub.hora_fin
           ))
           FROM (
-            SELECT idempleado, SUM(horas) as h, SUM(CAST(costototal AS NUMERIC)) as c
+            SELECT idempleado, SUM(horas) as h, SUM(CAST(costototal AS NUMERIC)) as c,
+                   MIN(horainicio) as hora_inicio, MAX(horafin) as hora_fin
             FROM produccion_empleado 
             WHERE idproduccion = p.idproduccion 
             GROUP BY idempleado
@@ -313,7 +316,9 @@ export const getReporteProduccionDetallado = async (req: Request, res: Response)
         return {
           empleado: mo.empleado,
           horas: Number(mo.horas),
-          costo_mano_obra: Number(costo.toFixed(2))
+          costo_mano_obra: Number(costo.toFixed(2)),
+          horainicio: mo.horainicio,
+          horafin: mo.horafin
         };
       });
 

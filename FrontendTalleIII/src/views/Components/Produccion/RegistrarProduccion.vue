@@ -157,6 +157,7 @@ import { ref, reactive, onMounted, computed, watch } from 'vue';
 import { X, Users, User, Check, CheckCircle, Factory, Loader2 } from 'lucide-vue-next';
 import { Listsucursal } from '@/Server/Sucural';
 import { ListEmpleado } from '@/Server/Empleado';
+import { getEmpleadosSinSucursal } from '@/Server/EmpleadoSucursal';
 import { iniciarProduccion } from '@/Server/Produccion';
 
 
@@ -201,10 +202,31 @@ const cargarEmpleados = async () => {
   loadingEmpleados.value = true;
   selectedEmpleados.value = [];
   try {
-    const e = await ListEmpleado(form.IdSucursal);
-    
-    const data = e.result || e;
-    empleados.value = Array.isArray(data) ? data : [];
+    const [e, eSinSuc] = await Promise.all([
+      ListEmpleado(form.IdSucursal),
+      getEmpleadosSinSucursal()
+    ]);
+
+    const deSucursal = Array.isArray(e?.result ?? e) ? (e?.result ?? e) : [];
+    const sinSucursal = Array.isArray(eSinSuc) ? eSinSuc : (eSinSuc?.result ?? []);
+
+    const normalizados = sinSucursal.map(emp => ({
+      idempleado: emp.idempleado,
+      nombre: emp.persona?.nombre ?? '',
+      apellidopaterno: emp.persona?.apellidopaterno ?? '',
+      apellidomaterno: emp.persona?.apellidomaterno ?? '',
+      imagen: emp.persona?.imagen ?? null,
+      cargo: emp.cargo?.nombre ?? '',
+      cargoId: emp.cargo?.idcargo ?? '',
+    }));
+
+    const ids = new Set(deSucursal.map(e => e.idempleado));
+    const unicos = normalizados.filter(e =>
+      !ids.has(e.idempleado) &&
+      e.cargoId !== 'CAR-003'
+    );
+
+    empleados.value = [...deSucursal, ...unicos];
   
   } catch (error) {
     console.error("Error al cargar empleados:", error);

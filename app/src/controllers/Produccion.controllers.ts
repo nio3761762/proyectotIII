@@ -690,18 +690,20 @@ export const consumirInsumoFIFO = async (queryRunner: QueryRunner, IdInsumo: str
     return mov.CostoTotal;
   }
 
+  const lotsToSave: Inventario[] = [];
+  const movements: MovimientoInventario[] = [];
+
   for (const lote of lotes) {
     if (restante <= 0) break;
     const disponible = Number(lote.Stock);
     const consumo = Math.min(disponible, restante);
 
-    // Usamos el costo override si existe (para el caso del Agua)
     const costoUnitario = costoOverride ?? Number(lote.CostoUnitario);
     const costo = consumo * costoUnitario;
 
     lote.Stock = disponible - consumo;
     if (lote.Stock <= 0) lote.Estado = 0;
-    await queryRunner.manager.save(lote); 
+    lotsToSave.push(lote);
 
     const mov = new MovimientoInventario();
     mov.IdMovimiento = await generarIdSecuencial("MOINV", queryRunner);
@@ -714,10 +716,13 @@ export const consumirInsumoFIFO = async (queryRunner: QueryRunner, IdInsumo: str
     mov.CostoTotal = costo;
     mov.Inventario = lote;
     mov.IdReferencia = IdReferencia;
-    await queryRunner.manager.save(mov);
+    movements.push(mov);
     costoTotal += costo;
     restante -= consumo;
   }
+
+  if (lotsToSave.length > 0) await queryRunner.manager.save(lotsToSave);
+  if (movements.length > 0) await queryRunner.manager.save(movements);
   return costoTotal;
 };
 
@@ -956,7 +961,7 @@ export const getProducciones = async (req: Request, res: Response) => {
 
         AND (
           $2::date IS NULL
-          OR p.fechaproduccion = $2
+          OR p.fechaproduccion::date = $2::date
         )
 
         AND (

@@ -926,7 +926,7 @@ const handleRegistrarSalida = async () => {
     salidaForm.HoraRegistro = '';
     emit('updated');
   } catch (error) {
-    emit('toast', 'Error al registrar salida', 'error');
+    emit('toast', error.message || 'Error al registrar salida', 'error');
   } finally {
     submittingSalida.value = false;
   }

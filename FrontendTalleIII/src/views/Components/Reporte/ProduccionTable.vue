@@ -253,42 +253,74 @@
                                         </tr>
                                       </thead>
                                       <tbody class="divide-y divide-gray-100">
-                                        <tr v-for="(lote, idx) in (prod.DetalleLotes || [])" :key="idx" class="hover:bg-orange-50/30 transition-colors">
-                                          <td class="px-4 py-3">
-                                            <div class="flex items-center gap-2">
-                                              <div class="h-7 w-7 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                                                <Users class="h-3.5 w-3.5 text-blue-600" />
+                                        <template v-for="(empGroup, empIdx) in groupLotesByEmployee(prod.DetalleLotes || [])" :key="empIdx">
+                                          <tr class="hover:bg-orange-50/30 transition-colors">
+                                            <td class="px-4 py-3" rowspan="1">
+                                              <div class="flex items-center gap-2">
+                                                <div class="h-7 w-7 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                                                  <Users class="h-3.5 w-3.5 text-blue-600" />
+                                                </div>
+                                                <span class="text-xs font-bold text-gray-700">{{ empGroup.empleado }}</span>
                                               </div>
-                                              <span class="text-xs font-bold text-gray-700">{{ lote.empleado_completo }}</span>
-                                            </div>
-                                          </td>
-                                          <td class="px-4 py-3">
-                                            <span class="text-xs font-medium text-gray-600">{{ lote.producto_nombre }}</span>
-                                          </td>
-                                          <td class="px-4 py-3 text-center">
-                                            <span class="text-xs font-black text-green-600">{{ lote.cantidad }}</span>
-                                          </td>
-                                          <td class="px-4 py-3 text-center">
-                                            <span :class="['text-xs font-black', lote.cantidad_mala > 0 ? 'text-red-600' : 'text-gray-300']">{{ lote.cantidad_mala || 0 }}</span>
-                                          </td>
-                                          <td class="px-4 py-3">
-                                            <span class="text-[10px] text-gray-500 italic block max-w-[140px] truncate" :title="lote.motivo_mala || '-'">{{ lote.motivo_mala || '-' }}</span>
-                                          </td>
-                                          <td class="px-4 py-3 text-center">
-                                            <div class="flex items-center justify-center gap-1 text-[10px] text-gray-500 font-medium">
-                                              <Clock class="h-3 w-3" />
-                                              {{ lote.hora }}
-                                            </div>
-                                          </td>
-                                          <td class="px-4 py-3 text-center">
-                                            <div class="flex items-center justify-center gap-1 text-[10px] text-gray-500 font-medium">
-                                              <Clock class="h-3 w-3" />
-                                              {{ lote.horno_nombre }}
-                                            </div>
-                                          </td>
-                                          <td class="px-4 py-3 text-right text-xs text-gray-600 font-medium">{{ parseFloat(lote.costo_unitario || 0).toFixed(2) }} Bs.</td>
-                                          <td class="px-4 py-3 text-right text-xs font-bold text-gray-800">{{ (Number(lote.cantidad || 0) * Number(lote.costo_unitario || 0)).toFixed(2) }} Bs.</td>
-                                        </tr>
+                                            </td>
+                                            <td class="px-4 py-3">
+                                              <div class="flex flex-col gap-0.5">
+                                                <span v-for="p in empGroup.productos" :key="p.nombre" class="text-xs font-medium text-gray-600">
+                                                  {{ p.nombre }}
+                                                </span>
+                                              </div>
+                                            </td>
+                                            <td class="px-4 py-3 text-center">
+                                              <div class="flex flex-col gap-0.5">
+                                                <span v-for="p in empGroup.productos" :key="p.nombre" class="text-xs font-black text-green-600">
+                                                  {{ p.cantidad }}
+                                                </span>
+                                              </div>
+                                            </td>
+                                            <td class="px-4 py-3 text-center">
+                                              <div class="flex flex-col gap-0.5">
+                                                <span v-for="p in empGroup.productos" :key="p.nombre" :class="['text-xs font-black', p.cantidad_mala > 0 ? 'text-red-600' : 'text-gray-300']">
+                                                  {{ p.cantidad_mala || 0 }}
+                                                </span>
+                                              </div>
+                                            </td>
+                                            <td class="px-4 py-3">
+                                              <div class="flex flex-col gap-0.5">
+                                                <span v-for="p in empGroup.productos" :key="p.nombre" class="text-[10px] text-gray-500 italic block max-w-[140px] truncate" :title="p.motivo_mala || '-'">
+                                                  {{ p.motivo_mala || '-' }}
+                                                </span>
+                                              </div>
+                                            </td>
+                                            <td class="px-4 py-3 text-center">
+                                              <div class="flex flex-col gap-0.5">
+                                                <span v-for="p in empGroup.productos" :key="p.nombre" class="flex items-center justify-center gap-1 text-[10px] text-gray-500 font-medium">
+                                                  <Clock class="h-3 w-3" /> {{ p.hora }}
+                                                </span>
+                                              </div>
+                                            </td>
+                                            <td class="px-4 py-3 text-center">
+                                              <div class="flex flex-col gap-0.5">
+                                                <span v-for="p in empGroup.productos" :key="p.nombre" class="flex items-center justify-center gap-1 text-[10px] text-gray-500 font-medium">
+                                                  {{ p.horno_nombre }}
+                                                </span>
+                                              </div>
+                                            </td>
+                                            <td class="px-4 py-3 text-right">
+                                              <div class="flex flex-col gap-0.5 items-end">
+                                                <span v-for="p in empGroup.productos" :key="p.nombre" class="text-xs text-gray-600 font-medium">
+                                                  {{ parseFloat(p.costo_unitario || 0).toFixed(2) }} Bs.
+                                                </span>
+                                              </div>
+                                            </td>
+                                            <td class="px-4 py-3 text-right">
+                                              <div class="flex flex-col gap-0.5 items-end">
+                                                <span v-for="p in empGroup.productos" :key="p.nombre" class="text-xs font-bold text-gray-800">
+                                                  {{ (Number(p.cantidad || 0) * Number(p.costo_unitario || 0)).toFixed(2) }} Bs.
+                                                </span>
+                                              </div>
+                                            </td>
+                                          </tr>
+                                        </template>
                                       </tbody>
                                     </table>
                                   </div>
@@ -302,7 +334,12 @@
                                   </div>
                                   <div class="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
                                     <div v-for="(mo, idx) in (prod.ManoObraTotal || [])" :key="idx" class="flex justify-between items-center mb-2 last:mb-0">
-                                      <span class="text-[11px] font-medium text-gray-600">{{ mo.empleado }}</span>
+                                      <div class="flex items-center gap-2">
+                                        <span class="text-[11px] font-medium text-gray-600">{{ mo.empleado }}</span>
+                                        <span class="text-[9px] text-gray-400 font-medium">
+                                          ({{ mo.horainicio?.substring(0,5) ?? '--:--' }} - {{ mo.horafin?.substring(0,5) ?? '--:--' }})
+                                        </span>
+                                      </div>
                                       <span class="px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-[9px] font-black">{{ mo.horas }} hrs</span>
                                     </div>
                                     <div class="mt-3 pt-2 border-t border-gray-100 flex justify-between items-center">
@@ -592,46 +629,60 @@
                               </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-100">
-                              <tr v-for="(lote, idx) in prod.DetalleLotes" :key="idx" class="hover:bg-orange-50/30 transition-colors">
-                                <td class="px-4 py-3">
-                                  <div class="flex items-center gap-2">
-                                    <div class="h-7 w-7 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                                      <Users class="h-3.5 w-3.5 text-blue-600" />
+                              <template v-for="(empGroup, empIdx) in groupLotesByEmployee(prod.DetalleLotes || [])" :key="empIdx">
+                                <tr class="hover:bg-orange-50/30 transition-colors">
+                                  <td class="px-4 py-3" rowspan="1">
+                                    <div class="flex items-center gap-2">
+                                      <div class="h-7 w-7 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                                        <Users class="h-3.5 w-3.5 text-blue-600" />
+                                      </div>
+                                      <span class="text-xs font-bold text-gray-700">{{ empGroup.empleado }}</span>
                                     </div>
-                                    <span class="text-xs font-bold text-gray-700">{{ lote.empleado_completo }}</span>
-                                  </div>
-                                </td>
-                                <td class="px-4 py-3">
-                                  <span class="text-xs font-medium text-gray-600">{{ lote.producto_nombre }}</span>
-                                </td>
-                                <td class="px-4 py-3 text-center">
-                                  <span class="text-xs font-black text-green-600">{{ lote.cantidad }}</span>
-                                </td>
-                                <td class="px-4 py-3 text-center">
-                                  <span :class="['text-xs font-black', lote.cantidad_mala > 0 ? 'text-red-600' : 'text-gray-300']">
-                                    {{ lote.cantidad_mala || 0 }}
-                                  </span>
-                                </td>
-                                <td class="px-4 py-3">
-                                  <span class="text-[10px] text-gray-500 italic block max-w-[140px] truncate" :title="lote.motivo_mala || '-'">{{ lote.motivo_mala || '-' }}</span>
-                                </td>
-                                <td class="px-4 py-3 text-center">
-                                  <div class="flex items-center justify-center gap-1 text-[10px] text-gray-500 font-medium">
-                                    <Clock class="h-3 w-3" />
-                                    {{ lote.hora }}
-                                  </div>
-                                </td>
-                                 
-                                <td class="px-4 py-3 text-center">
-                                  <div class="flex items-center justify-center gap-1 text-[10px] text-gray-500 font-medium">
-                                    <Clock class="h-3 w-3" />
-                                    {{ lote.horno_nombre }}
-                                  </div>
-                                </td>
-                                
-                                <td class="px-4 py-3 text-right text-xs text-gray-600 font-medium">{{ parseFloat(lote.costo_unitario || 0).toFixed(2) }} Bs.</td>
-                                <td class="px-4 py-3 text-right text-xs font-bold text-gray-800">{{ (lote.cantidad * (lote.costo_unitario || 0)).toFixed(2) }} Bs.</td>
-                              </tr>
+                                  </td>
+                                  <td class="px-4 py-3">
+                                    <div class="flex flex-col gap-0.5">
+                                      <span v-for="p in empGroup.productos" :key="p.nombre" class="text-xs font-medium text-gray-600">{{ p.nombre }}</span>
+                                    </div>
+                                  </td>
+                                  <td class="px-4 py-3 text-center">
+                                    <div class="flex flex-col gap-0.5">
+                                      <span v-for="p in empGroup.productos" :key="p.nombre" class="text-xs font-black text-green-600">{{ p.cantidad }}</span>
+                                    </div>
+                                  </td>
+                                  <td class="px-4 py-3 text-center">
+                                    <div class="flex flex-col gap-0.5">
+                                      <span v-for="p in empGroup.productos" :key="p.nombre" :class="['text-xs font-black', p.cantidad_mala > 0 ? 'text-red-600' : 'text-gray-300']">{{ p.cantidad_mala || 0 }}</span>
+                                    </div>
+                                  </td>
+                                  <td class="px-4 py-3">
+                                    <div class="flex flex-col gap-0.5">
+                                      <span v-for="p in empGroup.productos" :key="p.nombre" class="text-[10px] text-gray-500 italic block max-w-[140px] truncate" :title="p.motivo_mala || '-'">{{ p.motivo_mala || '-' }}</span>
+                                    </div>
+                                  </td>
+                                  <td class="px-4 py-3 text-center">
+                                    <div class="flex flex-col gap-0.5">
+                                      <span v-for="p in empGroup.productos" :key="p.nombre" class="flex items-center justify-center gap-1 text-[10px] text-gray-500 font-medium">
+                                        <Clock class="h-3 w-3" /> {{ p.hora }}
+                                      </span>
+                                    </div>
+                                  </td>
+                                  <td class="px-4 py-3 text-center">
+                                    <div class="flex flex-col gap-0.5">
+                                      <span v-for="p in empGroup.productos" :key="p.nombre" class="text-[10px] text-gray-500 font-medium">{{ p.horno_nombre }}</span>
+                                    </div>
+                                  </td>
+                                  <td class="px-4 py-3 text-right">
+                                    <div class="flex flex-col gap-0.5 items-end">
+                                      <span v-for="p in empGroup.productos" :key="p.nombre" class="text-xs text-gray-600 font-medium">{{ parseFloat(p.costo_unitario || 0).toFixed(2) }} Bs.</span>
+                                    </div>
+                                  </td>
+                                  <td class="px-4 py-3 text-right">
+                                    <div class="flex flex-col gap-0.5 items-end">
+                                      <span v-for="p in empGroup.productos" :key="p.nombre" class="text-xs font-bold text-gray-800">{{ (Number(p.cantidad || 0) * Number(p.costo_unitario || 0)).toFixed(2) }} Bs.</span>
+                                    </div>
+                                  </td>
+                                </tr>
+                              </template>
                             </tbody>
                           </table>
                         </div>
@@ -648,7 +699,12 @@
                         </div>
                         <div class="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
                           <div v-for="(mo, idx) in prod.ManoObraTotal" :key="idx" class="flex justify-between items-center mb-2 last:mb-0">
-                            <span class="text-[11px] font-medium text-gray-600">{{ mo.empleado }}</span>
+                            <div class="flex items-center gap-2">
+                              <span class="text-[11px] font-medium text-gray-600">{{ mo.empleado }}</span>
+                              <span class="text-[9px] text-gray-400 font-medium">
+                                ({{ mo.horainicio?.substring(0,5) ?? '--:--' }} - {{ mo.horafin?.substring(0,5) ?? '--:--' }})
+                              </span>
+                            </div>
                             <span class="px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-[9px] font-black">{{ mo.horas }} hrs</span>
                           </div>
                           <div class="mt-3 pt-2 border-t border-gray-100 flex justify-between items-center">
@@ -755,6 +811,27 @@ const getWeekLabel = (mondayStr) => {
 }
 
 const formatCurrency = (val) => Number(val || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+
+const groupLotesByEmployee = (lotes) => {
+  const map = {};
+  (lotes || []).forEach(l => {
+    const key = l.empleado_completo;
+    if (!map[key]) {
+      map[key] = { empleado: key, productos: [] };
+    }
+    map[key].productos.push({
+      nombre: l.producto_nombre,
+      cantidad: l.cantidad,
+      cantidad_mala: l.cantidad_mala || 0,
+      motivo_mala: l.motivo_mala,
+      hora: l.hora,
+      horno_nombre: l.horno_nombre,
+      costo_unitario: l.costo_unitario,
+      insumos_receta: l.insumos_receta,
+    });
+  });
+  return Object.values(map);
+};
 
 const produccionPorSemana = computed(() => {
   const weeks = {}
