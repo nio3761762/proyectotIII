@@ -142,7 +142,7 @@
               </div>
             </div>Restante por asignar
 
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div class="space-y-1">
                 <label class="text-xs font-semibold text-gray-400  ml-1">Cantidad</label>
                 <input 
@@ -153,9 +153,18 @@
                 />
               </div>
               <div class="space-y-1">
+                <label class="text-xs font-semibold text-gray-400  ml-1">Precio Total</label>
+                <input 
+                  v-model.number="itemForm.PrecioTotal"
+                  type="number" 
+                  step="0.01"
+                  class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-orange-500 outline-none transition-all font-black text-center"
+                />
+              </div>
+              <div class="space-y-1">
                 <label class="text-xs font-semibold text-gray-400  ml-1">Precio Unit.</label>
                 <input 
-                  v-model.number="itemForm.Precio" 
+                  v-model.number="itemForm.Precio"
                   type="number" 
                   step="0.01"
                   class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-orange-500 outline-none transition-all font-black text-center"
@@ -429,7 +438,24 @@ const medidasList = ref([]);
 const itemForm = reactive({
   Cantidad: 1,
   Precio: 0,
+  PrecioTotal: 0,
   Fecha: getLocalDate()
+});
+
+watch(() => itemForm.PrecioTotal, (val) => {
+  if (itemForm.Cantidad > 0) {
+    itemForm.Precio = val / itemForm.Cantidad;
+  }
+});
+
+watch(() => itemForm.Precio, (val) => {
+  itemForm.PrecioTotal = val * itemForm.Cantidad;
+});
+
+watch(() => itemForm.Cantidad, (val) => {
+  if (val > 0) {
+    itemForm.Precio = itemForm.PrecioTotal / val;
+  }
 });
 
 // Computed
@@ -577,6 +603,7 @@ const addDetail = () => {
   selectedMedidaId.value = '';
   itemForm.Cantidad = 1;
   itemForm.Precio = 0;
+  itemForm.PrecioTotal = 0;
   itemForm.Fecha = getLocalDate();
 };
 
@@ -730,6 +757,7 @@ const handleSubmit = async () => {
   selectedMedidaId.value = '';
   itemForm.Cantidad = 1;
   itemForm.Precio = 0;
+  itemForm.PrecioTotal = 0;
   itemForm.Fecha = getLocalDate();
 };
 

@@ -52,25 +52,13 @@
       <div class="mb-4 space-y-3">
         <div class="flex items-center justify-between pt-1">
           <div class="flex flex-col">
-            <span class="text-[10px] text-gray-400 font-black uppercase tracking-widest">Personal Asignado</span>
-            <div class="flex -space-x-2 mt-1.5 overflow-hidden">
-              <template v-if="produccion.empleados?.length">
-                <div v-for="emp in produccion.empleados" :key="emp.id" class="inline-block h-8 w-8 rounded-full ring-2 ring-white bg-orange-100 flex items-center justify-center text-orange-600 overflow-hidden" :title="emp.nombre">
-                  <img v-if="emp.imagen" :src="emp.imagen" class="h-full w-full object-cover" />
-                  <User v-else class="h-4 w-4" />
-                </div>
-              </template>
-              <div v-else class="flex items-center gap-2 mt-0.5">
-                <div class="w-5 h-5 rounded-full bg-orange-100 flex items-center justify-center text-orange-600">
-                  <User class="h-3 w-3" />
-                </div>
-                <span class="text-sm font-bold text-gray-700">{{ produccion.responsable || 'Sistema' }}</span>
+            <span class="text-[10px] text-gray-400 font-black uppercase tracking-widest">Responsable</span>
+            <div class="flex items-center gap-2 mt-1.5">
+              <div class="w-7 h-7 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 overflow-hidden">
+                <img v-if="produccion.empleados?.[0]?.imagen" :src="produccion.empleados[0].imagen" class="h-full w-full object-cover" />
+                <User v-else class="h-3.5 w-3.5" />
               </div>
-            </div>
-            <div v-if="produccion.empleados?.length" class="mt-1">
-               <span class="text-[10px] font-bold text-gray-500">
-                 {{ produccion.empleados.map(e => e.nombre).join(', ') }}
-               </span>
+              <span class="text-sm font-bold text-gray-700">{{ produccion.responsable || 'Sistema' }}</span>
             </div>
           </div>
           <button @click="expandido = !expandido" class="text-orange-600 hover:text-orange-700 hover:bg-orange-50 rounded-xl px-4 py-2 text-xs flex items-center gap-2 transition-all font-black border border-orange-100 shadow-sm self-end">

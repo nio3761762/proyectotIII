@@ -545,195 +545,201 @@
         </div>
       </div>
 
-      <div class="overflow-x-auto">
-        <table class="w-full text-left border-collapse">
-          <thead>
-            <tr class="bg-gray-50 text-[11px] font-black text-gray-400 uppercase tracking-wider">
-              <th class="px-6 py-4 w-10"></th>
-              <th class="px-6 py-4">Fecha / ID</th>
-              <th class="px-6 py-4">Sucursal</th>
-              <th class="px-6 py-4">Horario</th>
-              <th class="px-4 py-4 text-center">Cant. Total</th>
-              <th class="px-4 py-4 text-right">Insumos</th>
-              <th class="px-4 py-4 text-right">Mano Obra</th>
-              <th class="px-4 py-4 text-right">Indirectos</th>
-              <th class="px-6 py-4 text-right">Costo Total</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-gray-100">
-            <template v-for="prod in todasLasProducciones" :key="prod.idproduccion">
-              <tr @click="toggleRow(prod.idproduccion)" 
-                  class="hover:bg-blue-50/30 transition-colors cursor-pointer group"
-                  :class="{'bg-blue-50/20': isRowExpanded(prod.idproduccion)}">
-                <td class="px-6 py-4">
-                  <div :class="['transition-transform duration-300', isRowExpanded(prod.idproduccion) ? 'rotate-180' : '']">
-                    <ChevronDown class="h-4 w-4 text-gray-400 group-hover:text-blue-500" />
-                  </div>
-                </td>
-                <td class="px-6 py-4">
-                  <div class="flex flex-col">
-                    <span class="font-bold text-gray-700">{{ formatFecha(prod.fechaproduccion).substring(0,10) }}</span>
-                    <span class="text-[10px] text-gray-400 font-mono">{{ prod.idproduccion }}</span>
-                  </div>
-                </td>
-                <td class="px-6 py-4">
-                  <span class="text-sm font-medium text-gray-600">{{ prod.sucursal_nombre }}</span>
-                </td>
-                <td class="px-6 py-4">
-                  <div class="flex items-center gap-1.5 text-xs text-gray-500">
-                    <Clock class="h-3 w-3" />
-                    {{ prod.horainicio.substring(0,5) }} - {{ prod.horafin.substring(0,5) }}
-                  </div>
-                </td>
-                <td class="px-4 py-4 text-center">
-                  <div class="flex flex-col items-center">
-                    <span class="font-black text-gray-700">{{ prod.CANTIDAD_TOTAL_PRODUCIDA }}</span>
-                    <span v-if="prod.DetalleLotes.some(l => l.cantidad_mala > 0)" 
-                          class="text-[9px] font-black text-red-500 uppercase mt-0.5">
-                      {{ prod.DetalleLotes.reduce((acc, l) => acc + (l.cantidad_mala || 0), 0) }} Merma
-                    </span>
-                  </div>
-                </td>
-                <td class="px-4 py-4 text-right text-sm text-gray-600">{{ parseFloat(prod.COSTO_INSUMOS || 0).toFixed(2) }}</td>
-                <td class="px-4 py-4 text-right text-sm text-gray-600">{{ parseFloat(prod.COSTO_MANO_OBRA || 0).toFixed(2) }}</td>
-                <td class="px-4 py-4 text-right text-sm text-gray-600">{{ parseFloat(prod.COSTO_INDIRECTO || 0).toFixed(2) }}</td>
-                <td class="px-6 py-4 text-right">
-                  <span class="font-black text-blue-600">{{ parseFloat(prod.COSTO_TOTAL || 0).toFixed(2) }} <small class="text-[10px] ml-0.5">Bs.</small></span>
-                </td>
-              </tr>
-              
-              <!-- Fila de Detalle -->
-              <tr v-if="isRowExpanded(prod.idproduccion)">
-                <td colspan="9" class="px-6 py-8 bg-gray-50/50 border-y border-gray-100">
-                  <div class="max-w-7xl mx-auto space-y-8">
-                    <!-- Tabla Excel de Lotes -->
-                    <div>
-                      <div class="flex items-center gap-2 mb-4">
-                        <Layers class="h-4 w-4 text-orange-500" />
-                        <h5 class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Detalle de Productos por Empleado</h5>
+      <div class="space-y-6 p-6">
+        <div v-for="grupo in produccionesPorFecha" :key="grupo.fecha" class="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+          <div class="px-5 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-100 flex items-center gap-3">
+            <Calendar class="h-4 w-4 text-blue-500" />
+            <span class="font-bold text-gray-700 text-sm">{{ formatFecha(grupo.fecha) }}</span>
+            <span class="text-xs text-gray-500">({{ grupo.producciones.length }} sesiones)</span>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-gray-50 text-[11px] font-black text-gray-400 uppercase tracking-wider">
+                  <th class="px-6 py-4 w-10"></th>
+                  <th class="px-6 py-4">ID</th>
+                  <th class="px-6 py-4">Sucursal</th>
+                  <th class="px-6 py-4">Horario</th>
+                  <th class="px-4 py-4 text-center">Cant. Total</th>
+                  <th class="px-4 py-4 text-right">Insumos</th>
+                  <th class="px-4 py-4 text-right">Mano Obra</th>
+                  <th class="px-4 py-4 text-right">Indirectos</th>
+                  <th class="px-6 py-4 text-right">Costo Total</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-100">
+                <template v-for="prod in grupo.producciones" :key="prod.idproduccion">
+                  <tr @click="toggleRow(prod.idproduccion)" 
+                      class="hover:bg-blue-50/30 transition-colors cursor-pointer group"
+                      :class="{'bg-blue-50/20': isRowExpanded(prod.idproduccion)}">
+                    <td class="px-6 py-4">
+                      <div :class="['transition-transform duration-300', isRowExpanded(prod.idproduccion) ? 'rotate-180' : '']">
+                        <ChevronDown class="h-4 w-4 text-gray-400 group-hover:text-blue-500" />
                       </div>
-                      <div class="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
-                        <div class="overflow-x-auto">
-                          <table class="w-full text-left border-collapse">
-                            <thead class="bg-gray-50">
-                              <tr>
-                                <th class="px-4 py-3 text-[9px] font-black text-gray-400 uppercase whitespace-nowrap">Empleado</th>
-                                <th class="px-4 py-3 text-[9px] font-black text-gray-400 uppercase whitespace-nowrap">Producto</th>
-                                <th class="px-4 py-3 text-[9px] font-black text-green-600 uppercase text-center whitespace-nowrap">Cant. Producida</th>
-                                <th class="px-4 py-3 text-[9px] font-black text-red-400 uppercase text-center whitespace-nowrap">Cant. Mala</th>
-                                <th class="px-4 py-3 text-[9px] font-black text-gray-400 uppercase whitespace-nowrap">Motivo</th>
-                                <th class="px-4 py-3 text-[9px] font-black text-gray-400 uppercase text-center whitespace-nowrap">Hora Producción</th>
-                                <th class="px-4 py-3 text-[9px] font-black text-gray-400 uppercase text-center whitespace-nowrap">Horno</th>
-                                <th class="px-4 py-3 text-[9px] font-black text-gray-400 uppercase text-right whitespace-nowrap">C. Unit.</th>
-                                <th class="px-4 py-3 text-[9px] font-black text-gray-400 uppercase text-right whitespace-nowrap">Subtotal</th>
-                              </tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-100">
-                              <template v-for="(empGroup, empIdx) in groupLotesByEmployee(prod.DetalleLotes || [])" :key="empIdx">
-                                <tr class="hover:bg-orange-50/30 transition-colors">
-                                  <td class="px-4 py-3" rowspan="1">
-                                    <div class="flex items-center gap-2">
-                                      <div class="h-7 w-7 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                                        <Users class="h-3.5 w-3.5 text-blue-600" />
-                                      </div>
-                                      <span class="text-xs font-bold text-gray-700">{{ empGroup.empleado }}</span>
-                                    </div>
-                                  </td>
-                                  <td class="px-4 py-3">
-                                    <div class="flex flex-col gap-0.5">
-                                      <span v-for="p in empGroup.productos" :key="p.nombre" class="text-xs font-medium text-gray-600">{{ p.nombre }}</span>
-                                    </div>
-                                  </td>
-                                  <td class="px-4 py-3 text-center">
-                                    <div class="flex flex-col gap-0.5">
-                                      <span v-for="p in empGroup.productos" :key="p.nombre" class="text-xs font-black text-green-600">{{ p.cantidad }}</span>
-                                    </div>
-                                  </td>
-                                  <td class="px-4 py-3 text-center">
-                                    <div class="flex flex-col gap-0.5">
-                                      <span v-for="p in empGroup.productos" :key="p.nombre" :class="['text-xs font-black', p.cantidad_mala > 0 ? 'text-red-600' : 'text-gray-300']">{{ p.cantidad_mala || 0 }}</span>
-                                    </div>
-                                  </td>
-                                  <td class="px-4 py-3">
-                                    <div class="flex flex-col gap-0.5">
-                                      <span v-for="p in empGroup.productos" :key="p.nombre" class="text-[10px] text-gray-500 italic block max-w-[140px] truncate" :title="p.motivo_mala || '-'">{{ p.motivo_mala || '-' }}</span>
-                                    </div>
-                                  </td>
-                                  <td class="px-4 py-3 text-center">
-                                    <div class="flex flex-col gap-0.5">
-                                      <span v-for="p in empGroup.productos" :key="p.nombre" class="flex items-center justify-center gap-1 text-[10px] text-gray-500 font-medium">
-                                        <Clock class="h-3 w-3" /> {{ p.hora }}
-                                      </span>
-                                    </div>
-                                  </td>
-                                  <td class="px-4 py-3 text-center">
-                                    <div class="flex flex-col gap-0.5">
-                                      <span v-for="p in empGroup.productos" :key="p.nombre" class="text-[10px] text-gray-500 font-medium">{{ p.horno_nombre }}</span>
-                                    </div>
-                                  </td>
-                                  <td class="px-4 py-3 text-right">
-                                    <div class="flex flex-col gap-0.5 items-end">
-                                      <span v-for="p in empGroup.productos" :key="p.nombre" class="text-xs text-gray-600 font-medium">{{ parseFloat(p.costo_unitario || 0).toFixed(2) }} Bs.</span>
-                                    </div>
-                                  </td>
-                                  <td class="px-4 py-3 text-right">
-                                    <div class="flex flex-col gap-0.5 items-end">
-                                      <span v-for="p in empGroup.productos" :key="p.nombre" class="text-xs font-bold text-gray-800">{{ (Number(p.cantidad || 0) * Number(p.costo_unitario || 0)).toFixed(2) }} Bs.</span>
-                                    </div>
-                                  </td>
-                                </tr>
-                              </template>
-                            </tbody>
-                          </table>
-                        </div>
+                    </td>
+                    <td class="px-6 py-4">
+                      <span class="text-xs font-mono text-gray-500">{{ prod.idproduccion }}</span>
+                    </td>
+                    <td class="px-6 py-4">
+                      <span class="text-sm font-medium text-gray-600">{{ prod.sucursal_nombre }}</span>
+                    </td>
+                    <td class="px-6 py-4">
+                      <div class="flex items-center gap-1.5 text-xs text-gray-500">
+                        <Clock class="h-3 w-3" />
+                        {{ prod.horainicio?.substring(0,5) || '--:--' }} - {{ prod.horafin?.substring(0,5) || '--:--' }}
                       </div>
-                    </div>
-
-                    <!-- Recursos: Mano de Obra e Insumos en fila -->
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                      <!-- Mano de Obra -->
-                      <div>
-                        <div class="flex items-center gap-2 mb-3">
-                          <Users class="h-4 w-4 text-blue-500" />
-                          <h5 class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Mano de Obra</h5>
-                        </div>
-                        <div class="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
-                          <div v-for="(mo, idx) in prod.ManoObraTotal" :key="idx" class="flex justify-between items-center mb-2 last:mb-0">
-                            <div class="flex items-center gap-2">
-                              <span class="text-[11px] font-medium text-gray-600">{{ mo.empleado }}</span>
-                              <span class="text-[9px] text-gray-400 font-medium">
-                                ({{ mo.horainicio?.substring(0,5) ?? '--:--' }} - {{ mo.horafin?.substring(0,5) ?? '--:--' }})
-                              </span>
+                    </td>
+                    <td class="px-4 py-4 text-center">
+                      <div class="flex flex-col items-center">
+                        <span class="font-black text-gray-700">{{ prod.CANTIDAD_TOTAL_PRODUCIDA }}</span>
+                        <span v-if="prod.DetalleLotes?.some(l => l.cantidad_mala > 0)" 
+                              class="text-[9px] font-black text-red-500 uppercase mt-0.5">
+                          {{ prod.DetalleLotes.reduce((acc, l) => acc + (l.cantidad_mala || 0), 0) }} Merma
+                        </span>
+                      </div>
+                    </td>
+                    <td class="px-4 py-4 text-right text-sm text-gray-600">{{ parseFloat(prod.COSTO_INSUMOS || 0).toFixed(2) }}</td>
+                    <td class="px-4 py-4 text-right text-sm text-gray-600">{{ parseFloat(prod.COSTO_MANO_OBRA || 0).toFixed(2) }}</td>
+                    <td class="px-4 py-4 text-right text-sm text-gray-600">{{ parseFloat(prod.COSTO_INDIRECTO || 0).toFixed(2) }}</td>
+                    <td class="px-6 py-4 text-right">
+                      <span class="font-black text-blue-600">{{ parseFloat(prod.COSTO_TOTAL || 0).toFixed(2) }} <small class="text-[10px] ml-0.5">Bs.</small></span>
+                    </td>
+                  </tr>
+                  
+                  <!-- Fila de Detalle -->
+                  <tr v-if="isRowExpanded(prod.idproduccion)">
+                    <td colspan="9" class="px-6 py-8 bg-gray-50/50 border-y border-gray-100">
+                      <div class="max-w-7xl mx-auto space-y-8">
+                        <!-- Tabla Excel de Lotes -->
+                        <div>
+                          <div class="flex items-center gap-2 mb-4">
+                            <Layers class="h-4 w-4 text-orange-500" />
+                            <h5 class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Detalle de Productos por Empleado</h5>
+                          </div>
+                          <div class="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+                            <div class="overflow-x-auto">
+                              <table class="w-full text-left border-collapse">
+                                <thead class="bg-gray-50">
+                                  <tr>
+                                    <th class="px-4 py-3 text-[9px] font-black text-gray-400 uppercase whitespace-nowrap">Empleado</th>
+                                    <th class="px-4 py-3 text-[9px] font-black text-gray-400 uppercase whitespace-nowrap">Producto</th>
+                                    <th class="px-4 py-3 text-[9px] font-black text-green-600 uppercase text-center whitespace-nowrap">Cant. Producida</th>
+                                    <th class="px-4 py-3 text-[9px] font-black text-red-400 uppercase text-center whitespace-nowrap">Cant. Mala</th>
+                                    <th class="px-4 py-3 text-[9px] font-black text-gray-400 uppercase whitespace-nowrap">Motivo</th>
+                                    <th class="px-4 py-3 text-[9px] font-black text-gray-400 uppercase text-center whitespace-nowrap">Hora Producción</th>
+                                    <th class="px-4 py-3 text-[9px] font-black text-gray-400 uppercase text-center whitespace-nowrap">Horno</th>
+                                    <th class="px-4 py-3 text-[9px] font-black text-gray-400 uppercase text-right whitespace-nowrap">C. Unit.</th>
+                                    <th class="px-4 py-3 text-[9px] font-black text-gray-400 uppercase text-right whitespace-nowrap">Subtotal</th>
+                                  </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-100">
+                                  <template v-for="(empGroup, empIdx) in groupLotesByEmployee(prod.DetalleLotes || [])" :key="empIdx">
+                                    <tr class="hover:bg-orange-50/30 transition-colors">
+                                      <td class="px-4 py-3" rowspan="1">
+                                        <div class="flex items-center gap-2">
+                                          <div class="h-7 w-7 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                                            <Users class="h-3.5 w-3.5 text-blue-600" />
+                                          </div>
+                                          <span class="text-xs font-bold text-gray-700">{{ empGroup.empleado }}</span>
+                                        </div>
+                                      </td>
+                                      <td class="px-4 py-3">
+                                        <div class="flex flex-col gap-0.5">
+                                          <span v-for="p in empGroup.productos" :key="p.nombre" class="text-xs font-medium text-gray-600">{{ p.nombre }}</span>
+                                        </div>
+                                      </td>
+                                      <td class="px-4 py-3 text-center">
+                                        <div class="flex flex-col gap-0.5">
+                                          <span v-for="p in empGroup.productos" :key="p.nombre" class="text-xs font-black text-green-600">{{ p.cantidad }}</span>
+                                        </div>
+                                      </td>
+                                      <td class="px-4 py-3 text-center">
+                                        <div class="flex flex-col gap-0.5">
+                                          <span v-for="p in empGroup.productos" :key="p.nombre" :class="['text-xs font-black', p.cantidad_mala > 0 ? 'text-red-600' : 'text-gray-300']">{{ p.cantidad_mala || 0 }}</span>
+                                        </div>
+                                      </td>
+                                      <td class="px-4 py-3">
+                                        <div class="flex flex-col gap-0.5">
+                                          <span v-for="p in empGroup.productos" :key="p.nombre" class="text-[10px] text-gray-500 italic block max-w-[140px] truncate" :title="p.motivo_mala || '-'">{{ p.motivo_mala || '-' }}</span>
+                                        </div>
+                                      </td>
+                                      <td class="px-4 py-3 text-center">
+                                        <div class="flex flex-col gap-0.5">
+                                          <span v-for="p in empGroup.productos" :key="p.nombre" class="flex items-center justify-center gap-1 text-[10px] text-gray-500 font-medium">
+                                            <Clock class="h-3 w-3" /> {{ p.hora }}
+                                          </span>
+                                        </div>
+                                      </td>
+                                      <td class="px-4 py-3 text-center">
+                                        <div class="flex flex-col gap-0.5">
+                                          <span v-for="p in empGroup.productos" :key="p.nombre" class="text-[10px] text-gray-500 font-medium">{{ p.horno_nombre }}</span>
+                                        </div>
+                                      </td>
+                                      <td class="px-4 py-3 text-right">
+                                        <div class="flex flex-col gap-0.5 items-end">
+                                          <span v-for="p in empGroup.productos" :key="p.nombre" class="text-xs text-gray-600 font-medium">{{ parseFloat(p.costo_unitario || 0).toFixed(2) }} Bs.</span>
+                                        </div>
+                                      </td>
+                                      <td class="px-4 py-3 text-right">
+                                        <div class="flex flex-col gap-0.5 items-end">
+                                          <span v-for="p in empGroup.productos" :key="p.nombre" class="text-xs font-bold text-gray-800">{{ (Number(p.cantidad || 0) * Number(p.costo_unitario || 0)).toFixed(2) }} Bs.</span>
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  </template>
+                                </tbody>
+                              </table>
                             </div>
-                            <span class="px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-[9px] font-black">{{ mo.horas }} hrs</span>
-                          </div>
-                          <div class="mt-3 pt-2 border-t border-gray-100 flex justify-between items-center">
-                            <span class="text-[9px] text-gray-400 font-black uppercase">Costo MO</span>
-                            <span class="text-xs font-black text-gray-700">{{ parseFloat(prod.COSTO_MANO_OBRA || 0).toFixed(2) }} Bs.</span>
                           </div>
                         </div>
-                      </div>
 
-                      <!-- Insumos Utilizados -->
-                      <div>
-                        <div class="flex items-center gap-2 mb-3">
-                          <Droplets class="h-4 w-4 text-blue-500" />
-                          <h5 class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Insumos Utilizados</h5>
-                        </div>
-                        <div class="bg-white rounded-xl border border-gray-200 p-4 shadow-sm max-h-48 overflow-y-auto">
-                          <div v-for="insumo in prod.CONSUMO_TOTAL_PRODUCCION" :key="insumo.insumo_unidad" class="flex justify-between items-center mb-2 last:mb-0">
-                            <span class="text-[11px] text-gray-600">{{ insumo.insumo_unidad }}</span>
-                            <span class="text-[11px] font-black text-orange-600">{{ insumo.cantidad }}</span>
+                        <!-- Recursos: Mano de Obra e Insumos en fila -->
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                          <!-- Mano de Obra -->
+                          <div>
+                            <div class="flex items-center gap-2 mb-3">
+                              <Users class="h-4 w-4 text-blue-500" />
+                              <h5 class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Mano de Obra</h5>
+                            </div>
+                            <div class="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+                              <div v-for="(mo, idx) in (prod.ManoObraTotal || [])" :key="idx" class="flex justify-between items-center mb-2 last:mb-0">
+                                <div class="flex items-center gap-2">
+                                  <span class="text-[11px] font-medium text-gray-600">{{ mo.empleado }}</span>
+                                  <span class="text-[9px] text-gray-400 font-medium">
+                                    ({{ mo.horainicio?.substring(0,5) ?? '--:--' }} - {{ mo.horafin?.substring(0,5) ?? '--:--' }})
+                                  </span>
+                                </div>
+                                <span class="px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-[9px] font-black">{{ mo.horas }} hrs</span>
+                              </div>
+                              <div class="mt-3 pt-2 border-t border-gray-100 flex justify-between items-center">
+                                <span class="text-[9px] text-gray-400 font-black uppercase">Costo MO</span>
+                                <span class="text-xs font-black text-gray-700">{{ parseFloat(prod.COSTO_MANO_OBRA || 0).toFixed(2) }} Bs.</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <!-- Insumos Utilizados -->
+                          <div>
+                            <div class="flex items-center gap-2 mb-3">
+                              <Droplets class="h-4 w-4 text-blue-500" />
+                              <h5 class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Insumos Utilizados</h5>
+                            </div>
+                            <div class="bg-white rounded-xl border border-gray-200 p-4 shadow-sm max-h-48 overflow-y-auto">
+                              <div v-for="insumo in (prod.CONSUMO_TOTAL_PRODUCCION || [])" :key="insumo.insumo_unidad" class="flex justify-between items-center mb-2 last:mb-0">
+                                <span class="text-[11px] text-gray-600">{{ insumo.insumo_unidad }}</span>
+                                <span class="text-[11px] font-black text-orange-600">{{ insumo.cantidad }}</span>
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  </div>
-                </td>
-              </tr>
-            </template>
-          </tbody>
-        </table>
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
       
       <!-- Estado Vacío -->
@@ -1062,6 +1068,17 @@ const getWeeklyDays = (fecha) => weeklyDetallado.value.find(w => w.fecha === fec
 const todasLasProducciones = computed(() => {
   if (!props.detallado || !props.detallado.producciones) return []
   return [...props.detallado.producciones].sort((a, b) => new Date(b.fechaproduccion) - new Date(a.fechaproduccion))
+})
+
+// Agrupación por fecha
+const produccionesPorFecha = computed(() => {
+  const grouped = {}
+  todasLasProducciones.value.forEach(prod => {
+    const fecha = prod.fechaproduccion ? prod.fechaproduccion.split('T')[0] : 'N/A'
+    if (!grouped[fecha]) grouped[fecha] = { fecha, producciones: [] }
+    grouped[fecha].producciones.push(prod)
+  })
+  return Object.values(grouped).sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
 })
 
 // Lógica de expansión de filas

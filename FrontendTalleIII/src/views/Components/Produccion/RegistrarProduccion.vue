@@ -51,25 +51,15 @@
                 />
               </div>
 
-              <!-- Horarios de Inicio y Fin -->
-              <div class="grid grid-cols-2 gap-4">
-                <div class="space-y-2">
-                  <label class="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Hora Inicio <span class="text-red-500">*</span></label>
-                  <input 
-                    type="time" 
-                    v-model="form.HoraInicio" 
-                    class="w-full px-5 py-4 bg-gray-50 border-0 rounded-2xl focus:ring-2 focus:ring-orange-500 font-bold text-gray-700 transition-all"
-                    required
-                  />
-                </div>
-                <div class="space-y-2">
-                  <label class="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Hora Fin (Opcional)</label>
-                  <input 
-                    type="time" 
-                    v-model="form.HoraFin" 
-                    class="w-full px-5 py-4 bg-gray-50 border-0 rounded-2xl focus:ring-2 focus:ring-orange-500 font-bold text-gray-700 transition-all"
-                  />
-                </div>
+              <!-- Horario de Inicio -->
+              <div class="space-y-2">
+                <label class="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Hora Inicio <span class="text-red-500">*</span></label>
+                <input 
+                  type="time" 
+                  v-model="form.HoraInicio" 
+                  class="w-full px-5 py-4 bg-gray-50 border-0 rounded-2xl focus:ring-2 focus:ring-orange-500 font-bold text-gray-700 transition-all"
+                  required
+                />
               </div>
 
               <div class="space-y-2">
@@ -181,7 +171,6 @@ const form = reactive({
   IdSucursal: '',
   Observacion: '',
   HoraInicio: '',
-  HoraFin: '',
   FechaRegistro: new Date().toISOString().split('T')[0]
 });
 
@@ -286,7 +275,7 @@ const handleSubmit = async () => {
       selectedEmpleados.value, 
       form.Observacion,
       form.HoraInicio,
-      form.HoraFin,
+      '',
       form.FechaRegistro
     );
     emit('saved', form.IdSucursal);

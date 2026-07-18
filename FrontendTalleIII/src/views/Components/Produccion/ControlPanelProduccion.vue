@@ -14,19 +14,28 @@
             <span class="text-orange-200 font-bold text-sm">#{{ produccion.IdProduccion }}</span>
           </div>
           <h2 class="text-3xl font-black">{{ produccion.Sucursal?.Nombre }}</h2>
-          <div class="flex items-center gap-4 mt-1">
-            <p class="text-orange-100 flex items-center gap-2">
-              <Clock class="h-4 w-4" />
-              Iniciado a las {{ produccion.HoraInicio }}
-            </p> 
-            <button 
-              @click="abrirModalInsumos"
-              class="text-xs bg-white/10 hover:bg-white/20 backdrop-blur-sm px-3 py-1.5 rounded-xl border border-white/20 font-bold flex items-center gap-2 transition-all"
-            >
-              <Warehouse class="h-3.5 w-3.5" />
-              Ver Insumos
-            </button>
-          </div>
+            <div class="flex items-center gap-4 mt-1">
+              <p class="text-orange-100 flex items-center gap-2">
+                <Clock class="h-4 w-4" />
+                Iniciado a las {{ produccion.HoraInicio }}
+              </p>
+              <div v-if="produccion.Empleados?.length" class="flex items-center gap-2">
+                <User class="h-4 w-4 text-orange-100 shrink-0" />
+                <input 
+                  type="text" 
+                  :value="produccion.Empleados[0]?.Empleado?.Nombre || 'Sistema'" 
+                  readonly
+                  class="bg-white/10 backdrop-blur-sm text-white text-sm font-bold border border-white/20 rounded-xl px-3 py-1.5 w-auto min-w-[140px] outline-none cursor-default"
+                />
+              </div>
+              <button 
+                @click="abrirModalInsumos"
+                class="text-xs bg-white/10 hover:bg-white/20 backdrop-blur-sm px-3 py-1.5 rounded-xl border border-white/20 font-bold flex items-center gap-2 transition-all"
+              >
+                <Warehouse class="h-3.5 w-3.5" />
+                Ver Insumos
+              </button>
+            </div>
         </div>
         <div class="flex items-center gap-3">
           <button 
@@ -98,46 +107,7 @@
           </div>
         </div>
 
-        <!-- Section: Empleados -->
-        <div class="bg-white/80 backdrop-blur-sm rounded-3xl p-6 shadow-xl border border-white/50">
-          <div class="flex items-center justify-between mb-6">
-            <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
-              <Users class="h-5 w-5 text-blue-500" />
-              Personal
-            </h3>
-            <button 
-              @click="abrirModalAddEmpleado"
-              class="p-2 bg-blue-100 text-blue-600 rounded-xl hover:bg-blue-200 transition-colors"
-              title="Agregar personal a la producción"
-            >
-              <Plus class="h-5 w-5" />
-            </button>
-          </div>
-
-          <div class="space-y-4">
-            <div v-for="pe in produccion.Empleados" :key="pe.IdProduccionEmpleado" class="flex items-center justify-between p-3 bg-gray-50 rounded-2xl border border-gray-100">
-              <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-xl bg-white flex items-center justify-center border border-gray-100 overflow-hidden">
-                   <img v-if="pe.Empleado?.Imagen" :src="pe.Empleado.Imagen" class="w-full h-full object-cover" />
-                   <User v-else class="h-5 w-5 text-gray-300" />
-                </div>
-                <div>
-                  <p class="text-sm font-bold text-gray-800">{{ pe.Empleado?.Nombre }}</p>
-                  <p class="text-[10px] text-gray-500 uppercase font-black">{{ pe.Empleado?.Cargo }}</p>
-                </div>
-              </div>
-              <button 
-                v-if="!pe.HoraFin"
-                @click="confirmarFinTurno(pe)"
-                class="p-2 text-red-500 hover:bg-red-50 rounded-xl transition-colors"
-                title="Finalizar Turno"
-              >
-                <LogOut class="h-4 w-4" />
-              </button>
-              <span v-else class="text-[10px] font-black text-red-500 uppercase italic">Finalizado</span>
-            </div>
-          </div>
-        </div>
+        <!-- Section: Empleados (hidden) -->
       </div>
 
       <!-- Right Column: Registration and Details -->
@@ -224,16 +194,12 @@
               <!-- Empleado -->
               <div class="space-y-2">
                 <label class="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Responsable</label>
-                <select 
-                  v-model="salidaForm.IdEmpleado"
-                  required
-                  class="w-full px-4 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-orange-500 outline-none font-bold text-gray-700"
-                >
-                  <option value="" disabled>Seleccionar Empleado</option>
-                  <option v-for="pe in produccion.Empleados.filter(e => !e.HoraFin)" :key="pe.Empleado.IdEmpleado" :value="pe.Empleado.IdEmpleado">
-                    {{ pe.Empleado.Nombre }} 
-                  </option>
-                </select>
+                <input 
+                  type="text"
+                  :value="produccion.Empleados?.find(e => !e.HoraFin)?.Empleado?.Nombre || 'Sistema'"
+                  readonly
+                  class="w-full px-4 py-4 bg-gray-100 border border-gray-200 rounded-2xl font-bold text-gray-700 cursor-not-allowed opacity-70"
+                />
               </div>
 
               <!-- Hora Registro -->
@@ -241,9 +207,9 @@
                 <label class="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Hora de Registro</label>
                 <input 
                   type="time"
-                  v-model="salidaForm.HoraRegistro"
-                  required
-                  class="w-full px-4 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-orange-500 outline-none font-bold text-gray-700"
+                  :value="horaActual"
+                  disabled
+                  class="w-full px-4 py-4 bg-gray-100 border border-gray-200 rounded-2xl font-bold text-gray-700 cursor-not-allowed opacity-70"
                 />
               </div>
             </div>
@@ -715,6 +681,8 @@ const showFinTurnoModal = ref(false);
 
 const horaFinProduccion = ref('');
 
+const horaActual = ref(new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }));
+
 // Computed
 const selectedHorno = computed(() => {
   return hornosDisponibles.value.find(h => h.IdHorno === hornoForm.IdHorno);
@@ -785,6 +753,10 @@ const loadInsumosStock = async () => {
 
 onMounted(() => {
   loadInitialData();
+  const emp = props.produccion.Empleados?.find(e => !e.HoraFin);
+  if (emp?.Empleado?.IdEmpleado) {
+    salidaForm.IdEmpleado = emp.Empleado.IdEmpleado;
+  }
 });
 
 // Handlers
@@ -905,10 +877,6 @@ const handleFinTurno = async () => {
 };
 
 const handleRegistrarSalida = async () => {
-  if (!salidaForm.HoraRegistro) {
-    emit('toast', 'Debe ingresar la hora de registro', 'error');
-    return;
-  }
   submittingSalida.value = true;
   try {
     await registrarSalidaProducto(
@@ -918,12 +886,11 @@ const handleRegistrarSalida = async () => {
       salidaForm.Cantidad,
       salidaForm.IdHorno, 
       props.produccion.Sucursal.IdSucursal,
-      salidaForm.HoraRegistro
+      horaActual.value
     );
     emit('toast', 'Salida registrada con éxito', 'success');
     salidaForm.IdProducto = '';
     salidaForm.Cantidad = 1;
-    salidaForm.HoraRegistro = '';
     emit('updated');
   } catch (error) {
     emit('toast', error.message || 'Error al registrar salida', 'error');
