@@ -6,10 +6,10 @@
       @click.self="$emit('cancelar')"
     >
       <div
-        class="bg-white/95 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/50 w-full max-w-xl overflow-hidden animate-fade-in"
+        class="bg-white/95 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/50 w-full max-w-xl max-h-[90vh] overflow-hidden flex flex-col animate-fade-in"
       >
         <!-- Header -->
-        <div class="bg-gradient-to-r from-orange-500 to-red-600 p-6 text-white relative">
+        <div class="bg-gradient-to-r from-orange-500 to-red-600 p-6 text-white relative flex-shrink-0">
           <div class="flex items-center gap-4">
             <div class="p-3 bg-white/20 backdrop-blur-md rounded-2xl shadow-inner">
               <Package class="h-6 w-6 text-white" />
@@ -30,7 +30,7 @@
         </div>
 
         <!-- Body -->
-        <div class="p-8 space-y-6">
+        <div class="overflow-y-auto flex-grow p-8 space-y-6">
           <div class="space-y-2">
             <label class="flex items-center text-gray-700 font-bold mb-1 ml-1">
               <Type class="h-5 w-5 mr-2 text-orange-500" /> Nombre
@@ -76,7 +76,7 @@
         </div>
 
         <!-- Footer -->
-        <div class="p-6 bg-gray-50/80 border-t border-gray-100 flex gap-4">
+        <div class="p-6 bg-gray-50/80 border-t border-gray-100 flex gap-4 flex-shrink-0">
           <button
             type="button"
             @click="$emit('cancelar')"

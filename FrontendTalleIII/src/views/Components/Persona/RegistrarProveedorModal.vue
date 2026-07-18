@@ -4,8 +4,8 @@
     class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50"
     @click.self="$emit('cancelar')"
   >
-    <div class="bg-white/95 backdrop-blur-sm border border-white/50 rounded-3xl shadow-2xl max-w-2xl w-full overflow-hidden">
-      <div class="bg-gradient-to-r from-emerald-500 to-green-600 text-white p-6">
+    <div class="bg-white/95 backdrop-blur-sm border border-white/50 rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+      <div class="bg-gradient-to-r from-emerald-500 to-green-600 text-white p-6 flex-shrink-0">
         <div class="flex items-center justify-between gap-4">
           <div>
             <h2 class="text-2xl font-bold">
@@ -19,7 +19,7 @@
         </div>
       </div>
 
-      <div class="p-6 space-y-6">
+      <div class="overflow-y-auto flex-grow p-6 space-y-6">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label class="block text-gray-700 font-semibold mb-2">Persona</label>

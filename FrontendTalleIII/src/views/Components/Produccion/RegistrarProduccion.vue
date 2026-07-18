@@ -1,8 +1,8 @@
 <template>
   <div class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[150] flex items-center justify-center p-4">
-    <div class="bg-white rounded-[3rem] w-full max-w-2xl overflow-hidden shadow-2xl animate-scale-in">
+    <div class="bg-white rounded-[3rem] w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl animate-scale-in">
       <!-- Header -->
-      <div class="p-8 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-orange-50 to-red-50">
+      <div class="p-8 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-orange-50 to-red-50 flex-shrink-0">
         <div class="flex items-center gap-4">
           <div class="w-14 h-14 bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl shadow-lg flex items-center justify-center">
             <Factory class="h-8 w-8 text-white" />
@@ -19,7 +19,7 @@
         </button>
       </div>
 
-      <div class="p-8">
+      <div class="overflow-y-auto flex-grow p-8">
         <form @submit.prevent="handleSubmit" class="space-y-8">
           <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
             <!-- Sucursal & Info -->
@@ -118,7 +118,7 @@
             </div>
           </div>
 
-          <div class="pt-6 flex gap-4">
+          <div class="pt-6 flex gap-4 flex-shrink-0">
             <button 
               type="button"
               @click="$emit('cancel')"
