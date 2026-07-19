@@ -37,7 +37,7 @@
                 </div>
               </td>
               <td class="px-6 py-6">
-                <div class="grid grid-cols-5 gap-4 bg-gray-50/50 p-4 rounded-3xl border border-gray-100">
+                <div class="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-5 gap-4 bg-gray-50/50 p-4 rounded-3xl border border-gray-100">
                   <div class="text-center">
                     <p class="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Total Venta</p>
                     <p class="text-xs font-black text-gray-700">Bs {{ Number(c.TotalVenta || 0).toFixed(2) }}</p>
@@ -76,7 +76,7 @@
             <!-- Details Row: Product Table -->
             <tr v-if="c.Detalles?.length">
               <td colspan="3" class="px-6 pb-8 pt-0">
-                <div class="bg-white border border-orange-100/50 rounded-[2rem] overflow-hidden shadow-sm">
+                <div class="bg-white border border-orange-100/50 rounded-[2rem] overflow-x-auto shadow-sm">
                   <table class="w-full text-[10px]">
                     <thead class="bg-orange-50/50 text-orange-700 font-black uppercase tracking-wider">
                       <tr>

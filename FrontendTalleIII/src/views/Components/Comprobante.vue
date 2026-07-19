@@ -42,7 +42,7 @@
 
 
         <!-- Items Table -->
-        <div class="my-4">
+        <div class="my-4 overflow-x-auto">
           <table class="w-full text-xs">
             <thead>
               <tr class="border-b-2 border-gray-800">

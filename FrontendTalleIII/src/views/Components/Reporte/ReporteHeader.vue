@@ -1,6 +1,6 @@
 <template>
   <div class="relative overflow-hidden animate-fade-in-up">
-    <div class="relative bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl border border-white/50 p-8">
+    <div class="relative bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl border border-white/50 p-4 md:p-6 lg:p-8">
       <div class="flex items-center justify-between">
         <div class="flex items-center space-x-4">
           <div class="p-3 bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl shadow-lg">

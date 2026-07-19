@@ -120,7 +120,7 @@
               <p class="text-gray-400 font-medium">No hay gastos registrados en este periodo.</p>
             </div>
 
-            <div v-else class="overflow-hidden border border-gray-100 rounded-2xl shadow-sm">
+            <div v-else class="overflow-x-auto border border-gray-100 rounded-2xl shadow-sm">
               <table class="w-full text-left border-collapse bg-white">
                 <thead class="bg-gray-50 border-b border-gray-100">
                   <tr>

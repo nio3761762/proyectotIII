@@ -1,6 +1,6 @@
 <template>
-  <div class="mb-6 bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl border border-white/50 p-2">
-    <div class="flex items-center gap-2">
+  <div class="mb-6 bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl border border-white/50 p-2 overflow-x-auto">
+    <div class="flex items-center gap-2 flex-nowrap min-w-max">
       <button 
         v-for="tab in tabs" 
         :key="tab.id"

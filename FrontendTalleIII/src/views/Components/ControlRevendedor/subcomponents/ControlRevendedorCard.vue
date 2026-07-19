@@ -46,7 +46,7 @@
           </button>
         </div>
 
-        <div class="grid grid-cols-3 gap-2">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
           <div class="flex flex-col">
             <span class="text-[8px] font-black text-gray-400 uppercase">Venta Total</span>
             <span class="text-xs font-black text-orange-700">Bs {{ formatCurrency(control.TotalVenta) }}</span>

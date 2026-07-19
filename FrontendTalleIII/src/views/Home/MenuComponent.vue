@@ -184,8 +184,6 @@
 
     <!-- Main Content -->
     <div class="flex-1 overflow-auto">
-      <!-- Top Bar -->
-    
 
       <!-- Page Content -->
       <div class="p-6 bg-linear-to-br from-orange-50 via-red-50/30 to-orange-50/20">

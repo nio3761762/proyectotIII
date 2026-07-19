@@ -36,7 +36,7 @@
     <ReporteTabs v-model:active-tab="activeTab" />
 
     <!-- Contenido de las Pestañas -->
-    <div ref="tabContent" class="bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl border border-white/50 p-6">
+    <div ref="tabContent" class="bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl border border-white/50 p-4 md:p-6">
       <div v-if="activeTab === 'financiero'">
         <FinancieroTable ref="financieroTableRef"
           :reporte="reporteFinanciero"

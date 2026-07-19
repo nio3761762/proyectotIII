@@ -388,7 +388,7 @@
                     </div>
                   </div>
 
-                  <div class="overflow-hidden rounded-2xl border border-gray-100">
+                  <div class="overflow-x-auto rounded-2xl border border-gray-100">
                     <table class="w-full text-left text-sm">
                       <thead class="bg-gray-50 text-gray-600 font-bold">
                         <tr>

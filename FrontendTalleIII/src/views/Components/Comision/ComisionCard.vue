@@ -45,7 +45,7 @@
       </div>
 
       <!-- Stats: cantidad, porcentaje, precio venta -->
-      <div class="grid grid-cols-3 gap-2 mb-4">
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-4">
         <div class="bg-orange-50/80 rounded-xl p-2.5 text-center">
           <p class="text-xs text-orange-600 font-semibold mb-0.5">Cantidad</p>
           <p class="text-base font-bold text-gray-800">{{ comision.cantidad }}</p>

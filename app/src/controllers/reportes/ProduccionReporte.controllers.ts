@@ -98,18 +98,28 @@ export const getReporteProduccionConsolidado = async (req: Request, res: Respons
     const sucursalMap = new Map<string, any>();
     let totalGeneral = 0;
 
+    // Track unique (sucursal + producto + empleado) to avoid duplicates from GROUP BY
+    const seenCombos = new Set<string>();
+
     for (const row of rows as any[]) {
+      const sucursalName = (row.sucursal || '').trim();
+      const empleadoName = (row.empleado || '').trim();
       const cant = Number(row.cantidad);
+      const comboKey = `${sucursalName}|${row.idproducto}|${empleadoName}`;
+
+      if (seenCombos.has(comboKey)) continue;
+      seenCombos.add(comboKey);
+
       totalGeneral += cant;
 
-      if (!sucursalMap.has(row.sucursal)) {
-        sucursalMap.set(row.sucursal, {
-          sucursal: row.sucursal,
+      if (!sucursalMap.has(sucursalName)) {
+        sucursalMap.set(sucursalName, {
+          sucursal: sucursalName,
           total_sucursal: 0,
           productos: new Map<string, any>()
         });
       }
-      const suc = sucursalMap.get(row.sucursal)!;
+      const suc = sucursalMap.get(sucursalName)!;
       suc.total_sucursal += cant;
 
       const prodKey = row.idproducto;
@@ -117,7 +127,7 @@ export const getReporteProduccionConsolidado = async (req: Request, res: Respons
         const ingredientesRaw: any[] = row.ingredientes || [];
         suc.productos.set(prodKey, {
           idproducto: row.idproducto,
-          producto: row.producto,
+          producto: (row.producto || '').trim(),
           imagen: row.imagen,
           total_producto: 0,
           empleados: [],
@@ -127,7 +137,7 @@ export const getReporteProduccionConsolidado = async (req: Request, res: Respons
       const prod = suc.productos.get(prodKey)!;
       prod.total_producto += cant;
       prod.empleados.push({
-        empleado: row.empleado,
+        empleado: empleadoName,
         cantidad: cant
       });
     }

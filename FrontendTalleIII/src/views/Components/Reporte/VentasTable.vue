@@ -36,7 +36,7 @@
               </div>
               <h4 class="text-lg font-bold text-gray-800">Ventas por Sucursal</h4>
             </div>
-            <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+            <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-x-auto">
               <table class="w-full text-left">
                 <thead>
                   <tr class="bg-gray-50/50">

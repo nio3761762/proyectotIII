@@ -116,6 +116,12 @@
           </div>
 
           <div class="space-y-1.5">
+            <label class="text-sm font-semibold text-gray-700">Días a Repetir</label>
+            <input v-model.number="repeticiones" type="number" min="1" step="1"
+              class="w-full px-4 py-3 bg-gray-50/80 border-0 rounded-2xl focus:bg-white focus:ring-2 focus:ring-orange-500/20 text-gray-700 outline-none transition-all shadow-inner" />
+          </div>
+
+          <div class="space-y-1.5">
             <label class="text-sm font-semibold text-gray-700">Persona Actual</label>
             <div class="flex gap-2">
               <div class="relative flex-1 z-10">
@@ -295,7 +301,7 @@
                   </div>
                 </td>
                 <td class="px-6 py-6">
-                  <div class="grid grid-cols-5 gap-4 bg-gray-50/50 p-4 rounded-3xl border border-gray-100">
+                  <div class="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-5 gap-4 bg-gray-50/50 p-4 rounded-3xl border border-gray-100">
                     <div class="text-center">
                       <p class="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Total P. Venta</p>
                       <p class="text-xs font-black text-gray-700">Bs {{ calcRowTotals(reg).normal.toFixed(2) }}</p>
@@ -327,7 +333,7 @@
               <!-- Details Row: Product Table -->
               <tr>
                 <td colspan="3" class="px-6 pb-8 pt-0">
-                  <div class="bg-white border border-orange-100/50 rounded-[2rem] overflow-hidden shadow-sm">
+                  <div class="bg-white border border-orange-100/50 rounded-[2rem] overflow-x-auto shadow-sm">
                     <table class="w-full text-[10px]">
                       <thead class="bg-orange-50/50 text-orange-700 font-black uppercase tracking-wider">
                         <tr>
@@ -681,6 +687,7 @@ const idSucursalGeneral = ref('');
 const loteRegistros = ref([]); // Array of objects {idpersona, idEmpleado, detalles, observacion}
 const fechaRegistro = ref(new Date().toLocaleDateString('en-CA'));
 const horaRegistro = ref(new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }));
+const repeticiones = ref(1);
 
 // Current Editor State
 const currentPersonaId = ref('');
@@ -1120,26 +1127,36 @@ const saveAjuste = () => {
   showNotification("Ajuste aplicado correctamente", "success");
 };
 
+const sumarDias = (fecha, dias) => {
+  const d = new Date(fecha + 'T00:00:00');
+  d.setDate(d.getDate() + dias);
+  return d.toLocaleDateString('en-CA');
+};
+
 const stageRegistro = () => {
   if (!isCurrentValid.value) return;
 
   const personaSel = selectedPersona.value;
-  
-  loteRegistros.value.push({
-    idpersona: personaSel?.idpersona ?? personaSel?.IdPersona ?? null,
-    idEmpleado: personaSel?.idempleado ?? personaSel?.empleado?.idempleado ?? null,
-    idSucursal: idSucursalGeneral.value,
-    fecha: fechaRegistro.value,
-    hora: horaRegistro.value,
-    observacion: currentObservacion.value,
-    detalles: [...currentDetalles.value]
-  });
+  const total = Math.max(1, repeticiones.value);
+
+  for (let i = 0; i < total; i++) {
+    loteRegistros.value.push({
+      idpersona: personaSel?.idpersona ?? personaSel?.IdPersona ?? null,
+      idEmpleado: personaSel?.idempleado ?? personaSel?.empleado?.idempleado ?? null,
+      idSucursal: idSucursalGeneral.value,
+      fecha: sumarDias(fechaRegistro.value, i),
+      hora: horaRegistro.value,
+      observacion: currentObservacion.value,
+      detalles: [...currentDetalles.value]
+    });
+  }
 
   // Clear for next unitary entry without closing component
   currentPersonaId.value = '';
   currentDetalles.value = [];
   currentObservacion.value = '';
-  showNotification("Registro unitario añadido al lote", "success");
+  repeticiones.value = 1;
+  showNotification(`${total} registro(s) añadido(s) al lote`, "success");
 };
 
 const removeOfLote = (idx) => {
