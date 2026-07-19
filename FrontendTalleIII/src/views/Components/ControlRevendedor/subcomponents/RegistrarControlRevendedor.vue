@@ -294,14 +294,19 @@
                     <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-orange-500 to-red-600 shadow-lg flex items-center justify-center text-white font-black text-sm">
                        {{ getPersonaNombre(reg.idpersona ?? reg.idEmpleado)[0] }}
                     </div>
-                    <div class="flex flex-col">
+                    <div class="flex flex-col gap-1.5">
                       <span class="font-black text-gray-800 text-lg leading-none">{{ getPersonaNombre(reg.idpersona ?? reg.idEmpleado) }}</span>
-                      <span v-if="reg.observacion" class="text-[10px] text-gray-400 italic mt-1 font-bold">Obs: {{ reg.observacion }}</span>
+                      <div class="flex items-center gap-2">
+                        <label class="text-[8px] font-black text-gray-400 uppercase tracking-widest">Fecha:</label>
+                        <input v-model="reg.fecha" type="date"
+                          class="px-2 py-1 bg-gray-50 border-0 rounded-lg text-[9px] font-bold text-gray-700 outline-none shadow-inner w-32" />
+                      </div>
+                      <span v-if="reg.observacion" class="text-[10px] text-gray-400 italic font-bold">Obs: {{ reg.observacion }}</span>
                     </div>
                   </div>
                 </td>
                 <td class="px-6 py-6">
-                  <div class="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-5 gap-4 bg-gray-50/50 p-4 rounded-3xl border border-gray-100">
+                  <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4 bg-gray-50/50 p-4 rounded-3xl border border-gray-100">
                     <div class="text-center">
                       <p class="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Total P. Venta</p>
                       <p class="text-xs font-black text-gray-700">Bs {{ calcRowTotals(reg).normal.toFixed(2) }}</p>
@@ -318,9 +323,17 @@
                       <p class="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Comisión Total</p>
                       <p class="text-xs font-black text-emerald-600">Bs {{ calcRowTotals(reg).comision.toFixed(2) }}</p>
                     </div>
+                    <div class="text-center">
+                      <p class="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Gasto Extra</p>
+                      <div class="flex items-center justify-center gap-1">
+                        <span class="text-[9px] font-black text-gray-400">Bs</span>
+                        <input v-model.number="reg.gastoExtra" type="number" step="0.01" min="0"
+                          class="w-16 text-center text-[10px] font-black bg-white border border-orange-100 rounded-lg outline-none py-1 shadow-sm focus:ring-2 focus:ring-orange-500/20" />
+                      </div>
+                    </div>
                     <div class="text-center border-l border-gray-200">
-                      <p class="text-[8px] font-black text-red-400 uppercase tracking-widest mb-1">Neto Panadería</p>
-                      <p class="text-sm font-black text-red-700">Bs {{ calcTotalReg(reg).toFixed(2) }}</p>
+                      <p class="text-[8px] font-black text-red-400 uppercase tracking-widest mb-1">Neto a Entregar</p>
+                      <p class="text-sm font-black text-red-700">Bs {{ calcNetoReg(reg).toFixed(2) }}</p>
                     </div>
                   </div>
                 </td>
@@ -334,7 +347,7 @@
               <tr>
                 <td colspan="3" class="px-6 pb-8 pt-0">
                   <div class="bg-white border border-orange-100/50 rounded-[2rem] overflow-x-auto shadow-sm">
-                    <table class="w-full text-[10px]">
+                      <table class="w-full text-[10px]">
                       <thead class="bg-orange-50/50 text-orange-700 font-black uppercase tracking-wider">
                         <tr>
                           <th class="px-6 py-3">Producto</th>
@@ -346,10 +359,11 @@
                           <th class="px-4 py-3 text-center text-blue-600">Ajustes</th>
                           <th class="px-4 py-3 text-center text-emerald-600">Total Comisión</th>
                           <th class="px-4 py-3 text-right text-orange-800">Subtotal Neto</th>
+                          <th class="px-4 py-3 text-center text-gray-400">Acción</th>
                         </tr> 
                       </thead>
                       <tbody class="divide-y divide-orange-50">
-                        <tr v-for="d in reg.detalles" :key="d.idProductoMedida" class="hover:bg-orange-50/30 transition-colors">
+                        <tr v-for="(d, dIdx) in reg.detalles" :key="d.idProductoMedida" class="hover:bg-orange-50/30 transition-colors">
                           <td class="px-6 py-3">
                             <div class="flex items-center gap-3">
                               <div class="w-6 h-6 rounded bg-gray-50 border border-gray-100 flex items-center justify-center overflow-hidden">
@@ -359,11 +373,17 @@
                               <span class="font-bold text-gray-800">{{ d.nombre }} ({{ d.presentacion }})</span>
                             </div>
                           </td>
-                          <td class="px-4 py-3 text-center font-black">{{ d.cantidadEntregada }}</td>
+                          <td class="px-4 py-3 text-center">
+                            <div class="flex items-center justify-center gap-1">
+                              <button @click="updateQtyInLote(idx, dIdx, -1)" class="w-5 h-5 flex items-center justify-center bg-orange-50 rounded-md text-orange-600 text-[8px] font-black hover:bg-orange-100 transition-colors">-</button>
+                              <input v-model.number="d.cantidadEntregada" type="number" min="0" class="w-12 text-center text-[10px] font-black bg-white border border-orange-100 rounded-md outline-none py-1 [&::-webkit-inner-spin-button]:opacity-100" />
+                              <button @click="updateQtyInLote(idx, dIdx, 1)" class="w-5 h-5 flex items-center justify-center bg-orange-50 rounded-md text-orange-600 text-[8px] font-black hover:bg-orange-100 transition-colors">+</button>
+                            </div>
+                          </td>
                           <td class="px-4 py-3 text-center font-medium">Bs {{ d.precioNormal }}</td>
                           <td class="px-4 py-3 text-center font-medium">Bs {{ d.precioMayor }}</td>
                           <td class="px-4 py-3 text-center text-emerald-600 font-bold">Bs {{ d.comisionUnitaria }}</td>
-                       
+                        
                           <td class="px-4 py-3 text-center text-red-500 font-black">{{ d.cantidadDevuelta || 0 }}</td>
                           <td class="px-4 py-3 text-center">
                             <template v-if="d.ajustes && d.ajustes.length > 0">
@@ -376,6 +396,11 @@
                           <td class="px-4 py-3 text-center text-emerald-700 font-black">Bs {{ calcDetalleFinanzas(d).comisionTotal.toFixed(2) }}</td>
                           <td class="px-4 py-3 text-right font-black text-gray-800">
                             Bs {{ calcDetalleNeto(d).toFixed(2) }}
+                          </td>
+                          <td class="px-4 py-3 text-center">
+                            <button @click="removeDetailFromLote(idx, dIdx)" class="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all" title="Eliminar producto">
+                              <Trash2 class="h-3.5 w-3.5" />
+                            </button>
                           </td>
                         </tr>
                       </tbody>
@@ -929,7 +954,7 @@ const isCurrentValid = computed(() => {
 });
 
 const totalLote = computed(() => {
-  return loteRegistros.value.reduce((acc, reg) => acc + calcTotalReg(reg), 0);
+  return loteRegistros.value.reduce((acc, reg) => acc + calcNetoReg(reg), 0);
 });
 
 const isFormValid = computed(() => {
@@ -937,11 +962,7 @@ const isFormValid = computed(() => {
 });
 
 const personasDisponibles = computed(() => {
-  return personas.value.filter(p => {
-    const pid = p.idpersona ?? p.IdPersona;
-    const eid = p.idempleado ?? p.empleado?.idempleado;
-    return !loteRegistros.value.some(r => r.idpersona === pid || (eid && r.idEmpleado === eid));
-  });
+  return personas.value;
 });
 
 const queryPersona = ref('');
@@ -1019,6 +1040,7 @@ const calcDetalleFinanzas = (d) => {
 const calcDetalleNeto = (d) => calcDetalleFinanzas(d).neto;
 
 const calcTotalReg = (reg) => calcRowTotals(reg).neto;
+const calcNetoReg = (reg) => calcTotalReg(reg) - Number(reg.gastoExtra || 0);
 
 const getPersonaNombre = (id) => {
   const p = personas.value.find(per => (per.idpersona ?? per.idempleado ?? per.empleado?.idempleado) === id);
@@ -1139,15 +1161,33 @@ const stageRegistro = () => {
   const personaSel = selectedPersona.value;
   const total = Math.max(1, repeticiones.value);
 
+  // Find the last date already in the lot for this persona to continue from there
+  const pid = personaSel?.idpersona ?? personaSel?.IdPersona ?? null;
+  const eid = personaSel?.idempleado ?? personaSel?.empleado?.idempleado ?? null;
+  const existingRegs = loteRegistros.value.filter(r =>
+    (pid && r.idpersona === pid) || (eid && r.idEmpleado === eid)
+  );
+  let startDate = fechaRegistro.value;
+  if (existingRegs.length > 0) {
+    const lastFecha = existingRegs[existingRegs.length - 1].fecha;
+    const d = new Date(lastFecha + 'T00:00:00');
+    d.setDate(d.getDate() + 1);
+    startDate = d.toLocaleDateString('en-CA');
+  }
+
   for (let i = 0; i < total; i++) {
     loteRegistros.value.push({
-      idpersona: personaSel?.idpersona ?? personaSel?.IdPersona ?? null,
-      idEmpleado: personaSel?.idempleado ?? personaSel?.empleado?.idempleado ?? null,
+      idpersona: pid,
+      idEmpleado: eid,
       idSucursal: idSucursalGeneral.value,
-      fecha: sumarDias(fechaRegistro.value, i),
+      fecha: sumarDias(startDate, i),
       hora: horaRegistro.value,
       observacion: currentObservacion.value,
-      detalles: [...currentDetalles.value]
+      gastoExtra: 0,
+      detalles: currentDetalles.value.map(d => ({
+        ...d,
+        ajustes: d.ajustes ? d.ajustes.map(a => ({ ...a })) : []
+      }))
     });
   }
 
@@ -1163,6 +1203,22 @@ const removeOfLote = (idx) => {
   loteRegistros.value.splice(idx, 1);
 };
 
+const updateQtyInLote = (regIdx, detIdx, delta) => {
+  const d = loteRegistros.value[regIdx]?.detalles?.[detIdx];
+  if (!d) return;
+  const newQty = d.cantidadEntregada + delta;
+  if (newQty > 0) d.cantidadEntregada = newQty;
+};
+
+const removeDetailFromLote = (regIdx, detIdx) => {
+  const reg = loteRegistros.value[regIdx];
+  if (!reg) return;
+  reg.detalles.splice(detIdx, 1);
+  if (reg.detalles.length === 0) {
+    loteRegistros.value.splice(regIdx, 1);
+  }
+};
+
 const handleSubmit = async () => {
   if (!isFormValid.value) return;
   submitting.value = true;
@@ -1174,6 +1230,7 @@ const handleSubmit = async () => {
       fecha: r.fecha || fechaRegistro.value,
       hora: r.hora || horaRegistro.value,
       observacion: r.observacion,
+      gastoExtra: r.gastoExtra || 0,
       detalles: r.detalles.map(d => {
         const qtyDevuelta = d.cantidadDevuelta || 0;
         const qtyAjustada = getCantidadAjustada(d);

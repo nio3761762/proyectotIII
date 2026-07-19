@@ -4,6 +4,7 @@ import {
   getRevendedorControls, 
   actualizarAjusteDetalle,
   actualizarControlCompleto,
+  actualizarGastoExtra,
   getRevendedores
 } from '../controllers/RevendedorControl.controllers';
 import { authMiddleware } from '../middleware/verifyToken';
@@ -15,6 +16,7 @@ router.post('/revendedorControl', registrarRevendedorControl);
 router.get('/revendedorControl', getRevendedorControls);
 router.put('/revendedorControlDetalle/:idDetalle', actualizarAjusteDetalle);
 router.put('/revendedorControl/:idControl', actualizarControlCompleto);
+router.put('/revendedorControl/:idControl/gasto-extra', actualizarGastoExtra);
 router.get('/revendedores', getRevendedores);
 
 export default router;

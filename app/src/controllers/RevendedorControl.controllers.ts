@@ -32,7 +32,7 @@ export const registrarRevendedorControl = async (req: Request, res: Response) =>
     const resultados = [];
 
     for (const data of controles) {
-      const { idEmpleado, idpersona, idSucursal, observacion, detalles } = data;
+      const { idEmpleado, idpersona, idSucursal, observacion, gastoExtra, detalles } = data;
 
       if (!idSucursal) {
         throw new HttpError(400, "Sucursal es requerida para cada control.");
@@ -62,6 +62,7 @@ export const registrarRevendedorControl = async (req: Request, res: Response) =>
       }
       const sucursal = await verifySucursal({SucursalId:idSucursal});
       
+      control.GastoExtra = gastoExtra || 0;
       control.Sucursal = sucursal;
 
       await queryRunner.manager.save(control);
@@ -186,6 +187,7 @@ export const getRevendedorControls = async (req: Request, res: Response) => {
         rc.observacion,
         rc.hora, 
         rc.estado,
+        CAST(COALESCE(rc.gastoextra, 0) AS DECIMAL(10,2)) as "GastoExtra",
         COUNT(*) OVER() AS total,
 
         -- PERSONA
@@ -252,7 +254,7 @@ export const getRevendedorControls = async (req: Request, res: Response) => {
       LEFT JOIN presentacion pre ON pre.idpresentacion = pm.idpresentacion
       LEFT JOIN producto prod ON prod.idproducto = pm.idproducto
       GROUP BY 
-        rc.idrevendedorcontrol, rc.fecha, rc.hora, rc.observacion, rc.estado,
+        rc.idrevendedorcontrol, rc.fecha, rc.hora, rc.observacion, rc.estado, rc.gastoextra,
         e.idempleado, per.idpersona, per.nombre, per.apellidopaterno, per.apellidomaterno, per.imagen,
         per_dir.idpersona, per_dir.nombre, per_dir.apellidopaterno, per_dir.apellidomaterno, per_dir.imagen,
         s.idsucursal, s.nombre
@@ -439,6 +441,31 @@ export const actualizarControlCompleto = async (req: Request, res: Response) => 
     });
   } finally {
     await queryRunner.release();
+  }
+};
+
+export const actualizarGastoExtra = async (req: Request, res: Response) => {
+  try {
+    const { idControl } = req.params;
+    const { gastoExtra } = req.body;
+
+    const control = await AppDataSource.manager.findOne(Revendedorcontrol, {
+      where: { IdRevendedorControl: idControl } as any
+    });
+
+    if (!control) {
+      return res.status(404).json({ message: "Control no encontrado." });
+    }
+
+    control.GastoExtra = Number(gastoExtra) || 0;
+    await AppDataSource.manager.save(control);
+
+    return res.json({ message: "Gasto extra actualizado correctamente" });
+  } catch (error) {
+    return res.status(500).json({
+      message: "Error al actualizar gasto extra",
+      error: error instanceof Error ? error.message : "Error desconocido"
+    });
   }
 };
 

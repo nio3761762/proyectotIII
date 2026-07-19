@@ -56,9 +56,17 @@
             <span class="text-xs font-black text-emerald-600">Bs {{ formatCurrency(control.TotalComision) }}</span>
           </div>
           <div class="flex flex-col">
-            <span class="text-[8px] font-black text-gray-400 uppercase">Líquido</span>
-            <span class="text-xs font-black text-red-700">Bs {{ formatCurrency(control.TotalLiquidoPanaderia) }}</span>
+            <span class="text-[8px] font-black text-gray-400 uppercase">Gasto Extra</span>
+            <div class="flex items-center gap-1">
+              <span class="text-[9px] font-black text-gray-400">Bs</span>
+              <input v-model.number="control.GastoExtra" type="number" step="0.01" min="0" @change="onGastoExtraChange"
+                class="w-20 text-center text-xs font-black bg-white border border-orange-100 rounded-lg outline-none py-1 shadow-sm focus:ring-2 focus:ring-orange-500/20" />
+            </div>
           </div>
+        </div>
+        <div class="mt-2 pt-2 border-t border-orange-100/50 flex justify-between">
+          <span class="text-[8px] font-black text-red-400 uppercase">Neto a Entregar</span>
+          <span class="text-sm font-black text-red-700">Bs {{ formatCurrency(netoFinal) }}</span>
         </div>
 
         <div class="mt-3 pt-3 border-t border-orange-100/50 space-y-2">
@@ -141,10 +149,10 @@
            <div class="p-2 bg-red-100 rounded-xl text-red-600">
               <TrendingUp class="h-4 w-4" />
            </div>
-           <div>
-              <p class="text-[8px] font-black text-gray-400 uppercase leading-none">Total Neto</p>
-              <p class="text-sm font-black text-gray-800 leading-none mt-1">Bs {{ formatCurrency(control.TotalLiquidoPanaderia) }}</p>
-           </div>
+            <div>
+               <p class="text-[8px] font-black text-gray-400 uppercase leading-none">Neto a Entregar</p>
+               <p class="text-sm font-black text-gray-800 leading-none mt-1">Bs {{ formatCurrency(netoFinal) }}</p>
+            </div>
         </div>
         <button class="p-3 bg-gray-50 hover:bg-orange-50 text-gray-400 hover:text-orange-600 rounded-2xl transition-all border border-gray-100 hover:border-orange-200">
            <FileText class="h-5 w-5" />
@@ -155,11 +163,12 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { 
   User as UserIcon, Building2, ChevronDown, Edit2, Calendar, 
   Package, TrendingUp, Info, FileText 
 } from 'lucide-vue-next';
+import { actualizarGastoExtra } from '@/Server/ControlRevendedor';
 
 const props = defineProps({
   control: { type: Object, required: true }
@@ -169,6 +178,21 @@ defineEmits(['edit-detail']);
 
 const expandido = ref(false);
 
+const netoFinal = computed(() => {
+  return Number(props.control.TotalLiquidoPanaderia || 0) - Number(props.control.GastoExtra || 0);
+});
+
+let saveTimer = null;
+const onGastoExtraChange = () => {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(async () => {
+    try {
+      await actualizarGastoExtra(props.control.idrevendedorcontrol, props.control.GastoExtra || 0);
+    } catch (e) {
+      console.error(e);
+    }
+  }, 500);
+};
 const formatDate = (date) => {
   if (!date) return 'N/A';
   return new Date(date).toLocaleDateString('es-BO', { day: '2-digit', month: '2-digit', year: 'numeric' });

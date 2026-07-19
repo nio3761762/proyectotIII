@@ -326,7 +326,7 @@ const cargarControles = async () => {
       paginacion.page,
       paginacion.limit
     );
-    controles.value = res.data || [];
+    controles.value = (res.data || []).map(c => ({ ...c, GastoExtra: Number(c.GastoExtra) || 0 }));
     totalItems.value = res.total || 0;
   } catch (error) {
     console.error("Error al cargar controles", error);

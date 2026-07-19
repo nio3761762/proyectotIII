@@ -60,3 +60,15 @@ export const Controldetales = async (id, payload) => {
     throw error;
   }
 };
+
+export const actualizarGastoExtra = async (id, gastoExtra) => {
+  try {
+    const response = await API.put(`revendedorControl/${id}/gasto-extra`, { gastoExtra });
+    return response.data;
+  } catch (error) {
+    console.error('Error al actualizar gasto extra:', error.response);
+    throw error;
+  }
+};
+
+

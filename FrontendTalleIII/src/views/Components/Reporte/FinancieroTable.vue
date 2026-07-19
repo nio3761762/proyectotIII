@@ -194,58 +194,7 @@
     </section>
 
     <!-- Gastos Generales -->
-    <section v-if="reporte && reporte.gastosGenerales && reporte.gastosGenerales.length > 0 && !props.agruparPorSemana" class="animate-fade-in-up" style="animation-delay: 0.02s">
-      <div class="flex items-center gap-3 mb-6">
-        <div class="p-2 bg-orange-100 rounded-xl">
-          <DollarSign class="h-6 w-6 text-orange-600" />
-        </div>
-        <div>
-          <h3 class="text-xl font-bold text-gray-800">Gastos Generales</h3>
-          <p class="text-xs text-gray-400 font-bold uppercase tracking-widest">Gastos administrativos y operativos globales</p>
-        </div>
-      </div>
-
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-        <div class="bg-gradient-to-br from-orange-50 to-white p-6 rounded-3xl border border-orange-100 shadow-sm">
-          <p class="text-xs font-black text-orange-600 uppercase tracking-widest mb-1">Total Gastos Generales</p>
-          <p class="text-2xl font-black text-orange-700">{{ parseFloat(reporte.resumenGeneral.totalGastosGenerales || 0).toFixed(2) }} <span class="text-xs">Bs.</span></p>
-        </div>
-        <div class="bg-gradient-to-br from-blue-50 to-white p-6 rounded-3xl border border-blue-100 shadow-sm">
-          <p class="text-xs font-black text-blue-600 uppercase tracking-widest mb-1">Cantidad de Gastos</p>
-          <p class="text-2xl font-black text-blue-700">{{ reporte.resumenGeneral.cantidadGastosGenerales || 0 }}</p>
-        </div>
-        <div class="bg-gradient-to-br from-purple-50 to-white p-6 rounded-3xl border border-purple-100 shadow-sm">
-          <p class="text-xs font-black text-purple-600 uppercase tracking-widest mb-1">Promedio por Gasto</p>
-          <p class="text-2xl font-black text-purple-700">{{ (reporte.resumenGeneral.cantidadGastosGenerales > 0 ? (parseFloat(reporte.resumenGeneral.totalGastosGenerales) / reporte.resumenGeneral.cantidadGastosGenerales) : 0).toFixed(2) }} <span class="text-xs">Bs.</span></p>
-        </div>
-      </div>
-
-      <div class="bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl border border-white/50 overflow-hidden">
-        <div class="overflow-x-auto">
-          <table class="w-full">
-            <thead>
-              <tr class="bg-gray-50 border-b border-gray-100">
-                <th class="text-left px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Nombre</th>
-                <th class="text-left px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Fecha</th>
-                <th class="text-right px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Costo</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="gasto in reporte.gastosGenerales" :key="gasto.idgastogeneral"
-                class="border-b border-gray-50 hover:bg-orange-50/50 transition-colors">
-                <td class="px-6 py-4 font-semibold text-gray-800">{{ gasto.nombre }}</td>
-                <td class="px-6 py-4 text-gray-600">{{ formatFecha(gasto.fecha ? gasto.fecha.split('T')[0] : '') }}</td>
-                <td class="px-6 py-4 text-right font-bold text-gray-800">{{ parseFloat(gasto.costo || 0).toFixed(2) }} Bs.</td>
-              </tr>
-              <tr v-if="reporte.gastosGenerales.length === 0">
-                <td colspan="3" class="px-6 py-12 text-center text-gray-400">No hay gastos generales en este período</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </section>
-
+  
     <!-- Charts -->
     <section v-if="chartData.labels.length > 0 && !props.agruparPorSemana" class="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-fade-in-up" style="animation-delay: 0.03s">
       <div class="bg-white rounded-3xl border border-gray-100 shadow-sm p-6">

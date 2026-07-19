@@ -81,6 +81,14 @@ export const getReporteFinancieroConsolidado = async (req: Request, res: Respons
             ORDER BY fecha DESC, nombre ASC
         `;
 
+        // 5b. Gasto Extra Revendedores por sucursal
+        const sqlGastoExtraRev = `
+            SELECT idsucursal, SUM(COALESCE(gastoextra, 0)) as total
+            FROM revendedorcontrol
+            WHERE estado = 1 AND fecha BETWEEN $1 AND $2 AND ($3::varchar IS NULL OR idsucursal = $3)
+            GROUP BY idsucursal
+        `;
+
         // 6. Compras (Globales/Filtradas)
         const sqlCompras = `
             SELECT COALESCE(SUM(preciototal), 0) as total 
@@ -168,7 +176,14 @@ export const getReporteFinancieroConsolidado = async (req: Request, res: Respons
             GROUP BY fecha ORDER BY fecha
         `;
 
-        const [sucRaw, ingRaw, revRaw, gastRaw, salRaw, compRaw, vDiariasRaw, cDiariasRaw, revDiariosRaw, gDiariosRaw, ggRaw, ggDetRaw, hoyRaw] = await Promise.all([
+        const sqlGastoExtraDiario = `
+            SELECT fecha, SUM(COALESCE(gastoextra, 0)) as total
+            FROM revendedorcontrol
+            WHERE estado = 1 AND fecha BETWEEN $1 AND $2 AND ($3::varchar IS NULL OR idsucursal = $3)
+            GROUP BY fecha ORDER BY fecha
+        `;
+
+        const [sucRaw, ingRaw, revRaw, gastRaw, salRaw, compRaw, vDiariasRaw, cDiariasRaw, revDiariosRaw, gDiariosRaw, ggRaw, ggDetRaw, hoyRaw, gastoExtraRevRaw, gastoExtraDiarioRaw] = await Promise.all([
             Venta.query(sqlSucursales, [sucursalId]),
             Venta.query(sqlIngresosTienda, params),
             Venta.query(sqlRevendedores, params),
@@ -181,7 +196,9 @@ export const getReporteFinancieroConsolidado = async (req: Request, res: Respons
             Venta.query(sqlGastosDiarios, params),
             Venta.query(sqlGastosGenerales, [fechadesde, fechahasta]),
             Venta.query(sqlGastosGeneralesDetalle, [fechadesde, fechahasta]),
-            Venta.query(sqlHoy, [sucursalId])
+            Venta.query(sqlHoy, [sucursalId]),
+            Venta.query(sqlGastoExtraRev, params),
+            Venta.query(sqlGastoExtraDiario, params)
         ]);
 
         const totalGastosGenerales = Number(ggRaw[0]?.total || 0);
@@ -190,11 +207,12 @@ export const getReporteFinancieroConsolidado = async (req: Request, res: Respons
 
         // Procesar Ganancia de Hoy (Separada por Sucursal)
         const resumenHoy = hoyRaw.map((dataHoy: any) => {
+            const gastoExtraHoy = gastoExtraRevRaw.find((r: any) => r.idsucursal === dataHoy.idsucursal)?.total || 0;
             const ingresosHoy = Number(dataHoy.venta_tienda) + Number(dataHoy.ingreso_revendedores);
             const comisionesPagadasAEmpleados = Number(dataHoy.comisiones_hoy);
             const ventaAmbulanteBruta = Number(dataHoy.ingreso_revendedores) + Number(dataHoy.comisiones_hoy);
-            const gananciaPanaderiaAmbulantes = Number(dataHoy.ingreso_revendedores);
-            const gananciaLimpiaPanaderia = Number(dataHoy.ingreso_revendedores);
+            const gananciaPanaderiaAmbulantes = Number(dataHoy.ingreso_revendedores) - Number(gastoExtraHoy);
+            const gananciaLimpiaPanaderia = Number(dataHoy.ingreso_revendedores) - Number(gastoExtraHoy);
             // Compras solo si es TODOS (sucursalId es null)
             const comprasHoy = sucursalId ? 0 : Number(dataHoy.compras);
             const egresosHoy = comprasHoy + Number(dataHoy.gastos_sucursal);
@@ -227,11 +245,12 @@ export const getReporteFinancieroConsolidado = async (req: Request, res: Respons
             const rev = revRaw.find((r: any) => r.idsucursal === s.idsucursal) || { venta_bruta: 0, comisiones: 0 };
             const gast = gastRaw.find((r: any) => r.idsucursal === s.idsucursal) || { total: 0, detalle: [] };
             const sal = salRaw.find((r: any) => r.idsucursal === s.idsucursal) || { total: 0, planilla: [] };
+            const gastoExtraSuc = gastoExtraRevRaw.find((r: any) => r.idsucursal === s.idsucursal)?.total || 0;
 
             const ingresosTienda = Number(ing);
             const ventaRevendedorBruta = Number(rev.venta_bruta);
             const comisionesPagadas = Number(rev.comisiones);
-            const gananciaLimpiaRevendedores = ventaRevendedorBruta - comisionesPagadas;
+            const gananciaLimpiaRevendedores = ventaRevendedorBruta - comisionesPagadas - Number(gastoExtraSuc);
             
             const ingresosTotalesSuc = ingresosTienda + gananciaLimpiaRevendedores;
             const egresosSuc = Number(gast.total) + Number(sal.total); 
@@ -288,6 +307,10 @@ export const getReporteFinancieroConsolidado = async (req: Request, res: Respons
             const f = g.fecha.toISOString().split('T')[0];
             cronologia[f] = { ...cronologia[f], gastosSucursal: Number(g.monto) };
         });
+        gastoExtraDiarioRaw.forEach((ge: any) => {
+            const f = ge.fecha.toISOString().split('T')[0];
+            cronologia[f] = { ...cronologia[f], gastoExtraRevendedores: Number(ge.total) };
+        });
 
         // Generar rango completo de fechas para incluir ceros
         const listaFechas: string[] = [];
@@ -302,7 +325,7 @@ export const getReporteFinancieroConsolidado = async (req: Request, res: Respons
         const evolucionDiaria = listaFechas.map(fecha => {
             const dia = cronologia[fecha] || {};
             const vTienda = dia.ventaTienda || 0;
-            const gRevendedores = dia.gananciaRevendedores || 0;
+            const gRevendedores = (dia.gananciaRevendedores || 0) - (dia.gastoExtraRevendedores || 0);
             const comPagadas = dia.comisionesPagadas || 0;
             const compra = dia.compra || 0;
             const gSucursal = dia.gastosSucursal || 0;

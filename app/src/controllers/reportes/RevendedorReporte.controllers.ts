@@ -48,6 +48,7 @@ export const getReporteRevendedorConsolidado = async (req: Request, res: Respons
           rc.fecha,
           rc.idempleado,
           rc.idpersona,
+          rc.gastoextra,
           COALESCE((SELECT e_sub.idpersona FROM empleado e_sub WHERE e_sub.idempleado = rc.idempleado), rc.idpersona) as persona_id,
           (d.cantidadentregada - d.cantidaddevuelta) as vendido_total,
           (
@@ -83,21 +84,31 @@ export const getReporteRevendedorConsolidado = async (req: Request, res: Respons
         JOIN producto prod ON pm.idproducto = prod.idproducto
         GROUP BY dc.persona_id, COALESCE(per.nombre, per_dir.nombre), COALESCE(per.apellidopaterno, per_dir.apellidopaterno), prod.idproducto, prod.nombre
       ),
+      gasto_extra_agg AS (
+        SELECT 
+          COALESCE((SELECT e_sub.idpersona FROM empleado e_sub WHERE e_sub.idempleado = rc.idempleado), rc.idpersona) as persona_id,
+          SUM(COALESCE(rc.gastoextra, 0)) as total_gasto_extra
+        FROM filtered_rc rc
+        GROUP BY COALESCE((SELECT e_sub.idpersona FROM empleado e_sub WHERE e_sub.idempleado = rc.idempleado), rc.idpersona)
+      ),
       por_empleado AS (
         SELECT 
-          persona_id as idempleado,
-          empleado,
+          pe.persona_id as idempleado,
+          pe.empleado,
           json_agg(json_build_object(
-            'producto', producto,
-            'idproducto', idproducto,
-            'cantidad_total', cantidad_total,
-            'comision', comision,
-            'liquido_panaderia', liquido_panaderia
-          ) ORDER BY cantidad_total DESC) as productos,
-          SUM(comision) as total_comision,
-          SUM(liquido_panaderia) as total_liquido_panaderia
-        FROM por_producto
-        GROUP BY persona_id, empleado
+            'producto', pe.producto,
+            'idproducto', pe.idproducto,
+            'cantidad_total', pe.cantidad_total,
+            'comision', pe.comision,
+            'liquido_panaderia', pe.liquido_panaderia
+          ) ORDER BY pe.cantidad_total DESC) as productos,
+          SUM(pe.comision) as total_comision,
+          SUM(pe.liquido_panaderia) as total_liquido_panaderia,
+          COALESCE(ge.total_gasto_extra, 0) as total_gasto_extra,
+          SUM(pe.liquido_panaderia) - COALESCE(ge.total_gasto_extra, 0) as neto_a_entregar
+        FROM por_producto pe
+        LEFT JOIN gasto_extra_agg ge ON ge.persona_id = pe.persona_id
+        GROUP BY pe.persona_id, pe.empleado, ge.total_gasto_extra
       )
       SELECT 
         json_agg(json_build_object(
@@ -105,10 +116,14 @@ export const getReporteRevendedorConsolidado = async (req: Request, res: Respons
           'idempleado', idempleado,
           'productos', productos,
           'total_comision', total_comision,
-          'total_liquido_panaderia', total_liquido_panaderia
-        ) ORDER BY total_liquido_panaderia DESC) as empleados,
+          'total_liquido_panaderia', total_liquido_panaderia,
+          'total_gasto_extra', total_gasto_extra,
+          'neto_a_entregar', neto_a_entregar
+        ) ORDER BY neto_a_entregar DESC) as empleados,
         SUM(total_comision) as total_comision,
-        SUM(total_liquido_panaderia) as total_liquido_panaderia
+        SUM(total_liquido_panaderia) as total_liquido_panaderia,
+        SUM(total_gasto_extra) as total_gasto_extra,
+        SUM(neto_a_entregar) as total_neto_a_entregar
       FROM por_empleado
     `;
 
@@ -125,7 +140,9 @@ export const getReporteRevendedorConsolidado = async (req: Request, res: Respons
       reporte: data?.empleados || [],
       totalesGlobales: {
         total_comision_empleados: Number(data?.total_comision || 0),
-        total_ganancia_panaderia: Number(data?.total_liquido_panaderia || 0)
+        total_ganancia_panaderia: Number(data?.total_liquido_panaderia || 0),
+        total_gasto_extra: Number(data?.total_gasto_extra || 0),
+        total_neto_a_entregar: Number(data?.total_neto_a_entregar || 0)
       }
     });
 
@@ -177,6 +194,7 @@ export const getReporteRevendedorDetallado = async (req: Request, res: Response)
           d.*,
           rc.idempleado,
           rc.idpersona,
+          rc.gastoextra,
           COALESCE((SELECT e_sub.idpersona FROM empleado e_sub WHERE e_sub.idempleado = rc.idempleado), rc.idpersona) as persona_id,
           (d.cantidadentregada - d.cantidaddevuelta) as vendido_total,
           (
@@ -201,6 +219,7 @@ export const getReporteRevendedorDetallado = async (req: Request, res: Response)
           rc.fecha,
           rc.idrevendedorcontrol,
           rc.observacion,
+          rc.gastoextra,
           rc.idpersona,
           COALESCE(per.nombre, per_dir.nombre) || ' ' || COALESCE(COALESCE(per.apellidopaterno, per_dir.apellidopaterno), '') as empleado,
           COALESCE(rc.idempleado, rc.idpersona) as idempleado,
@@ -247,7 +266,9 @@ export const getReporteRevendedorDetallado = async (req: Request, res: Response)
             ) pt
           ), '[]') as producto_totales,
           SUM(dc.comision_total) as total_comision,
-          SUM(dc.liquido_panaderia) as total_liquido_panaderia
+          SUM(dc.liquido_panaderia) as total_liquido_panaderia,
+          COALESCE(rc.gastoextra, 0) as total_gasto_extra,
+          SUM(dc.liquido_panaderia) - COALESCE(rc.gastoextra, 0) as neto_a_entregar
         FROM filtered_rc rc
         JOIN detalles_calc dc ON rc.idrevendedorcontrol = dc.idrevendedorcontrol
         LEFT JOIN empleado e ON rc.idempleado = e.idempleado
@@ -257,7 +278,7 @@ export const getReporteRevendedorDetallado = async (req: Request, res: Response)
         JOIN productomedida pm ON dc.idproductomedida = pm.idproductomedida
         JOIN producto prod ON pm.idproducto = prod.idproducto
         JOIN presentacion pre ON pm.idpresentacion = pre.idpresentacion
-        GROUP BY rc.fecha, rc.idrevendedorcontrol, rc.observacion, COALESCE(per.nombre, per_dir.nombre), COALESCE(per.apellidopaterno, per_dir.apellidopaterno), COALESCE(rc.idempleado, rc.idpersona), rc.idempleado, rc.idpersona, per_dir.idpersona, per_dir.nombre, per_dir.apellidopaterno, per_dir.apellidomaterno, s.nombre
+        GROUP BY rc.fecha, rc.idrevendedorcontrol, rc.observacion, rc.gastoextra, COALESCE(per.nombre, per_dir.nombre), COALESCE(per.apellidopaterno, per_dir.apellidopaterno), COALESCE(rc.idempleado, rc.idpersona), rc.idempleado, rc.idpersona, per_dir.idpersona, per_dir.nombre, per_dir.apellidopaterno, per_dir.apellidomaterno, s.nombre
       )
       SELECT 
         fecha,
@@ -270,10 +291,14 @@ export const getReporteRevendedorDetallado = async (req: Request, res: Response)
           'detalles', detalles,
           'producto_totales', producto_totales,
           'total_comision', total_comision,
-          'total_liquido_panaderia', total_liquido_panaderia
+          'total_liquido_panaderia', total_liquido_panaderia,
+          'total_gasto_extra', total_gasto_extra,
+          'neto_a_entregar', neto_a_entregar
         ) ORDER BY idrevendedorcontrol) as controles,
         SUM(total_comision) as total_comision_fecha,
-        SUM(total_liquido_panaderia) as total_liquido_panaderia_fecha
+        SUM(total_liquido_panaderia) as total_liquido_panaderia_fecha,
+        SUM(total_gasto_extra) as total_gasto_extra_fecha,
+        SUM(neto_a_entregar) as total_neto_a_entregar_fecha
       FROM por_control
       GROUP BY fecha
       ORDER BY fecha DESC
@@ -283,6 +308,8 @@ export const getReporteRevendedorDetallado = async (req: Request, res: Response)
 
     const totalGlobalComision = data.reduce((acc: number, r: any) => acc + Number(r.total_comision_fecha), 0);
     const totalGlobalPanaderia = data.reduce((acc: number, r: any) => acc + Number(r.total_liquido_panaderia_fecha), 0);
+    const totalGlobalGastoExtra = data.reduce((acc: number, r: any) => acc + Number(r.total_gasto_extra_fecha), 0);
+    const totalGlobalNetoEntregar = data.reduce((acc: number, r: any) => acc + Number(r.total_neto_a_entregar_fecha), 0);
 
     return res.json({
       metadatos: {
@@ -294,7 +321,9 @@ export const getReporteRevendedorDetallado = async (req: Request, res: Response)
       reporte: data,
       totalesGlobales: {
         total_comision_empleados: totalGlobalComision,
-        total_ganancia_panaderia: totalGlobalPanaderia
+        total_ganancia_panaderia: totalGlobalPanaderia,
+        total_gasto_extra: totalGlobalGastoExtra,
+        total_neto_a_entregar: totalGlobalNetoEntregar
       }
     });
 

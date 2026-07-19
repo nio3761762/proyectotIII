@@ -27,6 +27,9 @@ export class Revendedorcontrol extends BaseEntity {
   @Column({name: "observacion",type: "text",nullable: true})
   Observacion: string;
 
+  @Column({name: "gastoextra", type: "decimal", precision: 10, scale: 2, default: 0})
+  GastoExtra: number;
+
   @Column({name: "estado", type: "integer", default: 1})
   Estado: number;
 

@@ -2967,27 +2967,42 @@ const exportarPDF = async () => {
     const totals = comisionConsolidada.value?.totalesGlobales || {};
     const totalCom = Number(totals.total_comision_empleados || 0);
     const totalPan = Number(totals.total_ganancia_panaderia || 0);
+    const totalGastoExtra = Number(totals.total_gasto_extra || 0);
+    const totalNeto = Number(totals.total_neto_a_entregar || 0);
 
     const renderKpiCom = (y) => {
       if (y > 250) { doc.addPage('l'); return 50; }
       doc.setFillColor(239, 246, 255);
-      doc.rect(14, y, 65, 14, 'F');
+      doc.rect(14, y, 55, 14, 'F');
       doc.setFontSize(8); doc.setTextColor(37, 99, 235); doc.setFont(undefined, 'bold');
       doc.text('Comisión Empleados', 16, y + 5);
-      doc.setFontSize(12); doc.text(`${totalCom.toFixed(2)} Bs.`, 16, y + 12);
+      doc.setFontSize(11); doc.text(`${totalCom.toFixed(2)} Bs.`, 16, y + 12);
 
       doc.setFillColor(240, 253, 244);
-      doc.rect(83, y, 65, 14, 'F');
+      doc.rect(73, y, 55, 14, 'F');
       doc.setFontSize(8); doc.setTextColor(22, 163, 74); doc.setFont(undefined, 'bold');
-      doc.text('Ganancia Panadería', 85, y + 5);
-      doc.setFontSize(12); doc.text(`${totalPan.toFixed(2)} Bs.`, 85, y + 12);
+      doc.text('Ganancia Panadería', 75, y + 5);
+      doc.setFontSize(11); doc.text(`${totalPan.toFixed(2)} Bs.`, 75, y + 12);
 
       doc.setFillColor(255, 247, 237);
-      doc.rect(152, y, 55, 14, 'F');
+      doc.rect(132, y, 45, 14, 'F');
       doc.setFontSize(8); doc.setTextColor(234, 88, 12);
-      doc.text('Total Controles', 154, y + 5);
+      doc.text('Gasto Extra', 134, y + 5);
+      doc.setFontSize(11); doc.setTextColor(220, 38, 38);
+      doc.text(`${totalGastoExtra.toFixed(2)} Bs.`, 134, y + 12);
+
+      doc.setFillColor(254, 242, 242);
+      doc.rect(181, y, 55, 14, 'F');
+      doc.setFontSize(8); doc.setTextColor(220, 38, 38); doc.setFont(undefined, 'bold');
+      doc.text('Neto a Entregar', 183, y + 5);
+      doc.setFontSize(11); doc.text(`${totalNeto.toFixed(2)} Bs.`, 183, y + 12);
+
+      doc.setFillColor(255, 247, 237);
+      doc.rect(240, y, 45, 14, 'F');
+      doc.setFontSize(8); doc.setTextColor(234, 88, 12); doc.setFont(undefined, 'normal');
+      doc.text('Total Controles', 242, y + 5);
       const totalControles = (comisionDetallada.value?.reporte || []).reduce((s, g) => s + (g.controles || []).length, 0);
-      doc.setFontSize(12); doc.text(`${totalControles}`, 154, y + 12);
+      doc.setFontSize(11); doc.setTextColor(0); doc.text(`${totalControles}`, 242, y + 12);
       return y + 20;
     }
     startY = renderKpiCom(startY);
@@ -3001,12 +3016,12 @@ const exportarPDF = async () => {
         startY += Math.max(chCo1, chCo2) + 15;
 
         const empRows = [];
-        (comisionConsolidada.value?.reporte || []).forEach(g => { if (Array.isArray(g.empleados)) g.empleados.forEach(emp => { empRows.push([emp.empleado, `${Number(emp.total_comision || 0).toFixed(2)} Bs.`, `${Number(emp.total_liquido_panaderia || 0).toFixed(2)} Bs.`]); }) });
+        (comisionConsolidada.value?.reporte || []).forEach(g => { if (Array.isArray(g.empleados)) g.empleados.forEach(emp => { empRows.push([emp.empleado, `${Number(emp.total_comision || 0).toFixed(2)} Bs.`, `${Number(emp.total_liquido_panaderia || 0).toFixed(2)} Bs.`, `${Number(emp.total_gasto_extra || 0).toFixed(2)} Bs.`, `${Number(emp.neto_a_entregar || emp.total_liquido_panaderia || 0).toFixed(2)} Bs.`]); }) });
         if (empRows.length) {
           autoTable(doc, {
-            head: [['Empleado', 'Comisión', 'Líq. Panadería']],
+            head: [['Empleado', 'Comisión', 'Líq. Panadería', 'Gasto Extra', 'Neto a Entregar']],
             body: empRows,
-            startY, styles: { fontSize: 7 }, columnStyles: { 0: { cellWidth: 50 } }
+            startY, styles: { fontSize: 7 }, columnStyles: { 0: { cellWidth: 45 } }
           });
           startY = doc.lastAutoTable.finalY + 5;
         }
@@ -3017,7 +3032,8 @@ const exportarPDF = async () => {
         const prodSet = new Set()
         comisionDetallada.value.reporte.forEach(g => {
           if (Array.isArray(g.controles)) g.controles.forEach(c => {
-            if (!empMap[c.empleado]) empMap[c.empleado] = { empleado: c.empleado, total_comision: 0, total_liquido: 0, productoMap: {} }
+            if (!empMap[c.empleado]) empMap[c.empleado] = { empleado: c.empleado, total_comision: 0, total_liquido: 0, total_gasto_extra: 0, neto_a_entregar: 0, productoMap: {} }
+            empMap[c.empleado].total_gasto_extra += Number(c.total_gasto_extra || 0)
             if (Array.isArray(c.detalles)) c.detalles.forEach(d => {
               prodSet.add(d.producto)
               empMap[c.empleado].productoMap[d.producto] = (empMap[c.empleado].productoMap[d.producto] || 0) + Number(d.cantidad_vendida || 0)
@@ -3026,6 +3042,7 @@ const exportarPDF = async () => {
             })
           })
         })
+        Object.values(empMap).forEach(e => { e.neto_a_entregar = e.total_liquido - e.total_gasto_extra })
         const prodUnicos = [...prodSet]
         const empleados = Object.values(empMap)
         if (empleados.length) {
@@ -3033,8 +3050,8 @@ const exportarPDF = async () => {
           doc.setFontSize(12); doc.setTextColor(0); doc.setFont(undefined, 'bold');
           doc.text('Resumen de Comisiones', 14, startY);
           startY += 8;
-          const col = ["Empleado", ...prodUnicos, "Comisión", "Líq. Panadería"];
-          const rows = empleados.map(e => [e.empleado, ...prodUnicos.map(p => e.productoMap[p] ?? '-'), `${e.total_comision.toFixed(2)} Bs.`, `${e.total_liquido.toFixed(2)} Bs.`]);
+          const col = ["Empleado", ...prodUnicos, "Comisión", "Líq. Panadería", "Gasto Extra", "Neto a Entregar"];
+          const rows = empleados.map(e => [e.empleado, ...prodUnicos.map(p => e.productoMap[p] ?? '-'), `${e.total_comision.toFixed(2)} Bs.`, `${e.total_liquido.toFixed(2)} Bs.`, `${e.total_gasto_extra.toFixed(2)} Bs.`, `${e.neto_a_entregar.toFixed(2)} Bs.`]);
           autoTable(doc, { head: [col], body: rows, startY, styles: { fontSize: 7 }, theme: 'striped' });
           startY = doc.lastAutoTable.finalY + 10;
         }
@@ -3045,15 +3062,17 @@ const exportarPDF = async () => {
         doc.setFontSize(12); doc.setTextColor(0); doc.setFont(undefined, 'bold');
         doc.text('Detalle de Comisiones', 14, startY);
         startY += 8;
-        const tableColumn = ["Fecha", "Empleado", "Sucursal", "Producto", "Presentación", "Entregado", "Devuelto", "Ajustado", "Vendido", "Precio Vta.", "Comisión Unit.", "Comisión Total", "Líq. Panadería"];
+        const tableColumn = ["Fecha", "Empleado", "Sucursal", "Producto", "Presentación", "Entregado", "Devuelto", "Ajustado", "Vendido", "Precio Vta.", "Comisión Unit.", "Comisión Total", "Líq. Panadería", "Gasto Extra", "Neto a Entregar"];
         const tableRows = [];
         comisionDetallada.value.reporte.forEach(group => {
           if (Array.isArray(group.controles)) group.controles.forEach(control => {
-            if (Array.isArray(control.detalles)) control.detalles.forEach(det => {
+            const gastoExtra = Number(control.total_gasto_extra || 0)
+            const netoEntrega = Number(control.neto_a_entregar || control.total_liquido_panaderia || 0)
+            if (Array.isArray(control.detalles)) control.detalles.forEach((det, dIdx) => {
               tableRows.push([
-                formatFecha(group.fecha),
-                control.empleado,
-                control.sucursal,
+                dIdx === 0 ? formatFecha(group.fecha) : '',
+                dIdx === 0 ? control.empleado : '',
+                dIdx === 0 ? control.sucursal : '',
                 det.producto,
                 det.presentacion,
                 Number(det.cantidad_entregada || 0),
@@ -3063,25 +3082,27 @@ const exportarPDF = async () => {
                 `${Number(det.precio_venta || 0).toFixed(2)} Bs.`,
                 `${Number(det.comision_unitaria || 0).toFixed(2)} Bs.`,
                 `${Number(det.comision_total || 0).toFixed(2)} Bs.`,
-                `${Number(det.liquido_panaderia || 0).toFixed(2)} Bs.`
+                `${Number(det.liquido_panaderia || 0).toFixed(2)} Bs.`,
+                dIdx === 0 ? `${gastoExtra.toFixed(2)} Bs.` : '',
+                dIdx === 0 ? `${netoEntrega.toFixed(2)} Bs.` : ''
               ]);
             });
           });
         });
-        autoTable(doc, { head: [tableColumn], body: tableRows, startY, styles: { fontSize: 8 } });
+        autoTable(doc, { head: [tableColumn], body: tableRows, startY, styles: { fontSize: 7 } });
       }
     } else if (comisionDetallada.value?.reporte?.length) {
       const chWeek = addChartToPDF(doc, 0, 14, startY + 5, chartW);
       if (chWeek !== null) startY += chWeek + 15;
 
-      const weeks = {}
+          const weeks = {}
       comisionDetallada.value.reporte.forEach(g => {
         const fecha = g.fecha ? g.fecha.split('T')[0] : null
         if (!fecha) return
         const monday = getWeekMonday(fecha)
-        if (!weeks[monday]) weeks[monday] = { fecha: monday, semanaLabel: getWeekLabel(monday), groups: [], totalComision: 0, totalLiquido: 0, totalControles: 0 }
+        if (!weeks[monday]) weeks[monday] = { fecha: monday, semanaLabel: getWeekLabel(monday), groups: [], totalComision: 0, totalLiquido: 0, totalGastoExtra: 0, totalNetoEntrega: 0, totalControles: 0 }
         weeks[monday].groups.push(g)
-        if (Array.isArray(g.controles)) g.controles.forEach(c => { weeks[monday].totalControles++; if (Array.isArray(c.detalles)) c.detalles.forEach(d => { weeks[monday].totalComision += Number(d.comision_total || 0); weeks[monday].totalLiquido += Number(d.liquido_panaderia || 0) }) })
+        if (Array.isArray(g.controles)) g.controles.forEach(c => { weeks[monday].totalControles++; weeks[monday].totalGastoExtra += Number(c.total_gasto_extra || 0); if (Array.isArray(c.detalles)) c.detalles.forEach(d => { weeks[monday].totalComision += Number(d.comision_total || 0); weeks[monday].totalLiquido += Number(d.liquido_panaderia || 0) }) })
       })
       const sortedWeeks = Object.values(weeks).sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
 
@@ -3091,10 +3112,15 @@ const exportarPDF = async () => {
         doc.rect(14, startY - 5, pageW - 28, 10, 'F')
         doc.setFontSize(11); doc.setTextColor(0); doc.setFont(undefined, 'bold')
         doc.text(`Semana ${si + 1}: ${sem.semanaLabel}`, 18, startY)
-        doc.setFontSize(9); doc.setTextColor(37, 99, 235)
-        doc.text(`Com: ${sem.totalComision.toFixed(2)} Bs.`, pageW - 120, startY)
+        const totNeto = sem.totalLiquido - sem.totalGastoExtra
+        doc.setFontSize(8); doc.setTextColor(220, 38, 38)
+        doc.text(`G.Extra: ${sem.totalGastoExtra.toFixed(2)}`, pageW - 180, startY)
         doc.setTextColor(22, 163, 74)
-        doc.text(`Liq: ${sem.totalLiquido.toFixed(2)} Bs.`, pageW - 60, startY)
+        doc.text(`Liq: ${sem.totalLiquido.toFixed(2)}`, pageW - 130, startY)
+        doc.setTextColor(37, 99, 235)
+        doc.text(`Com: ${sem.totalComision.toFixed(2)}`, pageW - 80, startY)
+        doc.setTextColor(220, 38, 38); doc.setFont(undefined, 'bold')
+        doc.text(`Neto: ${totNeto.toFixed(2)}`, pageW - 50, startY)
         startY += 14
 
         // Weekly charts (doughnut + comparison)
@@ -3108,7 +3134,8 @@ const exportarPDF = async () => {
         const prodSet = new Set()
         sem.groups.forEach(group => {
           if (Array.isArray(group.controles)) group.controles.forEach(control => {
-            if (!empMap[control.empleado]) empMap[control.empleado] = { empleado: control.empleado, total_comision: 0, total_liquido: 0, productoMap: {} }
+            if (!empMap[control.empleado]) empMap[control.empleado] = { empleado: control.empleado, total_comision: 0, total_liquido: 0, total_gasto_extra: 0, neto_a_entregar: 0, productoMap: {} }
+            empMap[control.empleado].total_gasto_extra += Number(control.total_gasto_extra || 0)
             if (Array.isArray(control.detalles)) control.detalles.forEach(det => {
               prodSet.add(det.producto)
               const pname = det.producto
@@ -3118,6 +3145,7 @@ const exportarPDF = async () => {
             })
           })
         })
+        Object.values(empMap).forEach(e => { e.neto_a_entregar = e.total_liquido - e.total_gasto_extra })
         const prodUnicos = [...prodSet]
         const empleados = Object.values(empMap)
         if (empleados.length && prodUnicos.length) {
@@ -3125,9 +3153,9 @@ const exportarPDF = async () => {
           doc.setFontSize(10); doc.setTextColor(0); doc.setFont(undefined, 'bold')
           doc.text('Resumen de Comisiones', 14, startY)
           startY += 7
-          const col = ["Empleado", ...prodUnicos, "Comisión", "Líq. Panadería"]
-          const rows = empleados.map(e => [e.empleado, ...prodUnicos.map(p => e.productoMap[p] ?? '-'), `${e.total_comision.toFixed(2)} Bs.`, `${e.total_liquido.toFixed(2)} Bs.`])
-          autoTable(doc, { head: [col], body: rows, startY, styles: { fontSize: 7 }, theme: 'striped' })
+          const col = ["Empleado", ...prodUnicos, "Comisión", "Líq. Panadería", "Gasto Extra", "Neto a Entregar"]
+          const rows = empleados.map(e => [e.empleado, ...prodUnicos.map(p => e.productoMap[p] ?? '-'), `${e.total_comision.toFixed(2)} Bs.`, `${e.total_liquido.toFixed(2)} Bs.`, `${e.total_gasto_extra.toFixed(2)} Bs.`, `${e.neto_a_entregar.toFixed(2)} Bs.`])
+          autoTable(doc, { head: [col], body: rows, startY, styles: { fontSize: 6 }, theme: 'striped' })
           startY = doc.lastAutoTable.finalY + 8
         }
 
@@ -3154,19 +3182,24 @@ const exportarPDF = async () => {
 
           const rows = []
           if (Array.isArray(day.controles)) day.controles.forEach(control => {
-            if (Array.isArray(control.detalles)) control.detalles.forEach(det => {
+            const gastoExtra = Number(control.total_gasto_extra || 0)
+            const netoEntrega = Number(control.neto_a_entregar || control.total_liquido_panaderia || 0)
+            if (Array.isArray(control.detalles)) control.detalles.forEach((det, dIdx) => {
               rows.push([
-                control.empleado, control.sucursal, det.producto, det.presentacion,
+                dIdx === 0 ? control.empleado : '', dIdx === 0 ? control.sucursal : '',
+                det.producto, det.presentacion,
                 Number(det.cantidad_entregada || 0), Number(det.cantidad_devuelta || 0),
                 Number(det.cantidadajustada ?? det.cantidad_ajustada ?? 0), Number(det.cantidad_vendida || 0),
                 `${Number(det.precio_venta || 0).toFixed(2)} Bs.`,
                 `${Number(det.comision_unitaria || 0).toFixed(2)} Bs.`,
                 `${Number(det.comision_total || 0).toFixed(2)} Bs.`,
-                `${Number(det.liquido_panaderia || 0).toFixed(2)} Bs.`
+                `${Number(det.liquido_panaderia || 0).toFixed(2)} Bs.`,
+                dIdx === 0 ? `${gastoExtra.toFixed(2)} Bs.` : '',
+                dIdx === 0 ? `${netoEntrega.toFixed(2)} Bs.` : ''
               ])
             })
           })
-          autoTable(doc, { head: [["Empleado", "Sucursal", "Producto", "Presentación", "Entregado", "Devuelto", "Ajustado", "Vendido", "Precio Vta.", "Comisión Unit.", "Comisión Total", "Líq. Panadería"]], body: rows, startY, styles: { fontSize: 7 } })
+          autoTable(doc, { head: [["Empleado", "Sucursal", "Producto", "Presentación", "Entregado", "Devuelto", "Ajustado", "Vendido", "Precio Vta.", "Comisión Unit.", "Comisión Total", "Líq. Panadería", "Gasto Extra", "Neto a Entregar"]], body: rows, startY, styles: { fontSize: 6 } })
           startY = doc.lastAutoTable.finalY + 3
         })
         startY += 5

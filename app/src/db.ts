@@ -163,5 +163,5 @@ export const AppDataSource = new DataSource({
         Revendedorcontrolprecio,
         GastoGeneral
     ],
-    synchronize: false
+    synchronize: true
 })

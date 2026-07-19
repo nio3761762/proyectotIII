@@ -16,7 +16,7 @@
             <span class="text-xs text-gray-400">|</span>
             <span class="text-sm text-gray-500">{{ sem.controles.length }} controles</span>
           </div>
-          <div class="flex items-center gap-6">
+          <div class="flex items-center gap-5">
             <div class="text-right">
               <p class="text-[9px] text-gray-400 uppercase font-black">Comisión Total</p>
               <p class="text-sm font-black text-blue-600">{{ formatCurrency(sem.controles.reduce((s,c) => s + parseFloat(c.total_comision||0), 0)) }}</p>
@@ -24,6 +24,14 @@
             <div class="text-right">
               <p class="text-[9px] text-gray-400 uppercase font-black">Líq. Panadería</p>
               <p class="text-sm font-black text-emerald-600">{{ formatCurrency(sem.controles.reduce((s,c) => s + parseFloat(c.total_liquido_panaderia||0), 0)) }}</p>
+            </div>
+            <div class="text-right">
+              <p class="text-[9px] text-gray-400 uppercase font-black">Gasto Extra</p>
+              <p class="text-sm font-black text-red-500">{{ formatCurrency(sem.controles.reduce((s,c) => s + parseFloat(c.total_gasto_extra||0), 0)) }}</p>
+            </div>
+            <div class="text-right">
+              <p class="text-[9px] text-gray-400 uppercase font-black">Neto a Entregar</p>
+              <p class="text-sm font-black text-red-700">{{ formatCurrency(sem.controles.reduce((s,c) => s + parseFloat(c.neto_a_entregar||c.total_liquido_panaderia||0), 0)) }}</p>
             </div>
           </div>
         </div>
@@ -48,7 +56,7 @@
                         <span class="text-[8px] text-gray-400 font-normal normal-case mt-0.5">(cant.)</span>
                       </div>
                     </th>
-                    <th colspan="2" class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-center min-w-[130px]">Totales</th>
+                    <th colspan="4" class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-center min-w-[260px]">Totales</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -74,6 +82,18 @@
                         <span class="text-sm font-black text-emerald-600">{{ Number(emp.total_liquido_panaderia).toFixed(2) }}</span>
                       </div>
                     </td>
+                    <td class="p-3 border-b text-right">
+                      <div class="flex flex-col">
+                        <span class="text-[9px] text-gray-400 font-bold uppercase">Gasto Extra</span>
+                        <span class="text-sm font-black text-red-500">{{ Number(emp.total_gasto_extra || 0).toFixed(2) }}</span>
+                      </div>
+                    </td>
+                    <td class="p-3 border-b text-right bg-orange-50/30">
+                      <div class="flex flex-col">
+                        <span class="text-[9px] text-gray-400 font-bold uppercase">Neto a Entregar</span>
+                        <span class="text-sm font-black text-red-700">{{ Number(emp.neto_a_entregar || emp.total_liquido_panaderia).toFixed(2) }}</span>
+                      </div>
+                    </td>
                   </tr>
                 </tbody>
                 <tfoot v-if="(weeklyConsolidados[sem.fecha]?.empleados?.length || 0) > 1">
@@ -87,6 +107,12 @@
                     </td>
                     <td class="p-3 border-t-2 border-orange-200 text-right">
                       <span class="font-black text-emerald-600">{{ weeklyConsolidados[sem.fecha]?.totalLiquidoGlobal.toFixed(2) }}</span>
+                    </td>
+                    <td class="p-3 border-t-2 border-orange-200 text-right">
+                      <span class="font-black text-red-500">{{ weeklyConsolidados[sem.fecha]?.totalGastoExtraGlobal.toFixed(2) }}</span>
+                    </td>
+                    <td class="p-3 border-t-2 border-orange-200 text-right bg-orange-50/50">
+                      <span class="font-black text-red-700">{{ weeklyConsolidados[sem.fecha]?.totalNetoEntregarGlobal.toFixed(2) }}</span>
                     </td>
                   </tr>
                 </tfoot>
@@ -176,14 +202,17 @@
                             <td class="p-2 text-[10px] text-amber-600 font-semibold border-b border-amber-100" colspan="3">{{ ajuste.estado || '' }}</td>
                           </tr>
                         </template>
-                        <tr class="bg-blue-50/20">
-                          <td colspan="10" class="p-2 text-right text-[10px] font-black text-gray-400 uppercase tracking-widest border-b">Totales del Control:</td>
-                          <td class="p-2 text-right border-b font-black text-blue-600">{{ Number(control.total_comision).toFixed(2) }}</td>
-                          <td class="p-2 text-right border-b font-black text-emerald-600">{{ Number(control.total_liquido_panaderia).toFixed(2) }}</td>
-                        </tr>
-                      </template>
-                    </tbody>
-                  </table>
+                          <tr class="bg-blue-50/20">
+                            <td colspan="10" class="p-2 text-right text-[10px] font-black text-gray-400 uppercase tracking-widest border-b">Totales del Control:</td>
+                            <td class="p-2 text-right border-b font-black text-blue-600">{{ Number(control.total_comision).toFixed(2) }}</td>
+                            <td class="p-2 text-right border-b font-black text-emerald-600">{{ Number(control.total_liquido_panaderia).toFixed(2) }}</td>
+                            <td class="p-2 text-right border-b font-black text-red-500">{{ Number(control.total_gasto_extra || 0).toFixed(2) }}</td>
+                            <td class="p-2 text-right border-b font-black text-red-700">{{ Number(control.neto_a_entregar || control.total_liquido_panaderia).toFixed(2) }}</td>
+                          </tr>
+                        </template>
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
             </div>
@@ -230,7 +259,7 @@
                   <span class="text-[8px] text-gray-400 font-normal normal-case mt-0.5">(cant.)</span>
                 </div>
               </th>
-              <th colspan="2" class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-center min-w-[140px]">Totales</th>
+              <th colspan="4" class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-center min-w-[260px]">Totales</th>
             </tr>
           </thead>
           <tbody>
@@ -246,42 +275,60 @@
                   class="p-3 border-b border-r text-center text-sm font-bold text-gray-800">
                 {{ emp.productoMap[prod] ?? '-' }}
               </td>
-              <td class="p-3 border-b text-right">
-                <div class="flex flex-col">
-                  <span class="text-[9px] text-gray-400 font-bold uppercase">Comisión</span>
-                  <span class="text-sm font-black text-blue-600">{{ Number(emp.total_comision).toFixed(2) }}</span>
-                </div>
-              </td>
-              <td class="p-3 border-b text-right">
-                <div class="flex flex-col">
-                  <span class="text-[9px] text-gray-400 font-bold uppercase">Panadería</span>
-                  <span class="text-sm font-black text-emerald-600">{{ Number(emp.total_liquido_panaderia).toFixed(2) }}</span>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-          <tfoot v-if="processedConsolidado.empleados.length > 1">
-            <tr class="bg-orange-50/50">
-              <td class="p-3 border-t-2 border-orange-200 font-black text-gray-600 text-xs uppercase">Totales</td>
-              <td v-for="prod in processedConsolidado.productosUnicos" :key="prod"
-                  class="p-3 border-t-2 border-orange-200 text-center font-black">
-                {{ processedConsolidado.totalPorProducto[prod] ?? '-' }}
-              </td>
-              <td class="p-3 border-t-2 border-orange-200 text-right">
-                <span class="font-black text-blue-600">{{ processedConsolidado.totalComisionGlobal.toFixed(2) }}</span>
-              </td>
-              <td class="p-3 border-t-2 border-orange-200 text-right">
-                <span class="font-black text-emerald-600">{{ processedConsolidado.totalLiquidoGlobal.toFixed(2) }}</span>
-              </td>
-            </tr>
-          </tfoot>
+                    <td class="p-3 border-b text-right">
+                      <div class="flex flex-col">
+                        <span class="text-[9px] text-gray-400 font-bold uppercase">Comisión</span>
+                        <span class="text-sm font-black text-blue-600">{{ Number(emp.total_comision).toFixed(2) }}</span>
+                      </div>
+                    </td>
+                    <td class="p-3 border-b text-right">
+                      <div class="flex flex-col">
+                        <span class="text-[9px] text-gray-400 font-bold uppercase">Panadería</span>
+                        <span class="text-sm font-black text-emerald-600">{{ Number(emp.total_liquido_panaderia).toFixed(2) }}</span>
+                      </div>
+                    </td>
+                    <td class="p-3 border-b text-right">
+                      <div class="flex flex-col">
+                        <span class="text-[9px] text-gray-400 font-bold uppercase">Gasto Extra</span>
+                        <span class="text-sm font-black text-red-500">{{ Number(emp.total_gasto_extra || 0).toFixed(2) }}</span>
+                      </div>
+                    </td>
+                    <td class="p-3 border-b text-right bg-orange-50/30">
+                      <div class="flex flex-col">
+                        <span class="text-[9px] text-gray-400 font-bold uppercase">Neto a Entregar</span>
+                        <span class="text-sm font-black text-red-700">{{ Number(emp.neto_a_entregar || emp.total_liquido_panaderia).toFixed(2) }}</span>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+                <tfoot v-if="processedConsolidado.empleados.length > 1">
+                  <tr class="bg-orange-50/50">
+                    <td class="p-3 border-t-2 border-orange-200 font-black text-gray-600 text-xs uppercase">Totales</td>
+                    <td v-for="prod in processedConsolidado.productosUnicos" :key="prod"
+                        class="p-3 border-t-2 border-orange-200 text-center font-black">
+                      {{ processedConsolidado.totalPorProducto[prod] ?? '-' }}
+                    </td>
+                    <td class="p-3 border-t-2 border-orange-200 text-right">
+                      <span class="font-black text-blue-600">{{ processedConsolidado.totalComisionGlobal.toFixed(2) }}</span>
+                    </td>
+                    <td class="p-3 border-t-2 border-orange-200 text-right">
+                      <span class="font-black text-emerald-600">{{ processedConsolidado.totalLiquidoGlobal.toFixed(2) }}</span>
+                    </td>
+                    <td class="p-3 border-t-2 border-orange-200 text-right">
+                      <span class="font-black text-red-500">{{ processedConsolidado.totalGastoExtraGlobal.toFixed(2) }}</span>
+                    </td>
+                    <td class="p-3 border-t-2 border-orange-200 text-right bg-orange-50/50">
+                      <span class="font-black text-red-700">{{ processedConsolidado.totalNetoEntregarGlobal.toFixed(2) }}</span>
+                    </td>
+                  </tr>
+                </tfoot>
         </table>
       </div>
 
       <div v-if="consolidado.totalesGlobales"
            class="bg-gradient-to-r from-orange-500 to-red-600 rounded-3xl p-6 text-white shadow-xl">
         <p class="text-[10px] uppercase font-bold tracking-widest opacity-80 mb-1">Totales Globales</p>
-        <div class="flex items-center gap-10">
+        <div class="flex items-center gap-8">
           <div>
             <p class="text-xl font-black">{{ Number(consolidado.totalesGlobales.total_comision_empleados).toFixed(2) }} Bs.</p>
             <p class="text-[10px] opacity-80">Comisión Empleados</p>
@@ -289,6 +336,14 @@
           <div>
             <p class="text-xl font-black">{{ Number(consolidado.totalesGlobales.total_ganancia_panaderia).toFixed(2) }} Bs.</p>
             <p class="text-[10px] opacity-80">Ganancia Panadería</p>
+          </div>
+          <div>
+            <p class="text-xl font-black text-yellow-200">{{ Number(consolidado.totalesGlobales.total_gasto_extra).toFixed(2) }} Bs.</p>
+            <p class="text-[10px] opacity-80">Gasto Extra</p>
+          </div>
+          <div>
+            <p class="text-xl font-black">{{ Number(consolidado.totalesGlobales.total_neto_a_entregar).toFixed(2) }} Bs.</p>
+            <p class="text-[10px] opacity-80">Neto a Entregar</p>
           </div>
         </div>
       </div>
@@ -304,7 +359,7 @@
           <h3 class="text-xl font-bold text-gray-800">Historial Detallado</h3>
         </div>
 
-        <div v-if="detallado && detallado.totalesGlobales" class="flex gap-4">
+        <div v-if="detallado && detallado.totalesGlobales" class="flex gap-3">
           <div class="bg-white px-4 py-2 rounded-2xl border border-gray-100 shadow-sm">
             <p class="text-[8px] text-gray-400 uppercase font-black">Comisión Total</p>
             <p class="text-sm font-black text-blue-600">{{ Number(detallado.totalesGlobales.total_comision_empleados).toFixed(2) }} Bs.</p>
@@ -312,6 +367,14 @@
           <div class="bg-white px-4 py-2 rounded-2xl border border-gray-100 shadow-sm">
             <p class="text-[8px] text-gray-400 uppercase font-black">Ganancia Panadería</p>
             <p class="text-sm font-black text-emerald-600">{{ Number(detallado.totalesGlobales.total_ganancia_panaderia).toFixed(2) }} Bs.</p>
+          </div>
+          <div class="bg-white px-4 py-2 rounded-2xl border border-gray-100 shadow-sm">
+            <p class="text-[8px] text-gray-400 uppercase font-black">Gasto Extra</p>
+            <p class="text-sm font-black text-red-500">{{ Number(detallado.totalesGlobales.total_gasto_extra || 0).toFixed(2) }} Bs.</p>
+          </div>
+          <div class="bg-orange-50 px-4 py-2 rounded-2xl border border-orange-100 shadow-sm">
+            <p class="text-[8px] text-gray-400 uppercase font-black">Neto a Entregar</p>
+            <p class="text-sm font-black text-red-700">{{ Number(detallado.totalesGlobales.total_neto_a_entregar || 0).toFixed(2) }} Bs.</p>
           </div>
         </div>
 
@@ -355,68 +418,75 @@
                   <th class="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-center">Vendido</th>
                   <th class="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-right">Precio Vta.</th>
                   <th class="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-right">Comisión Unit.</th>
-                  <th class="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-right">Comisión Total</th>
-                  <th class="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-right">Líq. Panadería</th>
-                </tr>
-              </thead>
-              <tbody>
-                <template v-for="control in group.controles" :key="control.idcontrol">
-                  <template v-for="(det, detIdx) in control.detalles" :key="control.idcontrol + '-' + detIdx">
-                    <tr class="hover:bg-gray-50/50 transition-colors group">
-                      <td v-if="detIdx === 0" :rowspan="control.totalDetalleRows" class="p-4 border-b border-gray-100 text-sm align-top font-bold text-gray-700 bg-gray-50/10">
-                        <span class="text-orange-600">{{ control.empleado }}</span>
-                      </td>
-                      <td v-if="detIdx === 0" :rowspan="control.totalDetalleRows" class="p-4 border-b border-gray-100 text-xs align-top text-gray-500 bg-gray-50/10">
-                        {{ control.sucursal }}
-                      </td>
-                      <td class="p-4 border-b border-gray-100 text-sm font-medium text-gray-800">
-                        <button v-if="det.precios_ajustados?.length" @click="toggleAjustes(control.idcontrol + '-' + detIdx)" class="inline-flex items-center gap-1.5 hover:text-orange-600 transition-colors">
-                          <ChevronDown v-if="isExpandedAjustes(control.idcontrol + '-' + detIdx)" class="h-3.5 w-3.5 text-orange-500" />
-                          <ChevronRight v-else class="h-3.5 w-3.5 text-gray-400" />
-                          <span>{{ det.producto }}</span>
-                          <span class="text-[9px] text-amber-500 font-bold">({{ det.precios_ajustados.length }})</span>
-                        </button>
-                        <span v-else>{{ det.producto }}</span>
-                      </td>
-                      <td class="p-4 border-b border-gray-100 text-xs text-gray-500">{{ det.presentacion }}</td>
-                      <td class="p-4 border-b border-gray-100 text-sm text-center">{{ det.cantidad_entregada }}</td>
-                      <td class="p-4 border-b border-gray-100 text-sm text-center text-red-500">{{ det.cantidad_devuelta }}</td>
-                      <td class="p-4 border-b border-gray-100 text-sm text-center text-amber-600">{{ det.cantidadajustada ?? '-' }}</td>
-                      <td class="p-4 border-b border-gray-100 text-sm text-center font-bold text-gray-800">{{ det.cantidad_vendida }}</td>
-                      <td class="p-4 border-b border-gray-100 text-sm text-right">{{ Number(det.precio_venta).toFixed(2) }}</td>
-                      <td class="p-4 border-b border-gray-100 text-sm text-right text-blue-600">{{ Number(det.comision_unitaria).toFixed(2) }}</td>
-                      <td class="p-4 border-b border-gray-100 text-sm text-right font-bold text-blue-600">{{ Number(det.comision_total).toFixed(2) }}</td>
-                      <td class="p-4 border-b border-gray-100 text-sm text-right font-bold text-emerald-600">{{ Number(det.liquido_panaderia).toFixed(2) }}</td>
-                    </tr>
-                    <tr v-for="(ajuste, aIdx) in (det.precios_ajustados || [])" :key="control.idcontrol + '-ajuste-' + detIdx + '-' + aIdx"
-                        v-show="isExpandedAjustes(control.idcontrol + '-' + detIdx)"
-                        class="bg-amber-50/30 hover:bg-amber-50/50 transition-colors">
-                      <td class="p-2 border-b border-amber-100"></td>
-                      <td class="p-2 border-b border-amber-100"></td>
-                      <td colspan="2" class="p-2 pl-6 text-[10px] text-amber-700 font-bold border-b border-amber-100">
-                        <span class="inline-flex items-center gap-1">
-                          <span class="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block"></span>
-                          Ajuste {{ aIdx + 1 }}{{ ajuste.observacion ? ': ' + ajuste.observacion : '' }}
-                        </span>
-                      </td>
-                      <td class="p-2 border-b border-amber-100"></td>
-                      <td class="p-2 border-b border-amber-100"></td>
-                      <td class="p-2 text-center font-bold text-amber-700 border-b border-amber-100">{{ Number(ajuste.cantidad || 0) }}</td>
-                      <td class="p-2 border-b border-amber-100"></td>
-                      <td class="p-2 text-right font-bold text-amber-700 border-b border-amber-100">{{ Number(ajuste.precio_venta || 0).toFixed(2) }}</td>
-                      <td class="p-2 text-[10px] text-amber-600 font-semibold border-b border-amber-100" colspan="3">{{ ajuste.estado || '' }}</td>
-                    </tr>
-                  </template>
-                  <tr class="bg-blue-50/20">
-                    <td colspan="10" class="p-3 text-right text-[10px] font-black text-gray-400 uppercase tracking-widest border-b">Totales del Control:</td>
-                    <td class="p-3 text-right border-b font-black text-blue-600">{{ Number(control.total_comision).toFixed(2) }}</td>
-                    <td class="p-3 text-right border-b font-black text-emerald-600">{{ Number(control.total_liquido_panaderia).toFixed(2) }}</td>
-                  </tr>
-                </template>
-              </tbody>
-            </table>
+                        <th class="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-right">Comisión Total</th>
+                        <th class="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-right">Líq. Panadería</th>
+                        <th class="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-right">Gasto Extra</th>
+                        <th class="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-right bg-orange-50/20">Neto a Entregar</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <template v-for="control in group.controles" :key="control.idcontrol">
+                        <template v-for="(det, detIdx) in control.detalles" :key="control.idcontrol + '-' + detIdx">
+                          <tr class="hover:bg-gray-50/50 transition-colors group">
+                            <td v-if="detIdx === 0" :rowspan="control.totalDetalleRows" class="p-4 border-b border-gray-100 text-sm align-top font-bold text-gray-700 bg-gray-50/10">
+                              <span class="text-orange-600">{{ control.empleado }}</span>
+                            </td>
+                            <td v-if="detIdx === 0" :rowspan="control.totalDetalleRows" class="p-4 border-b border-gray-100 text-xs align-top text-gray-500 bg-gray-50/10">
+                              {{ control.sucursal }}
+                            </td>
+                            <td class="p-4 border-b border-gray-100 text-sm font-medium text-gray-800">
+                              <button v-if="det.precios_ajustados?.length" @click="toggleAjustes(control.idcontrol + '-' + detIdx)" class="inline-flex items-center gap-1.5 hover:text-orange-600 transition-colors">
+                                <ChevronDown v-if="isExpandedAjustes(control.idcontrol + '-' + detIdx)" class="h-3.5 w-3.5 text-orange-500" />
+                                <ChevronRight v-else class="h-3.5 w-3.5 text-gray-400" />
+                                <span>{{ det.producto }}</span>
+                                <span class="text-[9px] text-amber-500 font-bold">({{ det.precios_ajustados.length }})</span>
+                              </button>
+                              <span v-else>{{ det.producto }}</span>
+                            </td>
+                            <td class="p-4 border-b border-gray-100 text-xs text-gray-500">{{ det.presentacion }}</td>
+                            <td class="p-4 border-b border-gray-100 text-sm text-center">{{ det.cantidad_entregada }}</td>
+                            <td class="p-4 border-b border-gray-100 text-sm text-center text-red-500">{{ det.cantidad_devuelta }}</td>
+                            <td class="p-4 border-b border-gray-100 text-sm text-center text-amber-600">{{ det.cantidadajustada ?? '-' }}</td>
+                            <td class="p-4 border-b border-gray-100 text-sm text-center font-bold text-gray-800">{{ det.cantidad_vendida }}</td>
+                            <td class="p-4 border-b border-gray-100 text-sm text-right">{{ Number(det.precio_venta).toFixed(2) }}</td>
+                            <td class="p-4 border-b border-gray-100 text-sm text-right text-blue-600">{{ Number(det.comision_unitaria).toFixed(2) }}</td>
+                            <td class="p-4 border-b border-gray-100 text-sm text-right font-bold text-blue-600">{{ Number(det.comision_total).toFixed(2) }}</td>
+                            <td class="p-4 border-b border-gray-100 text-sm text-right font-bold text-emerald-600">{{ Number(det.liquido_panaderia).toFixed(2) }}</td>
+                          </tr>
+                          <tr v-for="(ajuste, aIdx) in (det.precios_ajustados || [])" :key="control.idcontrol + '-ajuste-' + detIdx + '-' + aIdx"
+                              v-show="isExpandedAjustes(control.idcontrol + '-' + detIdx)"
+                              class="bg-amber-50/30 hover:bg-amber-50/50 transition-colors">
+                            <td class="p-2 border-b border-amber-100"></td>
+                            <td class="p-2 border-b border-amber-100"></td>
+                            <td colspan="2" class="p-2 pl-6 text-[10px] text-amber-700 font-bold border-b border-amber-100">
+                              <span class="inline-flex items-center gap-1">
+                                <span class="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block"></span>
+                                Ajuste {{ aIdx + 1 }}{{ ajuste.observacion ? ': ' + ajuste.observacion : '' }}
+                              </span>
+                            </td>
+                            <td class="p-2 border-b border-amber-100"></td>
+                            <td class="p-2 border-b border-amber-100"></td>
+                            <td class="p-2 text-center font-bold text-amber-700 border-b border-amber-100">{{ Number(ajuste.cantidad || 0) }}</td>
+                            <td class="p-2 border-b border-amber-100"></td>
+                            <td class="p-2 text-right font-bold text-amber-700 border-b border-amber-100">{{ Number(ajuste.precio_venta || 0).toFixed(2) }}</td>
+                            <td class="p-2 text-[10px] text-amber-600 font-semibold border-b border-amber-100" colspan="4">{{ ajuste.estado || '' }}</td>
+                          </tr>
+                        </template>
+                        <tr class="bg-blue-50/20">
+                          <td colspan="10" class="p-3 text-right text-[10px] font-black text-gray-400 uppercase tracking-widest border-b">Totales del Control:</td>
+                          <td class="p-3 text-right border-b font-black text-blue-600">{{ Number(control.total_comision).toFixed(2) }}</td>
+                          <td class="p-3 text-right border-b font-black text-emerald-600">{{ Number(control.total_liquido_panaderia).toFixed(2) }}</td>
+                          <td class="p-3 text-right border-b font-black text-red-500">{{ Number(control.total_gasto_extra || 0).toFixed(2) }}</td>
+                          <td class="p-3 text-right border-b font-black text-red-700">{{ Number(control.neto_a_entregar || control.total_liquido_panaderia).toFixed(2) }}</td>
+                        </tr>
+                      </template>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
+       
 
         <div v-if="!processedDetallado.length" class="p-12 text-center bg-white rounded-3xl border border-dashed border-gray-300">
           <div class="flex flex-col items-center gap-3">
@@ -426,9 +496,9 @@
             <p class="text-gray-500 font-medium">No se encontraron comisiones en este periodo.</p>
           </div>
         </div>
-      </div>
-    </div>
-  </div>
+        
+    
+  
 </template>
 
 <script setup>
@@ -485,6 +555,8 @@ const processedConsolidado = computed(() => {
       idempleado: emp.idempleado,
       total_comision: Number(emp.total_comision || 0),
       total_liquido_panaderia: Number(emp.total_liquido_panaderia || 0),
+      total_gasto_extra: Number(emp.total_gasto_extra || 0),
+      neto_a_entregar: Number(emp.neto_a_entregar || emp.total_liquido_panaderia || 0),
       productoMap
     };
   });
@@ -494,7 +566,9 @@ const processedConsolidado = computed(() => {
   });
   const totalComisionGlobal = empleados.reduce((sum, emp) => sum + emp.total_comision, 0);
   const totalLiquidoGlobal = empleados.reduce((sum, emp) => sum + emp.total_liquido_panaderia, 0);
-  return { empleados, productosUnicos, totalPorProducto, totalComisionGlobal, totalLiquidoGlobal };
+  const totalGastoExtraGlobal = empleados.reduce((sum, emp) => sum + emp.total_gasto_extra, 0);
+  const totalNetoEntregarGlobal = empleados.reduce((sum, emp) => sum + emp.neto_a_entregar, 0);
+  return { empleados, productosUnicos, totalPorProducto, totalComisionGlobal, totalLiquidoGlobal, totalGastoExtraGlobal, totalNetoEntregarGlobal };
 });
 
 const getWeekMonday = (dateStr) => {
@@ -550,6 +624,8 @@ const processedDetallado = computed(() => {
         ...c,
         total_comision: Number(c.total_comision || 0),
         total_liquido_panaderia: Number(c.total_liquido_panaderia || 0),
+        total_gasto_extra: Number(c.total_gasto_extra || 0),
+        neto_a_entregar: Number(c.neto_a_entregar || c.total_liquido_panaderia || 0),
         detalles,
         totalDetalleRows
       }
@@ -577,11 +653,13 @@ const weeklyConsolidados = computed(() => {
     const productSet = new Set()
     sem.controles.forEach(c => {
       if (!empleadosMap[c.idempleado]) {
-        empleadosMap[c.idempleado] = { empleado: c.empleado, idempleado: c.idempleado, total_comision: 0, total_liquido_panaderia: 0, productoMap: {} }
+        empleadosMap[c.idempleado] = { empleado: c.empleado, idempleado: c.idempleado, total_comision: 0, total_liquido_panaderia: 0, total_gasto_extra: 0, neto_a_entregar: 0, productoMap: {} }
       }
       const emp = empleadosMap[c.idempleado]
       emp.total_comision += Number(c.total_comision || 0)
       emp.total_liquido_panaderia += Number(c.total_liquido_panaderia || 0)
+      emp.total_gasto_extra += Number(c.total_gasto_extra || 0)
+      emp.neto_a_entregar += Number(c.neto_a_entregar || c.total_liquido_panaderia || 0)
       ;(c.detalles || []).forEach(d => {
         productSet.add(d.producto)
         emp.productoMap[d.producto] = (emp.productoMap[d.producto] || 0) + Number(d.cantidad_vendida || 0)
@@ -593,7 +671,13 @@ const weeklyConsolidados = computed(() => {
     productosUnicos.forEach(prod => {
       totalPorProducto[prod] = empleados.reduce((sum, emp) => sum + (emp.productoMap[prod] || 0), 0)
     })
-    result[sem.fecha] = { empleados, productosUnicos, totalPorProducto, totalComisionGlobal: empleados.reduce((s, e) => s + e.total_comision, 0), totalLiquidoGlobal: empleados.reduce((s, e) => s + e.total_liquido_panaderia, 0) }
+    result[sem.fecha] = {
+      empleados, productosUnicos, totalPorProducto,
+      totalComisionGlobal: empleados.reduce((s, e) => s + e.total_comision, 0),
+      totalLiquidoGlobal: empleados.reduce((s, e) => s + e.total_liquido_panaderia, 0),
+      totalGastoExtraGlobal: empleados.reduce((s, e) => s + e.total_gasto_extra, 0),
+      totalNetoEntregarGlobal: empleados.reduce((s, e) => s + e.neto_a_entregar, 0)
+    }
   })
   return result
 })
@@ -613,7 +697,7 @@ const weeklyDetallado = computed(() => {
         cantidadajustada: d.cantidadajustada ?? d.cantidad_ajustada ?? 0,
         precios_ajustados: (d.precios_ajustados || []).map(a => ({ ...a, cantidad: Number(a.cantidad || 0), precio_venta: Number(a.precio_venta || 0) }))
       }))
-      return { ...c, total_comision: Number(c.total_comision || 0), total_liquido_panaderia: Number(c.total_liquido_panaderia || 0), detalles, totalDetalleRows: detalles.length }
+      return { ...c, total_comision: Number(c.total_comision || 0), total_liquido_panaderia: Number(c.total_liquido_panaderia || 0), total_gasto_extra: Number(c.total_gasto_extra || 0), neto_a_entregar: Number(c.neto_a_entregar || c.total_liquido_panaderia || 0), detalles, totalDetalleRows: detalles.length }
     })
   }))
   const weeks = {}
@@ -636,7 +720,8 @@ const comisionPorSemana = computed(() => {
     semanaLabel: g.semanaLabel,
     cantControles: g.controles.length,
     comisionTotal: g.controles.reduce((sum, c) => sum + parseFloat(c.total_comision || 0), 0),
-    liquidoPanaderia: g.controles.reduce((sum, c) => sum + parseFloat(c.total_liquido_panaderia || 0), 0)
+      liquidoPanaderia: g.controles.reduce((sum, c) => sum + parseFloat(c.total_liquido_panaderia || 0), 0),
+      gastoExtra: g.controles.reduce((sum, c) => sum + parseFloat(c.total_gasto_extra || 0), 0)
   }))
 })
 
@@ -672,11 +757,11 @@ let generalWeekChartInstance = null
 
 const chartEmpleados = computed(() => processedConsolidado.value.empleados.map(e => e.empleado))
 const chartComisiones = computed(() => processedConsolidado.value.empleados.map(e => e.total_comision))
-const chartLiquidos = computed(() => processedConsolidado.value.empleados.map(e => e.total_liquido_panaderia))
+const chartLiquidos = computed(() => processedConsolidado.value.empleados.map(e => e.total_liquido_panaderia - e.total_gasto_extra))
 
 const weeklyChartLabels = computed(() => comisionPorSemana.value.map(w => w.semanaLabel))
 const weeklyChartValues = computed(() => comisionPorSemana.value.map(w => w.comisionTotal))
-const weeklyChartLiquidos = computed(() => comisionPorSemana.value.map(w => w.liquidoPanaderia))
+const weeklyChartLiquidos = computed(() => comisionPorSemana.value.map(w => w.liquidoPanaderia - w.gastoExtra))
 
 const weeklyChartInstances = ref({})
 
@@ -707,7 +792,7 @@ watch(expandedSemanas, (val) => {
                 labels: data.labels,
                 datasets: [
                   { label: 'Comisión', data: data.comisiones, backgroundColor: 'rgba(59, 130, 246, 0.7)', borderColor: 'rgba(59, 130, 246, 1)', borderWidth: 1, borderRadius: 4 },
-                  { label: 'Líq. Panadería', data: data.liquidos, backgroundColor: 'rgba(16, 185, 129, 0.7)', borderColor: 'rgba(16, 185, 129, 1)', borderWidth: 1, borderRadius: 4 }
+                      { label: 'Líq. Neto', data: data.liquidos, backgroundColor: 'rgba(16, 185, 129, 0.7)', borderColor: 'rgba(16, 185, 129, 1)', borderWidth: 1, borderRadius: 4 }
                 ]
               },
               options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, padding: 8, font: { size: 9 }, usePointStyle: true } } }, scales: { y: { beginAtZero: true, ticks: { callback: v => v + ' Bs.' } } } }
@@ -746,7 +831,7 @@ const getWeekComparisonData = (weekKey) => {
   return {
     labels: sem.empleados.map(e => e.empleado),
     comisiones: sem.empleados.map(e => e.total_comision),
-    liquidos: sem.empleados.map(e => e.total_liquido_panaderia)
+    liquidos: sem.empleados.map(e => e.total_liquido_panaderia - e.total_gasto_extra)
   }
 }
 
@@ -768,7 +853,7 @@ const renderCharts = () => {
             borderWidth: 2, borderRadius: 6
           },
           {
-            label: 'Líq. Panadería',
+            label: 'Líq. Neto',
             data: chartLiquidos.value,
             backgroundColor: 'rgba(16, 185, 129, 0.7)',
             borderColor: 'rgba(16, 185, 129, 1)',
@@ -796,7 +881,7 @@ const renderCharts = () => {
             borderWidth: 2, borderRadius: 6
           },
           {
-            label: 'Líq. Panadería',
+            label: 'Líq. Neto',
             data: chartLiquidos.value,
             backgroundColor: 'rgba(16, 185, 129, 0.7)',
             borderColor: 'rgba(16, 185, 129, 1)',
@@ -825,7 +910,7 @@ const renderCharts = () => {
           borderColor: 'rgba(59, 130, 246, 1)',
           borderWidth: 2, borderRadius: 6
         }, {
-          label: 'Líq. Panadería',
+          label: 'Líq. Neto',
           data: weeklyChartLiquidos.value,
           backgroundColor: 'rgba(16, 185, 129, 0.7)',
           borderColor: 'rgba(16, 185, 129, 1)',

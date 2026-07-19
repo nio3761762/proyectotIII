@@ -37,26 +37,26 @@
                 </div>
               </td>
               <td class="px-6 py-6">
-                <div class="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-5 gap-4 bg-gray-50/50 p-4 rounded-3xl border border-gray-100">
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 bg-gray-50/50 p-4 rounded-3xl border border-gray-100">
                   <div class="text-center">
                     <p class="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Total Venta</p>
                     <p class="text-xs font-black text-gray-700">Bs {{ Number(c.TotalVenta || 0).toFixed(2) }}</p>
                   </div>
                   <div class="text-center">
-                    <p class="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Total Normal</p>
-                    <p class="text-xs font-black text-orange-600">Bs {{ calcNormalTotal(c).toFixed(2) }}</p>
-                  </div>
-                  <div class="text-center">
-                    <p class="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Total Ajustes</p>
-                    <p class="text-xs font-black text-blue-600">Bs {{ calcAjustesTotal(c).toFixed(2) }}</p>
-                  </div>
-                  <div class="text-center">
                     <p class="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Comisión Total</p>
                     <p class="text-xs font-black text-emerald-600">Bs {{ Number(c.TotalComision || 0).toFixed(2) }}</p>
                   </div>
+                  <div class="text-center">
+                    <p class="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Gasto Extra</p>
+                    <div class="flex items-center justify-center gap-1">
+                      <span class="text-[9px] font-black text-gray-400">Bs</span>
+                      <input v-model.number="c.GastoExtra" type="number" step="0.01" min="0" @change="onGastoExtraChange(c)"
+                        class="w-20 text-center text-xs font-black bg-white border border-orange-100 rounded-lg outline-none py-1 shadow-sm focus:ring-2 focus:ring-orange-500/20" />
+                    </div>
+                  </div>
                   <div class="text-center border-l border-gray-200">
-                    <p class="text-[8px] font-black text-red-400 uppercase tracking-widest mb-1">Neto Panadería</p>
-                    <p class="text-sm font-black text-red-700">Bs {{ Number(c.TotalLiquidoPanaderia || 0).toFixed(2) }}</p>
+                    <p class="text-[8px] font-black text-red-400 uppercase tracking-widest mb-1">Neto a Entregar</p>
+                    <p class="text-sm font-black text-red-700">Bs {{ calcNetoFinal(c).toFixed(2) }}</p>
                   </div>
                 </div>
               </td>
@@ -133,6 +133,7 @@
 
 <script setup>
 import { Package, Building2 } from 'lucide-vue-next';
+import { actualizarGastoExtra } from '@/Server/ControlRevendedor';
 
 defineProps({
   controles: { type: Array, required: true }
@@ -151,19 +152,20 @@ const formatDate = (date) => {
   });
 };
 
-const calcNormalTotal = (c) => {
-  if (!c.Detalles) return 0;
-  return c.Detalles.reduce((acc, d) => {
-    return acc + (d.VendidoNormal || 0) * d.PrecioVenta;
-  }, 0);
+const calcNetoFinal = (c) => {
+  return Number(c.TotalLiquidoPanaderia || 0) - Number(c.GastoExtra || 0);
 };
 
-const calcAjustesTotal = (c) => {
-  if (!c.Detalles) return 0;
-  return c.Detalles.reduce((acc, d) => {
-    const normal = (d.VendidoNormal || 0) * d.PrecioVenta;
-    return acc + Math.max(0, (d.VentaTotal || 0) - normal);
-  }, 0);
+let saveTimer = null;
+const onGastoExtraChange = (c) => {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(async () => {
+    try {
+      await actualizarGastoExtra(c.idrevendedorcontrol, c.GastoExtra || 0);
+    } catch (e) {
+      console.error(e);
+    }
+  }, 500);
 };
 </script>
 
