@@ -233,7 +233,7 @@
           </div>
         </div>
         <div class="bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
-          <h3 class="text-lg font-bold text-gray-800 mb-4">Comisión vs Líquido Panadería</h3>
+          <h3 class="text-lg font-bold text-gray-800 mb-4">Distribución Global</h3>
           <div class="relative" style="height: 260px;">
             <canvas ref="comparacionChartRef"></canvas>
           </div>
@@ -868,31 +868,34 @@ const renderCharts = () => {
       }
     })
 
+    const totalCom = processedConsolidado.value.totalComisionGlobal
+    const totalLiqNeto = processedConsolidado.value.totalNetoEntregarGlobal
+    const totalGasto = processedConsolidado.value.totalGastoExtraGlobal
     comparacionChartInstance = new Chart(comparacionChartRef.value, {
-      type: 'bar',
+      type: 'doughnut',
       data: {
-        labels: chartEmpleados.value,
-        datasets: [
-          {
-            label: 'Comisión',
-            data: chartComisiones.value,
-            backgroundColor: 'rgba(59, 130, 246, 0.7)',
-            borderColor: 'rgba(59, 130, 246, 1)',
-            borderWidth: 2, borderRadius: 6
-          },
-          {
-            label: 'Líq. Neto',
-            data: chartLiquidos.value,
-            backgroundColor: 'rgba(16, 185, 129, 0.7)',
-            borderColor: 'rgba(16, 185, 129, 1)',
-            borderWidth: 2, borderRadius: 6
-          }
-        ]
+        labels: ['Comisión', 'Líq. Neto', 'Gasto Extra'],
+        datasets: [{
+          data: [totalCom, totalLiqNeto, totalGasto],
+          backgroundColor: ['#3B82F6', '#10B981', '#EF4444'],
+          borderColor: ['#2563EB', '#059669', '#DC2626'],
+          borderWidth: 2
+        }]
       },
       options: {
         responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } } },
-        scales: { y: { beginAtZero: true, ticks: { callback: v => v + ' Bs.' } } }
+        plugins: {
+          legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8, font: { size: 11 } } },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => {
+                const total = ctx.dataset.data.reduce((a, b) => a + b, 0)
+                const pct = ((ctx.parsed / total) * 100).toFixed(1)
+                return `${ctx.label}: ${ctx.parsed.toFixed(2)} Bs. (${pct}%)`
+              }
+            }
+          }
+        }
       }
     })
   }
