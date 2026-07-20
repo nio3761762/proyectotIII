@@ -12,11 +12,15 @@ import { QueryRunner } from 'typeorm';
  */
 export async function generarIdSecuencial(prefijo: string, queryRunner?: QueryRunner): Promise<string> {
     const propio = !queryRunner;
+    console.log(`  generarIdSecuencial INICIO prefijo=${prefijo} propio=${propio}`);
     const qr = queryRunner ?? AppDataSource.createQueryRunner();
 
     if (propio) {
+        console.log(`  generarIdSecuencial conectando QR para ${prefijo}...`);
         await qr.connect();
+        console.log(`  generarIdSecuencial conectado, iniciando tx para ${prefijo}...`);
         await qr.startTransaction();
+        console.log(`  generarIdSecuencial tx iniciada para ${prefijo}`);
     }
 
     try {
@@ -28,6 +32,7 @@ export async function generarIdSecuencial(prefijo: string, queryRunner?: QueryRu
         const fechaFormatoSQL = `${anio}-${mes}-${dia}`;
         const fechaFormatoId = `${mes}${dia}${anio}`;
 
+        console.log(`  generarIdSecuencial consultando FOR UPDATE para ${prefijo}...`);
         const res = await qr.query(
             'SELECT ultima_secuencia FROM "contadorsecuencias" WHERE prefijo = $1 AND fecha = $2 FOR UPDATE',
             [prefijo, fechaFormatoSQL]

@@ -55,7 +55,8 @@ export const createLoteInventario = async (
     nuevo.Insumo = await verifyInsumo({ ProductoId: idInsumo });
   }
     
-   await queryRunner.manager.save(nuevo);
+   
+    await queryRunner.manager.save(nuevo);
 
   await registrarMovimientoEntrada(queryRunner,nuevo, tipoOrigen, idReferencia);
 };
@@ -124,7 +125,7 @@ export const anularMovimientoInventario = async (queryRunner: QueryRunner, idCom
     // 🔴 3. registrar movimiento inverso
     const reverso = new MovimientoInventario();
 
-    reverso.IdMovimiento = await generarIdSecuencial("MOINV");
+    reverso.IdMovimiento = await generarIdSecuencial("MOINV", queryRunner);
     reverso.Tipo = "ANULAR_COMPRA";
     reverso.Cantidad = -cantidad;
     reverso.CostoUnitario = Number(mov.CostoUnitario);
@@ -155,7 +156,7 @@ export const registrarMovimientoSalida = async (
 
   const mov = new MovimientoInventario();
 
-  mov.IdMovimiento = await generarIdSecuencial("MOINV");
+  mov.IdMovimiento = await generarIdSecuencial("MOINV", queryRunner);
   mov.Tipo = tipo;
   mov.Cantidad = -cantidad; // Salida es negativa
   mov.CostoUnitario = lote.CostoUnitario;

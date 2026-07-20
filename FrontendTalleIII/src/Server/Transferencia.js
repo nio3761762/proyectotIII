@@ -22,6 +22,7 @@ export const getTransferencias = async (idsucursalorigen, idsucursaldestino, ide
 
 export const registrarTransferencia = async (transferencias,detalles) => {
   try {
+    console.log('Datos a enviar:', { transferencias, detalles });
     const response = await API.post('transferencia', { 
      transferencias,detalles
     });
