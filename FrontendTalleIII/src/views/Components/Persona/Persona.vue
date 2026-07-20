@@ -45,26 +45,26 @@
         <div v-else>
 
           <!-- Header -->
-          <div class="relative bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl border border-white/50 p-8">
+          <div class="relative bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl border border-white/50 p-4 sm:p-6 lg:p-8">
             <div class="flex items-center justify-between">
-              <div class="flex items-center space-x-4">
-                <div class="p-3 bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl shadow-lg">
-                  <Users class="h-8 w-8 text-white" />
+              <div class="flex items-center space-x-3 sm:space-x-4 min-w-0">
+                <div class="p-2 sm:p-3 bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl shadow-lg shrink-0">
+                  <Users class="h-6 sm:h-8 w-6 sm:w-8 text-white" />
                 </div>
-                <div>
-                  <h1 class="text-4xl font-bold bg-gradient-to-r from-orange-600 via-red-600 to-orange-700 bg-clip-text text-transparent">
+                <div class="min-w-0">
+                  <h1 class="text-xl sm:text-2xl lg:text-4xl font-bold bg-gradient-to-r from-orange-600 via-red-600 to-orange-700 bg-clip-text text-transparent truncate">
                     Gestión de Personas
                   </h1>
-                  <p class="text-gray-600 mt-1 font-medium">Administra todas las personas del sistema</p>
+                  <p class="text-gray-600 mt-0.5 sm:mt-1 font-medium text-xs sm:text-sm lg:text-base truncate">Administra todas las personas del sistema</p>
                 </div>
               </div>
-              <div class="hidden md:flex items-center space-x-6">
+              <div class="hidden md:flex items-center space-x-6 shrink-0">
                 <div class="text-center">
-                  <div class="text-2xl font-bold text-gray-800">{{ paginacion.total ?? 0 }}</div>
-                  <div class="text-sm text-gray-500">Total</div>
+                  <div class="text-xl lg:text-2xl font-bold text-gray-800">{{ paginacion.total ?? 0 }}</div>
+                  <div class="text-xs lg:text-sm text-gray-500">Total</div>
                 </div>
                 <div class="p-2 bg-green-100 rounded-xl">
-                  <TrendingUp class="h-6 w-6 text-green-600" />
+                  <TrendingUp class="h-5 lg:h-6 w-5 lg:w-6 text-green-600" />
                 </div>
               </div>
             </div>
@@ -95,10 +95,10 @@
               <template #acciones>
                 <button
                   @click="abrirFormularioNuevo"
-                  class="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white rounded-2xl px-6 py-2 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 flex items-center gap-2"
+                  class="w-full sm:w-auto bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white rounded-2xl px-4 sm:px-6 py-2 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 flex items-center justify-center gap-2 text-sm sm:text-base"
                 >
                   <Plus class="h-4 w-4" />
-                  Nueva Persona
+                  <span class="hidden sm:inline">Nueva Persona</span>
                 </button>
               </template>
             </Filtros>
@@ -163,9 +163,9 @@
 
     <!-- Notificación -->
     <Transition name="slide-up">
-      <div v-if="notificacion.visible" class="fixed bottom-6 right-6 bg-gradient-to-r from-orange-500 to-red-600 text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-2 z-50">
-        <CheckCircle class="h-5 w-5" />
-        {{ notificacion.mensaje }}
+      <div v-if="notificacion.visible" class="fixed bottom-4 sm:bottom-6 right-4 sm:right-6 left-4 sm:left-auto bg-gradient-to-r from-orange-500 to-red-600 text-white px-4 sm:px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-2 z-50 text-sm sm:text-base">
+        <CheckCircle class="h-4 sm:h-5 w-4 sm:w-5 shrink-0" />
+        <span class="truncate">{{ notificacion.mensaje }}</span>
       </div>
     </Transition>
 
@@ -181,29 +181,29 @@
     <!-- Modal: Actualizar Foto -->
     <Transition name="fade">
       <div v-if="modalFoto.visible" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50" @click.self="cerrarModalFoto">
-        <div class="bg-white/95 backdrop-blur-sm rounded-3xl shadow-2xl max-w-sm w-full p-6 space-y-5">
+        <div class="bg-white/95 backdrop-blur-sm rounded-3xl shadow-2xl max-w-sm w-full p-4 sm:p-6 space-y-4 sm:space-y-5 mx-4 sm:mx-0">
           <div class="flex items-center gap-3">
-            <div class="p-3 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl shadow-lg"><Camera class="h-6 w-6 text-white" /></div>
-            <div>
-              <h3 class="text-xl font-bold text-gray-800">Actualizar Foto</h3>
-              <p class="text-sm text-gray-500">{{ modalFoto.nombre }}</p>
+            <div class="p-2 sm:p-3 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl shadow-lg shrink-0"><Camera class="h-5 sm:h-6 w-5 sm:w-6 text-white" /></div>
+            <div class="min-w-0">
+              <h3 class="text-lg sm:text-xl font-bold text-gray-800 truncate">Actualizar Foto</h3>
+              <p class="text-xs sm:text-sm text-gray-500 truncate">{{ modalFoto.nombre }}</p>
             </div>
           </div>
           <div class="flex justify-center">
-            <div class="w-28 h-28 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center overflow-hidden shadow-lg">
+            <div class="w-24 sm:w-28 h-24 sm:h-28 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center overflow-hidden shadow-lg">
               <img v-if="modalFoto.previewUrl" :src="modalFoto.previewUrl" class="w-full h-full object-cover" alt="preview" />
-              <User v-else class="h-14 w-14 text-white" />
+              <User v-else class="h-12 sm:h-14 w-12 sm:w-14 text-white" />
             </div>
           </div>
           <input type="file" accept="image/*" @change="onFotoSeleccionada"
-            class="w-full py-3 px-4 border-0 shadow-md bg-gray-50/80 rounded-2xl text-sm text-gray-700 outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/20 file:mr-3 file:py-1.5 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 transition-all"
+            class="w-full py-2.5 sm:py-3 px-3 sm:px-4 border-0 shadow-md bg-gray-50/80 rounded-2xl text-xs sm:text-sm text-gray-700 outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/20 file:mr-2 sm:file:mr-3 file:py-1 sm:file:py-1.5 file:px-3 sm:file:px-4 file:rounded-xl file:border-0 file:text-xs sm:file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 transition-all"
           />
-          <div class="flex gap-3">
+          <div class="flex gap-2 sm:gap-3">
             <button @click="guardarFoto" :disabled="!modalFoto.archivo || modalFoto.guardando"
-              class="flex-1 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-2xl py-3 shadow-lg transition-all flex items-center justify-center gap-2 font-semibold">
+              class="flex-1 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-2xl py-2.5 sm:py-3 shadow-lg transition-all flex items-center justify-center gap-2 font-semibold text-sm">
               <Save class="h-4 w-4" /> {{ modalFoto.guardando ? 'Guardando...' : 'Guardar' }}
             </button>
-            <button @click="cerrarModalFoto" class="flex-1 border border-gray-200 hover:bg-gray-50 rounded-2xl py-3 transition-colors text-gray-600 flex items-center justify-center gap-2">
+            <button @click="cerrarModalFoto" class="flex-1 border border-gray-200 hover:bg-gray-50 rounded-2xl py-2.5 sm:py-3 transition-colors text-gray-600 flex items-center justify-center gap-2 text-sm">
               <X class="h-4 w-4" /> Cancelar
             </button>
           </div>
@@ -440,6 +440,7 @@ const onGuardar = async (data) => {
 
 const onFinalizar = async () => {
   await cargarPersonas();
+  cerrarFormulario();
 };
 
 // ── Modal confirmación ────────────────────────────────────────────────────────

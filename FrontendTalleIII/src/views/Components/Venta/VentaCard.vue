@@ -56,6 +56,10 @@
             <DollarSign class="h-4 w-4 text-green-500" />
             <span class="font-bold text-green-600">Bs. {{ venta.preciototal || totalCalculado }}</span>
           </div>
+          <div v-if="venta.gastoextra || venta.GastoExtra" class="flex items-center gap-2 text-sm text-gray-600">
+            <DollarSign class="h-4 w-4 text-red-400" />
+            <span class="font-medium text-red-500">Gasto Extra: Bs. {{ Number(venta.gastoextra || venta.GastoExtra).toFixed(2) }}</span>
+          </div>
           <div class="flex items-center gap-2 text-sm text-gray-600">
             <Receipt class="h-4 w-4 text-blue-500" />
             <div v-if="venta.Factura?.NroFactura" class="flex items-center gap-2">
@@ -234,6 +238,7 @@ import { ref, computed } from 'vue';
 import { 
   ShoppingCart, ChevronDown, ChevronUp, Calendar, DollarSign, Receipt, CreditCard, Coins, X, Info, Package, Tag, FileText, Pencil
 } from 'lucide-vue-next';
+// Tag already imported
 
 const props = defineProps({
   venta: {

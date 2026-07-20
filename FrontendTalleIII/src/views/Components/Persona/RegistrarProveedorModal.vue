@@ -5,35 +5,35 @@
     @click.self="$emit('cancelar')"
   >
     <div class="bg-white/95 backdrop-blur-sm border border-white/50 rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-      <div class="bg-gradient-to-r from-emerald-500 to-green-600 text-white p-6 flex-shrink-0">
-        <div class="flex items-center justify-between gap-4">
-          <div>
-            <h2 class="text-2xl font-bold">
+      <div class="bg-gradient-to-r from-emerald-500 to-green-600 text-white p-4 sm:p-6 flex-shrink-0">
+        <div class="flex items-start sm:items-center justify-between gap-4">
+          <div class="min-w-0">
+            <h2 class="text-lg sm:text-xl lg:text-2xl font-bold truncate">
               {{ esEdicion ? 'Actualizar Proveedor' : 'Registrar Proveedor' }}
             </h2>
-            <p class="text-emerald-100 text-sm mt-1">{{ nombrePersona }}</p>
+            <p class="text-emerald-100 text-xs sm:text-sm mt-1 truncate">{{ nombrePersona }}</p>
           </div>
-          <button @click="$emit('cancelar')" class="text-white hover:text-emerald-100 transition-colors">
-            <X class="h-6 w-6" />
+          <button @click="$emit('cancelar')" class="text-white hover:text-emerald-100 transition-colors shrink-0">
+            <X class="h-5 sm:h-6 w-5 sm:w-6" />
           </button>
         </div>
       </div>
 
-      <div class="overflow-y-auto flex-grow p-6 space-y-6">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="overflow-y-auto flex-grow p-4 sm:p-6 space-y-4 sm:space-y-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
           <div>
-            <label class="block text-gray-700 font-semibold mb-2">Persona</label>
-            <input :value="nombrePersona" readonly class="w-full border-gray-200 rounded-2xl px-4 py-3 bg-gray-50 cursor-not-allowed" />
+            <label class="block text-gray-700 font-semibold mb-2 text-sm sm:text-base">Persona</label>
+            <input :value="nombrePersona" readonly class="w-full border-gray-200 rounded-2xl px-3 sm:px-4 py-2.5 sm:py-3 bg-gray-50 cursor-not-allowed text-sm" />
           </div>
           <div>
-            <label class="block text-gray-700 font-semibold mb-2">Email</label>
-            <input :value="emailPersona || 'Sin email registrado'" readonly class="w-full border-gray-200 rounded-2xl px-4 py-3 bg-gray-50 cursor-not-allowed" />
+            <label class="block text-gray-700 font-semibold mb-2 text-sm sm:text-base">Email</label>
+            <input :value="emailPersona || 'Sin email registrado'" readonly class="w-full border-gray-200 rounded-2xl px-3 sm:px-4 py-2.5 sm:py-3 bg-gray-50 cursor-not-allowed text-sm" />
           </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
           <div class="md:col-span-2">
-            <label class="block text-gray-700 font-semibold mb-2">Razón social</label>
+            <label class="block text-gray-700 font-semibold mb-2 text-sm sm:text-base">Razón social</label>
             <div class="relative">
               <Building2 class="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-emerald-500" />
               <input
@@ -82,10 +82,10 @@
           </div>
         </div>
 
-        <div class="flex justify-end gap-4 pt-4 border-t border-gray-200">
+        <div class="flex flex-col-reverse sm:flex-row justify-end gap-3 sm:gap-4 pt-4 border-t border-gray-200">
           <button
             @click="$emit('cancelar')"
-            class="px-6 py-3 border border-gray-200 hover:bg-gray-50 rounded-2xl bg-transparent transition-colors flex items-center gap-2"
+            class="w-full sm:w-auto px-4 sm:px-6 py-2.5 sm:py-3 border border-gray-200 hover:bg-gray-50 rounded-2xl bg-transparent transition-colors flex items-center justify-center gap-2 text-sm"
           >
             <X class="h-4 w-4" />
             Cancelar
@@ -93,7 +93,7 @@
           <button
             @click="emitirGuardar"
             :disabled="guardando"
-            class="px-6 py-3 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-75 disabled:cursor-not-allowed flex items-center justify-center gap-2 min-w-40"
+            class="w-full sm:w-auto px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-75 disabled:cursor-not-allowed flex items-center justify-center gap-2 min-w-0 sm:min-w-40 text-sm"
           >
             <LoaderCircle v-if="guardando" class="animate-spin h-4 w-4" />
             <Save v-else class="h-4 w-4" />

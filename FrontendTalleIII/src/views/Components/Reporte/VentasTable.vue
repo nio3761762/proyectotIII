@@ -16,10 +16,18 @@
             <span class="text-xs text-gray-400">|</span>
             <span class="text-sm text-gray-500">{{ sem.cantVentas }} ventas</span>
           </div>
-          <div class="flex items-center gap-6">
+          <div class="flex items-center gap-4">
             <div class="text-right">
               <p class="text-[9px] text-gray-400 uppercase font-black">Total Ingresos</p>
               <p class="text-sm font-black text-green-600">{{ formatCurrency(sem.totalIngresos) }}</p>
+            </div>
+            <div v-if="sem.totalGastoExtra > 0" class="text-right">
+              <p class="text-[9px] text-gray-400 uppercase font-black">Gasto Extra</p>
+              <p class="text-sm font-black text-orange-500">{{ formatCurrency(sem.totalGastoExtra) }}</p>
+            </div>
+            <div class="text-right">
+              <p class="text-[9px] text-gray-400 uppercase font-black">Total Neto</p>
+              <p class="text-sm font-black text-green-600">{{ formatCurrency(sem.totalIngresos - sem.totalGastoExtra) }}</p>
             </div>
             <div class="text-right">
               <p class="text-[9px] text-gray-400 uppercase font-black">Promedio</p>
@@ -111,6 +119,8 @@
                         <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-right">Unitario</th>
                         <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-right">Subtotal</th>
                         <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-right">Total Venta</th>
+                        <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-right">Gasto Extra</th>
+                        <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-right">Total Neto</th>
                         <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-center">Estado</th>
                         <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-center">Factura</th>
                       </tr>
@@ -134,6 +144,14 @@
                           <td v-if="ventaData.isFirstInSale" :rowspan="ventaData.clientRowspan"
                               class="p-3 border-b border-gray-100 text-sm font-black text-blue-700 text-right align-top bg-blue-50/20">
                             {{ ventaData.precioTotalVenta }} Bs.
+                          </td>
+                          <td v-if="ventaData.isFirstInSale" :rowspan="ventaData.clientRowspan"
+                              class="p-3 border-b border-gray-100 text-sm font-bold text-orange-600 text-right align-top bg-orange-50/20">
+                            {{ ventaData.gastoextra && parseFloat(ventaData.gastoextra) > 0 ? ventaData.gastoextra + ' Bs.' : '-' }}
+                          </td>
+                          <td v-if="ventaData.isFirstInSale" :rowspan="ventaData.clientRowspan"
+                              class="p-3 border-b border-gray-100 text-sm font-black text-green-700 text-right align-top bg-green-50/20">
+                            {{ ventaData.totalNeto }} Bs.
                           </td>
                           <td v-if="ventaData.isFirstInSale" :rowspan="ventaData.clientRowspan" class="p-3 border-b border-gray-100 text-sm text-center align-top">
                             <span :class="['px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider', ventaData.estado === 'Pagado' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700']">
@@ -409,9 +427,19 @@
                 <span class="text-xs text-gray-500">{{ dateGroup.ventas.length }} transacciones registradas</span>
               </div>
             </div>
-            <div class="text-right">
-              <p class="text-xs text-gray-400 uppercase font-black tracking-widest">Ingreso Total</p>
-              <p class="text-lg font-black text-blue-600">{{ dateGroup.totalIngreso.toFixed(2) }} <span class="text-xs">Bs.</span></p>
+            <div class="flex items-center gap-6">
+              <div class="text-right">
+                <p class="text-xs text-gray-400 uppercase font-black tracking-widest">Ingreso Total</p>
+                <p class="text-lg font-black text-blue-600">{{ dateGroup.totalIngreso.toFixed(2) }} <span class="text-xs">Bs.</span></p>
+              </div>
+              <div v-if="dateGroup.totalGastoExtra > 0" class="text-right">
+                <p class="text-xs text-gray-400 uppercase font-black tracking-widest">Gasto Extra</p>
+                <p class="text-lg font-black text-orange-500">{{ dateGroup.totalGastoExtra.toFixed(2) }} <span class="text-xs">Bs.</span></p>
+              </div>
+              <div class="text-right">
+                <p class="text-xs text-gray-400 uppercase font-black tracking-widest">Total Neto</p>
+                <p class="text-lg font-black text-green-600">{{ (dateGroup.totalIngreso - dateGroup.totalGastoExtra).toFixed(2) }} <span class="text-xs">Bs.</span></p>
+              </div>
             </div>
           </button>
 
@@ -425,6 +453,8 @@
                   <th class="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-right">Unitario</th>
                   <th class="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-right">Subtotal</th>
                   <th class="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-right">Total Venta</th>
+                  <th class="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-right">Gasto Extra</th>
+                  <th class="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-right">Total Neto</th>
                   <th class="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-center">Estado</th>
                   <th class="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-center">Factura</th>
                 </tr>
@@ -456,6 +486,14 @@
                     <td v-if="ventaData.isFirstInSale" :rowspan="ventaData.clientRowspan" 
                         class="p-4 border-b border-gray-100 text-sm font-black text-blue-700 text-right align-top bg-blue-50/20">
                       {{ ventaData.precioTotalVenta }} Bs.
+                    </td>
+                    <td v-if="ventaData.isFirstInSale" :rowspan="ventaData.clientRowspan"
+                        class="p-4 border-b border-gray-100 text-sm font-bold text-orange-600 text-right align-top bg-orange-50/20">
+                      {{ ventaData.gastoextra && parseFloat(ventaData.gastoextra) > 0 ? ventaData.gastoextra + ' Bs.' : '-' }}
+                    </td>
+                    <td v-if="ventaData.isFirstInSale" :rowspan="ventaData.clientRowspan"
+                        class="p-4 border-b border-gray-100 text-sm font-black text-green-700 text-right align-top bg-green-50/20">
+                      {{ ventaData.totalNeto }} Bs.
                     </td>
                     <td v-if="ventaData.isFirstInSale" :rowspan="ventaData.clientRowspan" class="p-4 border-b border-gray-100 text-sm text-center align-top">
                       <span :class="[
@@ -568,11 +606,12 @@ const ventasSemanalDetalle = computed(() => {
   props.sortedVentas.forEach(group => {
     const monday = getWeekMonday(group.fecha)
     if (!weeks[monday]) {
-      weeks[monday] = { semana: monday, semanaLabel: getWeekLabel(monday), cantVentas: 0, totalIngresos: 0, detalle: [] }
+      weeks[monday] = { semana: monday, semanaLabel: getWeekLabel(monday), cantVentas: 0, totalIngresos: 0, totalGastoExtra: 0, detalle: [] }
     }
     const w = weeks[monday]
     w.cantVentas += group.ventas.length
     w.totalIngresos += (group.totalIngreso || 0)
+    w.totalGastoExtra += (group.totalGastoExtra || 0)
     const detMap = {}
     group.ventas.forEach(v => {
       if (!detMap[v.cliente]) detMap[v.cliente] = { cliente: v.cliente, cantProductos: 0, totalVenta: 0 }

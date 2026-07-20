@@ -21,6 +21,9 @@ export class Venta extends BaseEntity {
   @Column({ name: "preciototal", type: "numeric", precision: 10, scale: 2, default:0 })
   PrecioTotal: number;
 
+  @Column({ name: "gastoextra", type: "numeric", precision: 10, scale: 2, default: 0 })
+  GastoExtra: number;
+
   @Column({ name: "estado", type: "integer",default: 1}) 
   Estado: number; 
   

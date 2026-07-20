@@ -319,7 +319,12 @@
                           </div>
                         </td>
                         <td class="px-6 py-4">
-                          <span class="text-lg font-black text-green-600">Bs. {{ parseFloat(venta.preciototal).toFixed(2) }}</span>
+                          <div class="flex flex-col">
+                            <span class="text-lg font-black text-green-600">Bs. {{ parseFloat(venta.preciototal).toFixed(2) }}</span>
+                            <span v-if="venta.gastoextra || venta.GastoExtra" class="text-[10px] text-red-500 font-medium">
+                                Gasto Extra: Bs. {{ Number(venta.gastoextra || venta.GastoExtra).toFixed(2) }}
+                              </span>
+                          </div>
                         </td>
                         <td class="px-6 py-4">
                           <div class="flex flex-wrap gap-1">
@@ -462,6 +467,7 @@
         <!-- Sale Registration View -->
         <div v-else-if="modoRegistro && !modoPersona">
           <registrarventa 
+            ref="registrarVentaRef"
             :sucursalId="sellingSucursalId"
             :initialItems="itemsPreseleccionados"
             :pendingPersona="pendingPersona"
@@ -982,32 +988,46 @@ const onVentaSuccess = async (payload) => {
       modoRegistro.value = false;
       ventaParaEditar.value = null;
     } else {
+      if (!usuarioId.value) {
+        throw new Error('Usuario no identificado. Inicia sesión nuevamente.');
+      }
+     
       const res = await RegistrarVenta({ ...payload, IdUsuario: usuarioId.value });
       showNotification('Venta registrada con éxito', 'success');
       
-      // Fetch full sale object to show in session history
       if (res && res.idVenta) {
         try {
-          const branchId = sellingSucursalId.value;
-          const today = new Date().toLocaleDateString('en-CA');
-          const detailRes = await listarVentaSucursal(null, null, branchId, today, null, 1, 1, 'TODOS');
-          if (detailRes && detailRes.data?.length > 0) {
-            // Find the one we just created or just take the most recent
-            ventasSesion.value.unshift(detailRes.data[0]);
-          }
-        } catch (e) { console.error("Error fetching detail:", e); }
+          const metodoPago = metodosPago.value.find(m => m.IdMetodoPago === payload.IdMetodoPago);
+          ventasSesion.value.unshift({
+            idventa: res.idVenta,
+            Persona: payload.IdPersona ? {
+              nombre: payload.Nombre,
+              apellidopaterno: payload.Apellidos
+            } : null,
+            preciototal: payload.Monto,
+            estado: 1,
+            fechaventa: payload.FechaVenta,
+            horaventa: payload.HoraVenta,
+            Pago: [{
+              Metodopago: {
+                Nombre: metodoPago?.Nombre || 'Efectivo'
+              }
+            }]
+          });
+        } catch (e) { console.error("Error building session sale:", e); }
       }
       
       // Clear the form in the child component
-      if (registrarVentaRef.value) registrarVentaRef.value.clearForm();
-      
-      // Stay in modoRegistro for continuous input
+      try {
+        if (registrarVentaRef.value) registrarVentaRef.value.clearForm();
+      } catch (e) { console.error("Error clearing form:", e); }
     }
     
     await Promise.all([fetchVentas(), cargarProductosCatalogo(), cargarPromocionesCatalogo()]);
   } catch (e) { 
-    console.error(e);
-    showNotification('Error al procesar la venta', 'error'); 
+    console.error('Error en registro de venta:', e);
+    const msg = e?.response?.data?.message || e?.message || 'Error al procesar la venta';
+    showNotification(msg, 'error'); 
   }
 };
 
@@ -1036,6 +1056,7 @@ const iniciarVentaConProducto = ({ producto, medida }) => {
     nombre: producto.nombre || producto.Nombre,
     medidaNombre: (typeof medida.presentacion === 'object' ? medida.presentacion.nombre : medida.presentacion) || medida.Nombre,
     precioUnitario: parseFloat(medida.precioventa || medida.Precio || 0),
+    precioMayor: parseFloat(medida.preciomayor || medida.PrecioMayor || 0),
     cantidad: 1,
     multiplicador: parseFloat(medida.cantidad || medida.Cantidad) || 1,
     stockMax: parseFloat(producto.cantidad || 0)

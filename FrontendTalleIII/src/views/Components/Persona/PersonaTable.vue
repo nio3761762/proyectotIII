@@ -3,18 +3,18 @@
     <div class="overflow-x-auto">
       <table class="w-full text-left">
         <thead>
-          <tr class="bg-gradient-to-r from-orange-50 to-red-50 text-gray-600 text-sm uppercase tracking-wider">
-            <th class="px-6 py-4 font-black">Persona</th>
-            <th class="px-6 py-4 font-black">Documento</th>
-            <th class="px-6 py-4 font-black">Contacto</th>
-            <th class="px-6 py-4 font-black">
+          <tr class="bg-gradient-to-r from-orange-50 to-red-50 text-gray-600 text-xs sm:text-sm uppercase tracking-wider">
+            <th class="px-3 sm:px-6 py-3 sm:py-4 font-black">Persona</th>
+            <th class="px-3 sm:px-6 py-3 sm:py-4 font-black hidden sm:table-cell">Documento</th>
+            <th class="px-3 sm:px-6 py-3 sm:py-4 font-black hidden sm:table-cell">Contacto</th>
+            <th class="px-3 sm:px-6 py-3 sm:py-4 font-black">
               <span v-if="modo === 'usuario'">Roles</span>
-              <span v-else-if="modo === 'proveedor'">Tipo Proveedor</span>
-              <span v-else-if="modo === 'empleado'">Cargo / Salario</span>
-              <span v-else>Dirección</span>
+              <span v-else-if="modo === 'proveedor'">Tipo</span>
+              <span v-else-if="modo === 'empleado'">Cargo</span>
+              <span v-else>Info</span>
             </th>
-            <th class="px-6 py-4 font-black">Estado</th>
-            <th class="px-6 py-4 font-black text-right">Acciones</th>
+            <th class="px-3 sm:px-6 py-3 sm:py-4 font-black">Estado</th>
+            <th class="px-3 sm:px-6 py-3 sm:py-4 font-black text-right">Acciones</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-100">
@@ -22,46 +22,46 @@
             <tr
               :class="['hover:bg-orange-50/30 transition-colors group', persona.estado === 0 && modo === 'general' ? 'opacity-60' : '']"
             >
-              <td class="px-6 py-4">
-                <div class="flex items-center gap-3">
-                  <div class="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center text-white font-bold overflow-hidden shrink-0">
+              <td class="px-3 sm:px-6 py-3 sm:py-4">
+                <div class="flex items-center gap-2 sm:gap-3">
+                  <div class="w-8 sm:w-10 h-8 sm:h-10 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center text-white font-bold overflow-hidden shrink-0">
                     <img
                       v-if="persona.imagen"
                       :src="persona.imagen"
                       class="w-full h-full object-cover"
                       alt=""
                     />
-                    <span v-else class="text-sm">{{ (persona.nombre || '?')[0] }}{{ (persona.apellidopaterno || '')[0] }}</span>
+                    <span v-else class="text-xs sm:text-sm">{{ (persona.nombre || '?')[0] }}{{ (persona.apellidopaterno || '')[0] }}</span>
                   </div>
                   <div class="flex flex-col min-w-0">
-                    <span class="font-bold text-gray-800 truncate">
-                      {{ persona.nombre }} {{ persona.apellidopaterno }} {{ persona.apellidomaterno }}
+                    <span class="font-bold text-gray-800 text-xs sm:text-sm truncate">
+                      {{ persona.nombre }} {{ persona.apellidopaterno }}
                     </span>
-                    <span class="text-xs text-gray-500">{{ persona.email || 'Sin email' }}</span>
+                    <span class="text-[10px] sm:text-xs text-gray-500 truncate">{{ persona.email || 'Sin email' }}</span>
                   </div>
                 </div>
               </td>
-              <td class="px-6 py-4">
+              <td class="px-3 sm:px-6 py-3 sm:py-4 hidden sm:table-cell">
                 <div class="flex flex-col">
-                  <span class="font-semibold text-gray-700 text-sm">
+                  <span class="font-semibold text-gray-700 text-xs sm:text-sm">
                     {{ persona.documento?.[0]?.documento || '-' }}
                   </span>
-                  <span v-if="persona.documento?.[0]?.complemento" class="text-xs text-gray-400">
+                  <span v-if="persona.documento?.[0]?.complemento" class="text-[10px] sm:text-xs text-gray-400">
                     {{ persona.documento[0].complemento.descripcion }}
                   </span>
                 </div>
               </td>
-              <td class="px-6 py-4">
+              <td class="px-3 sm:px-6 py-3 sm:py-4 hidden sm:table-cell">
                 <div class="flex flex-col">
-                  <span class="text-sm text-gray-700">
+                  <span class="text-xs sm:text-sm text-gray-700 truncate max-w-[120px]">
                     {{ persona.celulares?.map(c => c.numero).join(', ') || '-' }}
                   </span>
-                  <span class="text-xs text-gray-400">
+                  <span class="text-[10px] sm:text-xs text-gray-400">
                     {{ formatFecha(persona.fechadenacimiento) }}
                   </span>
                 </div>
               </td>
-              <td class="px-6 py-4">
+              <td class="px-3 sm:px-6 py-3 sm:py-4">
                 <!-- General: Dirección -->
                 <template v-if="modo === 'general'">
                   <span class="text-sm text-gray-700">
@@ -106,13 +106,13 @@
                 </template>
                 <span v-else class="text-xs text-gray-400">-</span>
               </td>
-              <td class="px-6 py-4">
-                <span :class="['px-3 py-1 rounded-full text-[10px] font-black uppercase', badgeClass(persona)]">
+              <td class="px-3 sm:px-6 py-3 sm:py-4">
+                <span :class="['px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-[9px] sm:text-[10px] font-black uppercase whitespace-nowrap', badgeClass(persona)]">
                   {{ badgeLabel(persona) }}
                 </span>
               </td>
-              <td class="px-6 py-4 text-right">
-                <div class="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+              <td class="px-4 sm:px-6 py-4 text-right">
+                <div class="flex justify-end gap-1.5 sm:gap-2 opacity-100 sm:opacity-0 group-hover:sm:opacity-100 transition-opacity">
                   <button
                     @click.stop="toggleRow(persona.idpersona)"
                     class="p-2 bg-orange-50 text-orange-600 rounded-xl hover:bg-orange-500 hover:text-white transition-all shadow-sm"
@@ -175,24 +175,24 @@
             <!-- Expanded Detail Row -->
             <tr v-if="expandedRows[persona.idpersona]">
               <td colspan="6" class="p-0">
-                <div class="bg-gray-50/50 p-6 pl-16 border-t border-gray-100">
-                  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <div class="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
-                      <p class="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-2">Dirección</p>
-                      <p class="text-sm text-gray-700">
+                <div class="bg-gray-50/50 p-3 sm:p-6 sm:pl-16 border-t border-gray-100">
+                  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+                    <div class="bg-white rounded-xl p-3 sm:p-4 border border-gray-100 shadow-sm">
+                      <p class="text-[9px] sm:text-[10px] font-black text-gray-400 uppercase tracking-wider mb-2">Dirección</p>
+                      <p class="text-xs sm:text-sm text-gray-700">
                         {{ persona.direccion?.barrio?.nombre ? 'B. ' + persona.direccion.barrio.nombre : 'Sin dirección' }}
                       </p>
-                      <p v-if="persona.direccion?.direccion" class="text-xs text-gray-500 mt-1">
+                      <p v-if="persona.direccion?.direccion" class="text-[11px] sm:text-xs text-gray-500 mt-1">
                         {{ persona.direccion.direccion }}
                       </p>
                     </div>
-                    <div class="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
-                      <p class="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-2">Fecha de Nacimiento</p>
-                      <p class="text-sm text-gray-700">{{ formatFecha(persona.fechadenacimiento) || '-' }}</p>
+                    <div class="bg-white rounded-xl p-3 sm:p-4 border border-gray-100 shadow-sm">
+                      <p class="text-[9px] sm:text-[10px] font-black text-gray-400 uppercase tracking-wider mb-2">Fecha de Nacimiento</p>
+                      <p class="text-xs sm:text-sm text-gray-700">{{ formatFecha(persona.fechadenacimiento) || '-' }}</p>
                     </div>
-                    <div class="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
-                      <p class="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-2">Celulares</p>
-                      <p class="text-sm text-gray-700">
+                    <div class="bg-white rounded-xl p-3 sm:p-4 border border-gray-100 shadow-sm">
+                      <p class="text-[9px] sm:text-[10px] font-black text-gray-400 uppercase tracking-wider mb-2">Celulares</p>
+                      <p class="text-xs sm:text-sm text-gray-700">
                         {{ persona.celulares?.map(c => c.numero).join(', ') || 'Sin celular' }}
                       </p>
                     </div>

@@ -5,30 +5,30 @@
     @click.self="$emit('cancelar')"
   >
     <div class="bg-white/95 backdrop-blur-sm border border-white/50 rounded-3xl shadow-2xl max-w-3xl w-full overflow-hidden">
-      <div class="bg-gradient-to-r from-blue-500 to-indigo-600 text-white p-6">
-        <div class="flex items-center justify-between gap-4">
-          <div class="flex items-center gap-3">
-            <div class="p-2 bg-white/20 rounded-xl">
-              <Briefcase class="h-6 w-6 text-white" />
+      <div class="bg-gradient-to-r from-blue-500 to-indigo-600 text-white p-4 sm:p-6">
+        <div class="flex items-start sm:items-center justify-between gap-4">
+          <div class="flex items-center gap-2 sm:gap-3 min-w-0">
+            <div class="p-1.5 sm:p-2 bg-white/20 rounded-xl shrink-0">
+              <Briefcase class="h-5 sm:h-6 w-5 sm:w-6 text-white" />
             </div>
-            <div>
-              <h2 class="text-2xl font-bold">
-                {{ esEdicion ? 'Actualizar Datos de Empleado' : 'Asignar como Empleado' }}
+            <div class="min-w-0">
+              <h2 class="text-lg sm:text-xl lg:text-2xl font-bold truncate">
+                {{ esEdicion ? 'Actualizar Empleado' : 'Asignar Empleado' }}
               </h2>
-              <p class="text-blue-100 text-sm mt-1">
+              <p class="text-blue-100 text-xs sm:text-sm mt-1 truncate">
                 {{ nombrePersona }}
               </p>
             </div>
           </div>
-          <button @click="$emit('cancelar')" class="text-white hover:text-blue-100 transition-colors">
-            <X class="h-6 w-6" />
+          <button @click="$emit('cancelar')" class="text-white hover:text-blue-100 transition-colors shrink-0">
+            <X class="h-5 sm:h-6 w-5 sm:w-6" />
           </button>
         </div>
       </div>
 
-      <div class="p-6 space-y-6 max-h-[85vh] overflow-y-auto">
+      <div class="p-4 sm:p-6 space-y-4 sm:space-y-6 max-h-[85vh] overflow-y-auto">
         <!-- Información Base -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
           <div>
             <label class="block text-gray-700 font-semibold mb-2">Fecha de Ingreso</label>
             <div class="relative">
@@ -109,10 +109,10 @@
         </div>
 
         <!-- Footer Acciones -->
-        <div class="flex justify-end gap-4 pt-4 border-t border-gray-200">
+        <div class="flex flex-col-reverse sm:flex-row justify-end gap-3 sm:gap-4 pt-4 border-t border-gray-200">
           <button
             @click="$emit('cancelar')"
-            class="px-6 py-3 border border-gray-200 hover:bg-gray-50 rounded-2xl bg-transparent transition-colors flex items-center gap-2"
+            class="w-full sm:w-auto px-4 sm:px-6 py-2.5 sm:py-3 border border-gray-200 hover:bg-gray-50 rounded-2xl bg-transparent transition-colors flex items-center justify-center gap-2 text-sm"
           >
             <X class="h-4 w-4" />
             Cancelar
@@ -120,7 +120,7 @@
           <button
             @click="emitirGuardar"
             :disabled="guardando || !puedeGuardar"
-            class="px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-75 disabled:cursor-not-allowed flex items-center justify-center gap-2 min-w-44"
+            class="w-full sm:w-auto px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-75 disabled:cursor-not-allowed flex items-center justify-center gap-2 min-w-0 sm:min-w-44 text-sm"
           >
             <LoaderCircle v-if="guardando" class="animate-spin h-4 w-4" />
             <Save v-else class="h-4 w-4" />

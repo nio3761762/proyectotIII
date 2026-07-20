@@ -264,49 +264,81 @@
 
       <!-- Columna Derecha: Resumen y Pago -->
       <div class="space-y-6">
-        <div class="relative bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl border border-white/50 p-6 flex flex-col h-full max-h-[900px]">
-          <h3 class="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+        <div class="relative bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl border border-white/50 p-6">
+          <h3 class="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
             <ShoppingCart class="h-7 w-7 text-orange-500" />
             Resumen de Venta
           </h3>
 
-          <div class="flex-1 overflow-y-auto bg-gray-50/50 rounded-2xl p-6 border border-gray-100">
+          <div class="overflow-y-auto bg-gray-50/50 rounded-2xl p-4 border border-gray-100 min-h-[400px] max-h-[600px] mb-4">
             <div v-if="carrito.length === 0" class="flex flex-col items-center justify-center h-full text-gray-500 py-10">
               <ShoppingCart class="h-16 w-16 mb-4 opacity-20" />
               <p class="text-lg">El carrito está vacío</p>
             </div>
-            <div v-else class="space-y-4">
-              <div v-for="(item, index) in carrito" :key="index" class="bg-white p-5 rounded-2xl shadow-sm border border-orange-50 flex flex-col gap-3">
+            <div v-else class="space-y-3">
+              <div v-for="(item, index) in carrito" :key="index" class="bg-white p-4 rounded-2xl shadow-sm border border-orange-50 flex flex-col gap-2">
                 <div class="flex justify-between items-start">
-                  <div>
-                    <p class="text-lg font-bold text-gray-800">{{ item.nombre }}</p>
-                    <p class="text-sm text-gray-500" v-if="item.medidaNombre">{{ item.medidaNombre }}</p>
-                    <p class="text-lg text-green-600 font-bold">Bs. {{ item.precioUnitario }}</p>
+                  <div class="flex-1 min-w-0">
+                    <p class="text-base font-bold text-gray-800 truncate">{{ item.nombre }}</p>
+                    <p class="text-xs text-gray-500 truncate" v-if="item.medidaNombre">{{ item.medidaNombre }}</p>
+                    <div class="flex gap-2 mt-1 flex-wrap items-center" v-if="item.type === 'producto'">
+                      <span class="text-[10px] font-bold text-gray-400">P.Venta: <b class="text-gray-600">Bs {{ item.precioVentaOriginal }}</b></span>
+                      <span v-if="item.precioMayorOriginal" class="text-[10px] font-bold text-orange-400">P.Mayor: <b class="text-orange-600">Bs {{ item.precioMayorOriginal }}</b></span>
+                    </div>
+                    <div class="flex gap-2 mt-1 flex-wrap items-center" v-else>
+                      <span class="text-[10px] font-bold text-orange-400">Precio: <b class="text-orange-600">Bs {{ item.precioUnitario }}</b></span>
+                    </div>
                   </div>
-                  <button @click="removerDelCarrito(index)" class="text-red-400 hover:text-red-600 p-2 bg-red-50 rounded-xl transition-colors">
-                    <Trash2 class="h-6 w-6" />
+                  <button @click="removerDelCarrito(index)" class="text-red-400 hover:text-red-600 p-1.5 bg-red-50 rounded-xl transition-colors shrink-0">
+                    <Trash2 class="h-4 w-4" />
                   </button>
                 </div>
                 
-                <div class="flex items-center justify-between mt-2">
-                  <div class="flex items-center gap-3 bg-orange-50 rounded-2xl p-2">
-                    <button @click="actualizarCantidad(index, -1)" class="w-10 h-10 rounded-xl bg-white text-orange-600 shadow-sm hover:bg-orange-500 hover:text-white transition-all font-bold text-xl">-</button>
-                    <!-- Input de cantidad directa -->
+                <!-- Producto: controles separados para Menor y Mayor -->
+                <div v-if="item.type === 'producto'" class="flex flex-col gap-2 mt-1">
+                  <div class="flex items-center justify-between">
+                    <span class="text-xs font-semibold text-gray-500">Al por menor</span>
+                    <div class="flex items-center gap-2 bg-orange-50 rounded-xl p-1">
+                      <button @click="cambiarCantidadMenor(index, -1)" class="w-7 h-7 rounded-lg bg-white text-orange-600 shadow-sm hover:bg-orange-500 hover:text-white transition-all font-bold text-sm">-</button>
+                      <span class="w-10 text-center font-bold text-orange-700 text-base">{{ item.cantidadMenor }}</span>
+                      <button @click="cambiarCantidadMenor(index, 1)" class="w-7 h-7 rounded-lg bg-white text-orange-600 shadow-sm hover:bg-orange-500 hover:text-white transition-all font-bold text-sm">+</button>
+                    </div>
+                    <span class="text-sm font-bold text-gray-700">Bs {{ (item.cantidadMenor * item.precioVentaOriginal).toFixed(2) }}</span>
+                  </div>
+                  <div v-if="item.precioMayorOriginal" class="flex items-center justify-between">
+                    <span class="text-xs font-semibold text-orange-500">Al por mayor</span>
+                    <div class="flex items-center gap-2 bg-orange-50 rounded-xl p-1">
+                      <button @click="cambiarCantidadMayor(index, -1)" class="w-7 h-7 rounded-lg bg-white text-orange-600 shadow-sm hover:bg-orange-500 hover:text-white transition-all font-bold text-sm">-</button>
+                      <span class="w-10 text-center font-bold text-orange-700 text-base">{{ item.cantidadMayor }}</span>
+                      <button @click="cambiarCantidadMayor(index, 1)" class="w-7 h-7 rounded-lg bg-white text-orange-600 shadow-sm hover:bg-orange-500 hover:text-white transition-all font-bold text-sm">+</button>
+                    </div>
+                    <span class="text-sm font-bold text-orange-600">Bs {{ (item.cantidadMayor * item.precioMayorOriginal).toFixed(2) }}</span>
+                  </div>
+                  <div class="flex justify-between items-center pt-1 border-t border-gray-100">
+                    <span class="text-xs font-bold text-gray-500">Total item</span>
+                    <span class="text-base font-black text-gray-900">Bs {{ ((item.cantidadMenor * item.precioVentaOriginal) + (item.cantidadMayor * (item.precioMayorOriginal || item.precioVentaOriginal))).toFixed(2) }}</span>
+                  </div>
+                </div>
+
+                <!-- Promocion: control simple -->
+                <div v-else class="flex items-center justify-between mt-1">
+                  <div class="flex items-center gap-2 bg-orange-50 rounded-xl p-1">
+                    <button @click="actualizarCantidad(index, -1)" class="w-8 h-8 rounded-lg bg-white text-orange-600 shadow-sm hover:bg-orange-500 hover:text-white transition-all font-bold text-lg">-</button>
                     <input 
                       type="number" 
                       :value="item.cantidad"
                       @change="onDirectQtyChange(index, $event.target.value)"
-                      class="w-16 text-center font-bold text-orange-700 bg-transparent border-none focus:ring-0 text-xl [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      class="w-14 text-center font-bold text-orange-700 bg-transparent border-none focus:ring-0 text-lg [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     />
-                    <button @click="actualizarCantidad(index, 1)" class="w-10 h-10 rounded-xl bg-white text-orange-600 shadow-sm hover:bg-orange-500 hover:text-white transition-all font-bold text-xl">+</button>
+                    <button @click="actualizarCantidad(index, 1)" class="w-8 h-8 rounded-lg bg-white text-orange-600 shadow-sm hover:bg-orange-500 hover:text-white transition-all font-bold text-lg">+</button>
                   </div>
-                  <p class="text-xl font-black text-gray-900">Bs. {{ (item.precioUnitario * item.cantidad).toFixed(2) }}</p>
+                  <p class="text-lg font-black text-gray-900">Bs. {{ (item.precioUnitario * item.cantidad).toFixed(2) }}</p>
                 </div>
               </div>
             </div>
           </div>
 
-          <div class="mt-6 pt-6 border-t border-gray-200 space-y-6">
+          <div class="border-t border-gray-200 space-y-4 pt-4">
             <!-- Date and Time Selection -->
             <div class="grid grid-cols-2 gap-4">
               <div class="space-y-2">
@@ -343,6 +375,22 @@
                   {{ u.Persona?.nombre || u.nombre }} {{ u.Persona?.apellidopaterno || u.apellidopaterno || '' }}
                 </option>
               </select>
+            </div>
+
+            <!-- Gasto Extra -->
+            <div>
+              <label class="text-sm font-semibold text-gray-700 mb-1 block flex items-center gap-2">
+                <DollarSign class="h-4 w-4 text-orange-500" />
+                Gasto Extra (Bs.)
+              </label>
+              <input 
+                v-model.number="gastoExtra"
+                type="number"
+                step="0.10"
+                min="0"
+                class="w-full px-4 py-3 bg-white border border-orange-200 rounded-2xl shadow-sm focus:ring-2 focus:ring-orange-500 outline-none"
+                placeholder="0.00"
+              />
             </div>
 
             <div class="flex justify-between items-center bg-gray-50 p-4 rounded-2xl">
@@ -455,7 +503,7 @@
               </td>
               <td class="px-4 py-4">
                 <span class="text-gray-600 text-sm">
-                  {{ new Date(venta.Fecha).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}
+                  {{ venta.horaventa || venta.HoraVenta || '' }}
                 </span>
               </td>
               <td class="px-4 py-4 text-right">
@@ -681,7 +729,7 @@
 <script setup>
 import { ref, computed, watch, onMounted, reactive } from 'vue';
 import { 
-  ShoppingCart, X, User, Package, Search, Trash2, Plus, Tag, CheckCircle, AlertTriangle, Calendar, Clock, Eye, Printer, Receipt, Pencil, UserPlus, Loader2
+  ShoppingCart, X, User, Package, Search, Trash2, Plus, CheckCircle, AlertTriangle, Calendar, Clock, DollarSign, Eye, Printer, Receipt, Pencil, UserPlus, Loader2
 } from 'lucide-vue-next';
 import { 
   Combobox, ComboboxInput, ComboboxButton, ComboboxOptions, ComboboxOption, TransitionRoot, TransitionChild, Dialog, DialogPanel, DialogTitle 
@@ -754,8 +802,9 @@ const carrito = ref([]);
 const metodoPagoSeleccionado = ref(1);
 const montoRecibido = ref(0);
 const notification = ref(null);
+const gastoExtra = ref(0);
 
-const fechaVenta = ref(new Date().toISOString().split('T')[0]);
+const fechaVenta = ref(new Date().toLocaleDateString('en-CA'));
 const horaVenta = ref(new Date().toTimeString().split(' ')[0].substring(0, 5));
 
 // Sucursal y Usuario State
@@ -1189,15 +1238,19 @@ const agregarProducto = ({ producto, medida }) => {
     return;
   }
 
+  const precioVentaOriginal = parseFloat(medida.precioventa || medida.Precio || 0);
+  const precioMayorOriginal = parseFloat(medida.preciomayor || medida.PrecioMayor || 0);
+
   const existing = carrito.value.find(i => i.id === productId && i.idMedida === (medida.idproductomedida || medida.IdPresentacion));
-  if (existing) { existing.cantidad++; } 
+  if (existing) { existing.cantidad++; existing.cantidadMenor++; } 
   else {
     carrito.value.push({
       type: 'producto', id: productId, idMedida: medida.idproductomedida || medida.IdPresentacion,
       nombre: producto.nombre || producto.Nombre,
       medidaNombre: (typeof medida.presentacion === 'object' ? medida.presentacion.nombre : medida.presentacion) || medida.Nombre,
-      precioUnitario: parseFloat(medida.precioventa || medida.Precio || 0),
-      cantidad: 1, multiplicador: multiplicador
+      precioVentaOriginal: precioVentaOriginal,
+      precioMayorOriginal: precioMayorOriginal,
+      cantidad: 1, cantidadMenor: 1, cantidadMayor: 0, multiplicador: multiplicador
     });
   }
 };
@@ -1225,6 +1278,37 @@ const agregarPromocion = (promo) => {
   }
 };
 
+const verificarStockProducto = (item, deltaTotal) => {
+  if (deltaTotal <= 0) return true;
+  const productInStock = productosConStockReal.value.find(p => getProdId(p) === item.id);
+  if (!productInStock) return false;
+  if (deltaTotal * (parseFloat(item.multiplicador) || 1) > productInStock.cantidad) {
+    showNotification('Stock insuficiente', 'error');
+    return false;
+  }
+  return true;
+};
+
+const cambiarCantidadMenor = (index, delta) => {
+  const item = carrito.value[index];
+  if (item.type !== 'producto') return;
+  const nueva = item.cantidadMenor + delta;
+  if (nueva < 0 || item.cantidadMayor + nueva < 1) return;
+  if (!verificarStockProducto(item, delta)) return;
+  item.cantidadMenor = nueva;
+  item.cantidad = item.cantidadMenor + item.cantidadMayor;
+};
+
+const cambiarCantidadMayor = (index, delta) => {
+  const item = carrito.value[index];
+  if (item.type !== 'producto') return;
+  const nueva = item.cantidadMayor + delta;
+  if (nueva < 0 || item.cantidadMenor + nueva < 1) return;
+  if (!verificarStockProducto(item, delta)) return;
+  item.cantidadMayor = nueva;
+  item.cantidad = item.cantidadMenor + item.cantidadMayor;
+};
+
 const actualizarCantidad = (index, delta) => {
   const item = carrito.value[index];
   onDirectQtyChange(index, item.cantidad + delta);
@@ -1237,9 +1321,10 @@ const clearForm = () => {
   selectedCliente.value = null;
   montoRecibido.value = 0;
   queryCliente.value = '';
-  fechaVenta.value = new Date().toISOString().split('T')[0];
+  fechaVenta.value = new Date().toLocaleDateString('en-CA');
   horaVenta.value = new Date().toTimeString().split(' ')[0].substring(0, 5);
   filtroNombre.value = '';
+  gastoExtra.value = 0;
 };
 
 defineExpose({ clearForm });
@@ -1262,13 +1347,39 @@ const finalizarVenta = () => {
     Cambio: Math.max(0, montoRecibido.value - subtotal.value),
     FechaVenta: fechaVenta.value,
     HoraVenta: horaVenta.value,
+    GastoExtra: Number(gastoExtra.value) || 0,
     detalles: {
-      Producto: carrito.value.map(i => ({
-        idPaquete: i.type === 'producto' ? i.idMedida : null,
-        idPromocion: i.type === 'promocion' ? i.id : null,
-        Cantidad: i.cantidad,
-        precioUnitario: i.precioUnitario
-      }))
+      Producto: carrito.value.flatMap(i => {
+        if (i.type === 'promocion') {
+          return [{
+            idPaquete: null,
+            idPromocion: i.id,
+            Cantidad: i.cantidad,
+            precioUnitario: i.precioUnitario,
+            precioMayor: null
+          }];
+        }
+        const entradas = [];
+        if (i.cantidadMenor > 0) {
+          entradas.push({
+            idPaquete: i.idMedida,
+            idPromocion: null,
+            Cantidad: i.cantidadMenor,
+            precioUnitario: i.precioVentaOriginal,
+            precioMayor: null
+          });
+        }
+        if (i.cantidadMayor > 0) {
+          entradas.push({
+            idPaquete: i.idMedida,
+            idPromocion: null,
+            Cantidad: i.cantidadMayor,
+            precioUnitario: i.precioMayorOriginal,
+            precioMayor: i.precioMayorOriginal
+          });
+        }
+        return entradas;
+      })
     }
   };
   emit('success', payload);
@@ -1284,7 +1395,15 @@ const filteredClientes = computed(() => {
   );
 });
 
-const subtotal = computed(() => carrito.value.reduce((acc, item) => acc + (item.precioUnitario * item.cantidad), 0));
+const subtotal = computed(() => carrito.value.reduce((acc, item) => {
+  if (item.type === 'promocion') return acc + (item.precioUnitario * item.cantidad);
+  return acc + (item.cantidadMenor * item.precioVentaOriginal) + (item.cantidadMayor * (item.precioMayorOriginal || item.precioVentaOriginal));
+}, 0));
+
+const totalConGasto = computed(() => {
+  const neto = subtotal.value;
+  return neto;
+});
 
 const onCambiarPaginaProd = (page) => { paginacionProd.paginaActual = page; fetchItems(); };
 const onCambiarPaginaPromo = (page) => { paginacionPromo.paginaActual = page; fetchItems(); };
@@ -1359,29 +1478,50 @@ onMounted(async () => {
 
       // Populate Cart
       const detalles = v.Detalle || v.Detalleventa || [];
-      carrito.value = detalles.map(d => {
+      const productosMap = {};
+      carrito.value = [];
+      detalles.forEach(d => {
         if (d.Promocion || d.idpromocion) {
-          return {
+          carrito.value.push({
             type: 'promocion',
             id: d.idpromocion || d.Promocion?.IdPromocion,
             nombre: d.Promocion?.Nombre || 'Promoción',
             precioUnitario: parseFloat(d.Precio || 0),
             cantidad: parseInt(d.Cantidad || 0),
             limiteUso: parseInt(d.Promocion?.LimiteUso || 0)
-          };
+          });
         } else {
-          return {
-            type: 'producto',
-            id: d.Productomedida?.Producto?.IdProducto || d.Productomedida?.IdProducto || d.idproducto,
-            idMedida: d.idproductomedida || d.IdProductoMedida || d.Productomedida?.IdProductoMedida || d.Productomedida?.idproductomedida,
-            nombre: d.Productomedida?.Producto?.Nombre || d.Productomedida?.Producto?.nombre || 'Producto',
-            medidaNombre: d.Productomedida?.Presentacion?.Nombre || d.Productomedida?.Presentacion?.nombre || 'Unidad',
-            precioUnitario: parseFloat(d.Precio || d.precio || 0),
-            cantidad: parseInt(d.Cantidad || d.cantidad || 0),
-            multiplicador: parseFloat(d.Productomedida?.Cantidad || d.Productomedida?.cantidad || 1)
-          };
+          const idMedida = d.idproductomedida || d.IdProductoMedida || d.Productomedida?.IdProductoMedida || d.Productomedida?.idproductomedida;
+          const productId = d.Productomedida?.Producto?.IdProducto || d.Productomedida?.IdProducto || d.idproducto;
+          const key = productId + '|' + idMedida;
+          if (!productosMap[key]) {
+            const esMayor = d.PrecioMayor != null && d.PrecioMayor > 0;
+            productosMap[key] = {
+              type: 'producto',
+              id: productId,
+              idMedida: idMedida,
+              nombre: d.Productomedida?.Producto?.Nombre || d.Productomedida?.Producto?.nombre || 'Producto',
+              medidaNombre: d.Productomedida?.Presentacion?.Nombre || d.Productomedida?.Presentacion?.nombre || 'Unidad',
+              precioVentaOriginal: parseFloat(d.Precio || d.precio || 0),
+              precioMayorOriginal: parseFloat(d.PrecioMayor || 0),
+              cantidad: 0, cantidadMenor: 0, cantidadMayor: 0,
+              multiplicador: parseFloat(d.Productomedida?.Cantidad || d.Productomedida?.cantidad || 1)
+            };
+          }
+          const qty = parseInt(d.Cantidad || d.cantidad || 0);
+          const hasPrecioMayor = d.PrecioMayor != null && d.PrecioMayor > 0;
+          if (hasPrecioMayor) {
+            productosMap[key].cantidadMayor += qty;
+          } else {
+            productosMap[key].cantidadMenor += qty;
+          }
+          productosMap[key].cantidad += qty;
+          if (!productosMap[key].precioMayorOriginal) {
+            productosMap[key].precioMayorOriginal = parseFloat(d.PrecioMayor || 0);
+          }
         }
       });
+      carrito.value = [...carrito.value, ...Object.values(productosMap)];
 
       // Set payment method
       if (v.Pago && v.Pago.length > 0) {
@@ -1441,6 +1581,7 @@ watch(() => props.sucursalId, (id) => {
     fetchItems();
   }
 });
+
 
 </script>
 

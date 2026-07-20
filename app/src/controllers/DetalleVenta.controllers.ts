@@ -8,7 +8,7 @@ import { Productomedida } from "../entities/ProductoMedida";
 import { QueryRunner } from "typeorm";
 
 
-export const createDetalleventa = async (queryRunner: QueryRunner, venta: Venta, presentacion: Productomedida | null, promocion: Promocion | null, Cantidad: number,  Precio: number, IdSucursal:string, tipo: string = "SALIDA_VENTA" ) => {
+export const createDetalleventa = async (queryRunner: QueryRunner, venta: Venta, presentacion: Productomedida | null, promocion: Promocion | null, Cantidad: number,  Precio: number, IdSucursal:string, tipo: string = "SALIDA_VENTA", precioMayor?: number ) => {
 
      const nuevoId = await generarIdSecuencial('DV'); 
 
@@ -24,6 +24,7 @@ export const createDetalleventa = async (queryRunner: QueryRunner, venta: Venta,
    }
     nuevoDetalleventa.Venta = venta
     nuevoDetalleventa.Precio = Precio;
+    if (precioMayor !== undefined) nuevoDetalleventa.PrecioMayor = precioMayor;
 
     await queryRunner.manager.save(nuevoDetalleventa);
      

@@ -35,5 +35,8 @@ export class Detalleventa extends BaseEntity {
 
     @Column({ name: 'descuento', type: "numeric", precision: 10, scale: 2 , default:0 })
     Descuento: number;
+
+    @Column({ name: "preciomayor", type: "numeric", precision: 10, scale: 2, nullable: true })
+    PrecioMayor: number;
 }
 

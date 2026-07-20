@@ -5,22 +5,22 @@
     <!-- Decoración hover -->
     <div class="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-orange-400/10 to-red-500/10 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
 
-    <div class="relative p-6">
+    <div class="relative p-4 sm:p-6">
 
       <!-- Cabecera: avatar + nombre + badge estado -->
-      <div class="flex items-start justify-between mb-4">
-        <div class="flex items-center gap-3">
-          <div class="w-12 h-12 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center shadow-md flex-shrink-0 overflow-hidden">
-            <img v-if="persona.imagen" :src="persona.imagen" :alt="persona.nombre" class="w-12 h-12 object-cover" />
-            <span v-else class="text-white font-bold text-lg">
+      <div class="flex items-start justify-between mb-4 gap-2">
+        <div class="flex items-center gap-2 sm:gap-3 min-w-0">
+          <div class="w-10 sm:w-12 h-10 sm:h-12 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center shadow-md flex-shrink-0 overflow-hidden">
+            <img v-if="persona.imagen" :src="persona.imagen" :alt="persona.nombre" class="w-10 sm:w-12 h-10 sm:h-12 object-cover" />
+            <span v-else class="text-white font-bold text-sm sm:text-lg">
               {{ persona.nombre?.charAt(0)?.toUpperCase() }}{{ persona.apellidopaterno?.charAt(0)?.toUpperCase() }}
             </span>
           </div>
-          <div>
-            <h3 class="text-base font-bold text-gray-800 group-hover:text-orange-600 transition-colors">
+          <div class="min-w-0">
+            <h3 class="text-sm sm:text-base font-bold text-gray-800 group-hover:text-orange-600 transition-colors truncate">
               {{ persona.nombre }} {{ persona.apellidopaterno }}
             </h3>
-            <p class="text-gray-500 text-sm">{{ persona.apellidomaterno }}</p>
+            <p class="text-gray-500 text-xs sm:text-sm truncate">{{ persona.apellidomaterno }}</p>
           </div>
         </div>
 
@@ -132,38 +132,38 @@
         </template>
       </div>
 
-      <!-- Acciones: una sola fila -->
-      <div class="flex gap-2">
+      <!-- Acciones: responsive wrap -->
+      <div class="flex flex-wrap gap-1.5 sm:gap-2">
         <button
           @click="$emit('editar', persona)"
-          class="h-9 px-3 flex-shrink-0 border border-orange-200 hover:border-orange-400 hover:bg-orange-50 text-orange-600 rounded-2xl text-sm transition-all duration-200 flex items-center gap-1"
+          class="h-8 sm:h-9 px-2.5 sm:px-3 flex-shrink-0 border border-orange-200 hover:border-orange-400 hover:bg-orange-50 text-orange-600 rounded-2xl text-xs sm:text-sm transition-all duration-200 flex items-center gap-1"
         >
-          <Pencil class="h-3.5 w-3.5" />
-          Editar
+          <Pencil class="h-3 sm:h-3.5 w-3 sm:w-3.5" />
+          <span class="hidden sm:inline">Editar</span>
         </button>
 
         <!-- Toggle estado persona -->
         <button
           @click="$emit('toggleEstado', persona)"
           :class="[
-            'w-9 h-9 flex-shrink-0 rounded-2xl transition-all duration-200 flex items-center justify-center',
+            'w-8 sm:w-9 h-8 sm:h-9 flex-shrink-0 rounded-2xl transition-all duration-200 flex items-center justify-center',
             persona.estado === 1
               ? 'border border-red-200 hover:border-red-400 hover:bg-red-50 text-red-500'
               : 'border border-green-200 hover:border-green-400 hover:bg-green-50 text-green-600'
           ]"
           :title="persona.estado === 1 ? 'Desactivar' : 'Activar'"
         >
-          <ToggleLeft v-if="persona.estado !== 1" class="h-4 w-4" />
-          <ToggleRight v-else class="h-4 w-4" />
+          <ToggleLeft v-if="persona.estado !== 1" class="h-3.5 sm:h-4 w-3.5 sm:w-4" />
+          <ToggleRight v-else class="h-3.5 sm:h-4 w-3.5 sm:w-4" />
         </button>
 
         <!-- Foto -->
         <button
           @click="$emit('foto', persona)"
-          class="w-9 h-9 flex-shrink-0 border border-blue-200 hover:border-blue-400 hover:bg-blue-50 text-blue-500 rounded-2xl transition-all duration-200 flex items-center justify-center"
+          class="w-8 sm:w-9 h-8 sm:h-9 flex-shrink-0 border border-blue-200 hover:border-blue-400 hover:bg-blue-50 text-blue-500 rounded-2xl transition-all duration-200 flex items-center justify-center"
           title="Actualizar foto"
         >
-          <Camera class="h-4 w-4" />
+          <Camera class="h-3.5 sm:h-4 w-3.5 sm:w-4" />
         </button>
 
         <!-- Asignar usuario: deshabilitado si ya tiene proveedor -->
@@ -171,14 +171,14 @@
           @click="$emit('asignarUsuario', persona)"
           :disabled="!!persona.proveedor"
           :class="[
-            'w-9 h-9 flex-shrink-0 rounded-2xl transition-all duration-200 flex items-center justify-center',
+            'w-8 sm:w-9 h-8 sm:h-9 flex-shrink-0 rounded-2xl transition-all duration-200 flex items-center justify-center',
             persona.proveedor
               ? 'border border-gray-200 text-gray-300 cursor-not-allowed'
               : 'border border-purple-200 hover:border-purple-400 hover:bg-purple-50 text-purple-600'
           ]"
           :title="persona.proveedor ? 'Ya tiene proveedor asignado' : 'Asignar usuario'"
         >
-          <UserCog class="h-4 w-4" />
+          <UserCog class="h-3.5 sm:h-4 w-3.5 sm:w-4" />
         </button>
 
         <!-- Asignar proveedor: deshabilitado si ya tiene usuario -->
@@ -186,14 +186,14 @@
           @click="$emit('asignarProveedor', persona)"
           :disabled="!!persona.usuario"
           :class="[
-            'w-9 h-9 flex-shrink-0 rounded-2xl transition-all duration-200 flex items-center justify-center',
+            'w-8 sm:w-9 h-8 sm:h-9 flex-shrink-0 rounded-2xl transition-all duration-200 flex items-center justify-center',
             persona.usuario
               ? 'border border-gray-200 text-gray-300 cursor-not-allowed'
               : 'border border-emerald-200 hover:border-emerald-400 hover:bg-emerald-50 text-emerald-600'
           ]"
           :title="persona.usuario ? 'Ya tiene usuario asignado' : 'Asignar proveedor'"
         >
-          <Truck class="h-4 w-4" />
+          <Truck class="h-3.5 sm:h-4 w-3.5 sm:w-4" />
         </button>
 
         <!-- Asignar empleado -->
@@ -201,14 +201,14 @@
           @click="$emit('asignarEmpleado', persona)"
           :disabled="!!persona.proveedor"
           :class="[
-            'w-9 h-9 flex-shrink-0 rounded-2xl transition-all duration-200 flex items-center justify-center',
+            'w-8 sm:w-9 h-8 sm:h-9 flex-shrink-0 rounded-2xl transition-all duration-200 flex items-center justify-center',
             persona.proveedor
               ? 'border border-gray-200 text-gray-300 cursor-not-allowed'
-              : ' border-blue-200 hover:border-blue-400 hover:bg-blue-50 text-blue-600 rounded-2xl transition-all duration-200 flex items-center justify-center'
+              : 'border-blue-200 hover:border-blue-400 hover:bg-blue-50 text-blue-600'
           ]"
            title="Asignar empleado"
         >
-          <Briefcase class="h-4 w-4" />
+          <Briefcase class="h-3.5 sm:h-4 w-3.5 sm:w-4" />
         </button>
       </div>
     </div>

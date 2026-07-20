@@ -558,7 +558,7 @@ export const getReporteVentasDetallado = async (req: Request, res: Response) => 
         // 1. Listado de Ventas con detalles y factura
         const sqlVentas = `
             SELECT 
-                v.idventa, v.fechaventa, v.horaventa, v.preciototal, v.estado,
+                v.idventa, v.fechaventa, v.horaventa, v.preciototal, v.gastoextra, v.estado,
                 pers.nombre || ' ' || COALESCE(pers.apellidopaterno, '') as cliente,
                 s.nombre as sucursal,
                 u_pers.nombre || ' ' || COALESCE(u_pers.apellidopaterno, '') as vendedor,

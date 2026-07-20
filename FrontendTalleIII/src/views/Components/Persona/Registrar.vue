@@ -2,20 +2,20 @@
   <div class="space-y-8">
     <div class="relative overflow-hidden animate-fade-in-up">
       <div class="absolute inset-0 bg-gradient-to-r from-orange-500/10 via-red-500/5 to-orange-600/10 rounded-3xl"></div>
-      <div class="relative bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl border border-white/50 p-6">
-        <div class="flex items-center gap-4">
-          <button @click="$emit('cancelar')" class="rounded-2xl hover:bg-orange-50 p-2 transition-colors">
+      <div class="relative bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl border border-white/50 p-4 sm:p-6">
+        <div class="flex items-center gap-3 sm:gap-4">
+          <button @click="$emit('cancelar')" class="rounded-2xl hover:bg-orange-50 p-2 transition-colors shrink-0">
             <ArrowLeft class="h-5 w-5" />
           </button>
-          <div class="flex items-center gap-3">
-            <div class="p-3 bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl shadow-lg">
-              <UserPlus class="h-6 w-6 text-white" />
+          <div class="flex items-center gap-3 min-w-0">
+            <div class="p-2 sm:p-3 bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl shadow-lg shrink-0">
+              <UserPlus class="h-5 sm:h-6 w-5 sm:w-6 text-white" />
             </div>
-            <div>
-              <h1 class="text-3xl font-bold bg-gradient-to-r from-orange-600 via-red-600 to-orange-700 bg-clip-text text-transparent">
+            <div class="min-w-0">
+              <h1 class="text-xl sm:text-2xl lg:text-3xl font-bold bg-gradient-to-r from-orange-600 via-red-600 to-orange-700 bg-clip-text text-transparent truncate">
                 {{ esNuevo ? 'Registrar' : 'Actualizar' }} Persona
               </h1>
-              <p class="text-gray-600 mt-1">
+              <p class="text-gray-600 mt-0.5 sm:mt-1 text-sm sm:text-base truncate">
                 {{ esNuevo ? 'Crea una nueva persona en el sistema' : 'Modifica los datos de la persona' }}
               </p>
             </div>
@@ -25,7 +25,7 @@
     </div>
 
     <div class="grid grid-cols-1 xl:grid-cols-3 gap-8">
-      <div class="xl:col-span-2 space-y-6 animate-fade-in-up delay-100">
+      <div class="xl:col-span-2 space-y-6 animate-fade-in-up delay-100 xl:order-1">
         <div class="bg-white/80 backdrop-blur-sm shadow-xl border-white/50 rounded-3xl overflow-hidden">
           <div class="bg-gradient-to-r from-orange-50 to-red-50 border-b border-orange-100 p-6">
             <h3 class="text-xl text-gray-800 flex items-center gap-2 font-semibold">
@@ -34,11 +34,11 @@
             </h3>
           </div>
 
-          <div class="p-6 space-y-6">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="p-4 sm:p-6 space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
               <div>
-                <label class="flex items-center text-gray-700 font-semibold mb-2">
-                  <User class="h-5 w-5 mr-2 text-orange-500" /> Nombre
+                <label class="flex items-center text-gray-700 font-semibold mb-2 text-sm sm:text-base">
+                  <User class="h-5 w-5 mr-2 text-orange-500 shrink-0" /> Nombre
                 </label>
                 <input
                   v-model="form.nombre"
@@ -51,8 +51,8 @@
               </div>
 
               <div>
-                <label class="flex items-center text-gray-700 font-semibold mb-2">
-                  <User class="h-5 w-5 mr-2 text-orange-500" /> Clasificación
+                <label class="flex items-center text-gray-700 font-semibold mb-2 text-sm sm:text-base">
+                  <User class="h-5 w-5 mr-2 text-orange-500 shrink-0" /> Clasificación
                 </label>
                 <select
                   v-model="form.tipo"
@@ -66,8 +66,8 @@
               </div>
 
               <div>
-                <label class="flex items-center text-gray-700 font-semibold mb-2">
-                  <User class="h-5 w-5 mr-2 text-orange-500" /> Apellido Paterno
+                <label class="flex items-center text-gray-700 font-semibold mb-2 text-sm sm:text-base">
+                  <User class="h-5 w-5 mr-2 text-orange-500 shrink-0" /> Apellido Paterno
                 </label>
                 <input
                   v-model="form.apellidopaterno"
@@ -80,8 +80,8 @@
               </div>
 
               <div>
-                <label class="flex items-center text-gray-700 font-semibold mb-2">
-                  <User class="h-5 w-5 mr-2 text-orange-500" /> Apellido Materno
+                <label class="flex items-center text-gray-700 font-semibold mb-2 text-sm sm:text-base">
+                  <User class="h-5 w-5 mr-2 text-orange-500 shrink-0" /> Apellido Materno
                 </label>
                 <input
                   v-model="form.apellidomaterno"
@@ -94,17 +94,17 @@
               </div>
 
               <div>
-                <label class="flex items-center text-gray-700 font-semibold mb-2">
-                  <Calendar class="h-5 w-5 mr-2 text-orange-500" /> Fecha de Nacimiento
+                <label class="flex items-center text-gray-700 font-semibold mb-2 text-sm sm:text-base">
+                  <Calendar class="h-5 w-5 mr-2 text-orange-500 shrink-0" /> Fecha de Nacimiento
                 </label>
                 <input v-model="form.fechadenacimiento" type="date" :class="inputClass('fechadenacimiento')" />
               </div>
 
               <div class="md:col-span-2">
-                <label class="flex items-center text-gray-700 font-semibold mb-2">
-                  <Accessibility class="h-5 w-5 mr-2 text-orange-500" /> Genero
+                <label class="flex items-center text-gray-700 font-semibold mb-2 text-sm sm:text-base">
+                  <Accessibility class="h-5 w-5 mr-2 text-orange-500 shrink-0" /> Genero
                 </label>
-                <div class="flex gap-3">
+                <div class="flex flex-wrap gap-2 sm:gap-3">
                   <label
                     v-for="g in generos"
                     :key="g.value"
@@ -166,20 +166,20 @@
               </div>
 
               <div class="md:col-span-2">
-                <label class="flex items-center text-gray-700 font-semibold mb-2">
-                  <IdCard class="h-5 w-5 mr-2 text-orange-500" /> Cedula de Identidad
+                <label class="flex items-center text-gray-700 font-semibold mb-2 text-sm sm:text-base">
+                  <IdCard class="h-5 w-5 mr-2 text-orange-500 shrink-0" /> Cedula de Identidad
                 </label>
-                <div class="flex">
+                <div class="flex flex-col sm:flex-row">
                   <input
                     v-model="form.documento"
                     @input="errors.documento = validateField('documento', form.documento)"
                     @blur="errors.documento = validateField('documento', form.documento)"
-                    :class="['w-full pl-4 pr-4 py-4 border-0 shadow-md bg-gray-50/80 rounded-l-2xl transition-all duration-300 text-gray-700 placeholder:text-gray-400 outline-none focus:bg-white focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500/30', { 'ring-2 ring-red-500/20 bg-red-50': errors.documento }]"
+                    :class="['w-full pl-4 pr-4 py-3 sm:py-4 border-0 shadow-md bg-gray-50/80 rounded-t-2xl sm:rounded-l-2xl sm:rounded-tr-none transition-all duration-300 text-gray-700 placeholder:text-gray-400 outline-none focus:bg-white focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500/30', { 'ring-2 ring-red-500/20 bg-red-50': errors.documento }]"
                     placeholder="Numero de CI"
                   />
                   <select
                     v-model="form.idcomplemento"
-                    class="pl-3 pr-4 py-4 border-l border-gray-200 shadow-md bg-gray-50/80 rounded-r-2xl transition-all duration-300 text-gray-700 outline-none focus:bg-white focus:ring-2 focus:ring-orange-500/20"
+                    class="w-full sm:w-auto pl-3 pr-4 py-3 sm:py-4 border-t sm:border-t-0 sm:border-l border-gray-200 shadow-md bg-gray-50/80 rounded-b-2xl sm:rounded-r-2xl sm:rounded-bl-none transition-all duration-300 text-gray-700 outline-none focus:bg-white focus:ring-2 focus:ring-orange-500/20 text-sm"
                   >
                     <option :value="''">Sin complemento</option>
                     <option v-for="comp in complementos" :key="comp.idcomplemento ?? comp.IdComplemento" :value="comp.idcomplemento ?? comp.IdComplemento">
@@ -191,8 +191,8 @@
               </div>
 
               <div>
-                <label class="flex items-center text-gray-700 font-semibold mb-2">
-                  <Map class="h-5 w-5 mr-2 text-orange-500" /> Barrio
+                <label class="flex items-center text-gray-700 font-semibold mb-2 text-sm sm:text-base">
+                  <Map class="h-5 w-5 mr-2 text-orange-500 shrink-0" /> Barrio
                 </label>
                 <Combobox v-model="form.barrio" by="idbarrio">
                   <div class="relative">
@@ -231,8 +231,8 @@
               </div>
 
               <div>
-                <label class="flex items-center text-gray-700 font-semibold mb-2">
-                  <MapPin class="h-5 w-5 mr-2 text-orange-500" /> Direccion
+                <label class="flex items-center text-gray-700 font-semibold mb-2 text-sm sm:text-base">
+                  <MapPin class="h-5 w-5 mr-2 text-orange-500 shrink-0" /> Direccion
                 </label>
                 <input
                   v-model="form.direccion"
@@ -245,8 +245,8 @@
               </div>
 
               <div>
-                <label class="flex items-center text-gray-700 font-semibold mb-2">
-                  <ClipboardList class="h-5 w-5 mr-2 text-orange-500" /> Referencia
+                <label class="flex items-center text-gray-700 font-semibold mb-2 text-sm sm:text-base">
+                  <ClipboardList class="h-5 w-5 mr-2 text-orange-500 shrink-0" /> Referencia
                 </label>
                 <input
                   v-model="form.referencia"
@@ -261,79 +261,41 @@
           </div>
         </div>
 
-        <!-- Session Table -->
-        <div v-if="esNuevo && registrosSesion.length > 0" class="bg-white/80 backdrop-blur-sm shadow-xl border-white/50 rounded-3xl overflow-hidden animate-fade-in-up">
-          <div class="bg-gradient-to-r from-orange-50 to-red-50 border-b border-orange-100 p-6">
-            <h3 class="text-xl text-gray-800 flex items-center gap-2 font-semibold">
-              <UserPlus class="h-5 w-5 text-orange-600" />
-              Registros de esta sesión ({{ registrosSesion.length }})
-            </h3>
-          </div>
-          <div class="p-6 overflow-x-auto">
-            <table class="w-full text-left">
-              <thead>
-                <tr class="text-gray-400 text-sm uppercase tracking-wider">
-                  <th class="pb-3 pr-4">#</th>
-                  <th class="pb-3 pr-4">Nombre</th>
-                  <th class="pb-3 pr-4">Apellido</th>
-                  <th class="pb-3 pr-4">Tipo</th>
-                  <th class="pb-3 pr-4">Documento</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-gray-100">
-                <tr v-for="(r, i) in registrosSesion" :key="r.id" class="hover:bg-gray-50/50 transition-colors">
-                  <td class="py-3 pr-4 font-bold text-gray-700">{{ i + 1 }}</td>
-                  <td class="py-3 pr-4 text-gray-800">{{ r.nombre }}</td>
-                  <td class="py-3 pr-4 text-gray-600">{{ r.apellidoPaterno }}</td>
-                  <td class="py-3 pr-4">
-                    <span :class="['px-3 py-1 rounded-full text-xs font-bold',
-                      r.tipo === 'EMPLEADO' ? 'bg-blue-100 text-blue-600' :
-                      r.tipo === 'USUARIO' ? 'bg-purple-100 text-purple-600' :
-                      r.tipo === 'PROVEEDOR' ? 'bg-emerald-100 text-emerald-600' :
-                      'bg-orange-100 text-orange-600']">{{ r.tipo }}</span>
-                  </td>
-                  <td class="py-3 pr-4 text-gray-600">{{ r.documento || '—' }}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
       </div>
 
-      <div class="space-y-6">
+      <div class="space-y-6 order-2 xl:order-2">
         <div class="bg-white/80 backdrop-blur-sm shadow-xl border-white/50 rounded-3xl overflow-hidden animate-fade-in-up delay-200">
-          <div class="bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-blue-100 p-6">
-            <h3 class="text-xl text-gray-800 flex items-center gap-2 font-semibold">
-              <Camera class="h-5 w-5 text-blue-600" />
+          <div class="bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-blue-100 p-4 sm:p-6">
+            <h3 class="text-lg sm:text-xl text-gray-800 flex items-center gap-2 font-semibold">
+              <Camera class="h-5 w-5 text-blue-600 shrink-0" />
               Foto de Perfil
             </h3>
           </div>
-          <div class="p-6 text-center">
-            <div class="w-32 h-32 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center overflow-hidden shadow-lg mx-auto mb-4">
+          <div class="p-4 sm:p-6 text-center">
+            <div class="w-28 sm:w-32 h-28 sm:h-32 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center overflow-hidden shadow-lg mx-auto mb-4">
               <img v-if="previewUrl" :src="previewUrl" alt="Vista previa" class="w-full h-full object-cover" />
-              <User v-else class="h-16 w-16 text-white" />
+              <User v-else class="h-12 sm:h-16 w-12 sm:w-16 text-white" />
             </div>
             <input
               ref="fileInput"
               type="file"
               accept="image/*"
               @change="handleArchivo"
-              class="w-full py-3 px-4 border-0 shadow-md bg-gray-50/80 rounded-2xl text-sm text-gray-700 outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/20 file:mr-3 file:py-1.5 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 transition-all"
+              class="w-full py-3 px-4 border-0 shadow-md bg-gray-50/80 rounded-2xl text-sm text-gray-700 outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/20 file:mr-2 sm:file:mr-3 file:py-1.5 file:px-3 sm:file:px-4 file:rounded-xl file:border-0 file:text-xs sm:file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 transition-all"
             />
           </div>
         </div>
 
         <div class="bg-white/80 backdrop-blur-sm shadow-xl border-white/50 rounded-3xl overflow-hidden animate-fade-in-up delay-300">
-          <div class="bg-gradient-to-r from-green-50 to-emerald-50 border-b border-green-100 p-6">
-            <h3 class="text-xl text-gray-800 flex items-center gap-2 font-semibold">
-              <Mail class="h-5 w-5 text-green-600" />
+          <div class="bg-gradient-to-r from-green-50 to-emerald-50 border-b border-green-100 p-4 sm:p-6">
+            <h3 class="text-lg sm:text-xl text-gray-800 flex items-center gap-2 font-semibold">
+              <Mail class="h-5 w-5 text-green-600 shrink-0" />
               Contacto
             </h3>
           </div>
-          <div class="p-6">
-            <label class="flex items-center text-gray-700 font-semibold mb-2">
-              <Mail class="h-5 w-5 mr-2 text-green-500" /> Email
+          <div class="p-4 sm:p-6">
+            <label class="flex items-center text-gray-700 font-semibold mb-2 text-sm sm:text-base">
+              <Mail class="h-5 w-5 mr-2 text-green-500 shrink-0" /> Email
             </label>
             <input
               v-model="form.email"
@@ -349,22 +311,22 @@
 
         <!-- Datos de Usuario (opcional) -->
         <div v-if="esNuevo" class="bg-white/80 backdrop-blur-sm shadow-xl border-white/50 rounded-3xl overflow-hidden animate-fade-in-up delay-400">
-          <div class="bg-gradient-to-r from-purple-50 to-violet-50 border-b border-purple-100 p-6">
-            <h3 class="text-xl text-gray-800 flex items-center gap-2 font-semibold">
-              <Shield class="h-5 w-5 text-purple-600" />
-              Datos de Usuario <span class="text-sm font-normal text-gray-500 ml-2">(opcional — si no se ingresa contraseña no se crea)</span>
+          <div class="bg-gradient-to-r from-purple-50 to-violet-50 border-b border-purple-100 p-4 sm:p-6">
+            <h3 class="text-lg sm:text-xl text-gray-800 flex items-center gap-2 font-semibold">
+              <Shield class="h-5 w-5 text-purple-600 shrink-0" />
+              <span class="min-w-0">Datos de Usuario</span> <span class="text-xs sm:text-sm font-normal text-gray-500 shrink-0">(opcional)</span>
             </h3>
           </div>
-          <div class="p-6">
+          <div class="p-4 sm:p-6">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label class="text-sm font-semibold text-gray-700 mb-1 block">Contraseña</label>
-                <input v-model="usuarioForm.password" type="password" placeholder="Ingrese contraseña" class="w-full px-4 py-4 border-0 shadow-md bg-gray-50/80 rounded-2xl outline-none text-gray-700" />
+                <input v-model="usuarioForm.password" type="password" placeholder="Ingrese contraseña" class="w-full px-4 py-3 sm:py-4 border-0 shadow-md bg-gray-50/80 rounded-2xl outline-none text-gray-700" />
                 <p class="text-xs text-gray-400 mt-1">El nombre de usuario será el email registrado</p>
               </div>
               <div>
                 <label class="text-sm font-semibold text-gray-700 mb-1 block">Repetir Contraseña</label>
-                <input v-model="usuarioForm.confirmPassword" type="password" placeholder="Repita la contraseña" class="w-full px-4 py-4 border-0 shadow-md bg-gray-50/80 rounded-2xl outline-none text-gray-700" />
+                <input v-model="usuarioForm.confirmPassword" type="password" placeholder="Repita la contraseña" class="w-full px-4 py-3 sm:py-4 border-0 shadow-md bg-gray-50/80 rounded-2xl outline-none text-gray-700" />
               </div>
             </div>
           </div>
@@ -372,35 +334,35 @@
 
         <!-- Datos Laborales (opcional) -->
         <div v-if="esNuevo" class="bg-white/80 backdrop-blur-sm shadow-xl border-white/50 rounded-3xl overflow-hidden animate-fade-in-up delay-400">
-          <div class="bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-blue-100 p-6">
-            <h3 class="text-xl text-gray-800 flex items-center gap-2 font-semibold">
-              <Briefcase class="h-5 w-5 text-blue-600" />
-              Datos Laborales <span class="text-sm font-normal text-gray-500 ml-2">(opcional)</span>
+          <div class="bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-blue-100 p-4 sm:p-6">
+            <h3 class="text-lg sm:text-xl text-gray-800 flex items-center gap-2 font-semibold">
+              <Briefcase class="h-5 w-5 text-blue-600 shrink-0" />
+              <span class="min-w-0">Datos Laborales</span> <span class="text-xs sm:text-sm font-normal text-gray-500 shrink-0">(opcional)</span>
             </h3>
           </div>
-          <div class="p-6">
+          <div class="p-4 sm:p-6">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label class="text-sm font-semibold text-gray-700 mb-1 block">Sucursal</label>
-                <select v-model="empleadoForm.idsucursal" class="w-full px-4 py-4 border-0 shadow-md bg-gray-50/80 rounded-2xl outline-none text-gray-700">
+                <select v-model="empleadoForm.idsucursal" class="w-full px-4 py-3 sm:py-4 border-0 shadow-md bg-gray-50/80 rounded-2xl outline-none text-gray-700">
                   <option value="">Seleccionar</option>
                   <option v-for="s in sucursales" :key="s.idsucursal" :value="s.idsucursal">{{ s.nombre }}</option>
                 </select>
               </div>
               <div>
                 <label class="text-sm font-semibold text-gray-700 mb-1 block">Cargo</label>
-                <select v-model="empleadoForm.idcargo" class="w-full px-4 py-4 border-0 shadow-md bg-gray-50/80 rounded-2xl outline-none text-gray-700">
+                <select v-model="empleadoForm.idcargo" class="w-full px-4 py-3 sm:py-4 border-0 shadow-md bg-gray-50/80 rounded-2xl outline-none text-gray-700">
                   <option value="">Seleccionar</option>
                   <option v-for="c in cargos" :key="c.idcargo" :value="c.idcargo">{{ c.nombre }}</option>
                 </select>
               </div>
               <div>
                 <label class="text-sm font-semibold text-gray-700 mb-1 block">Fecha Ingreso</label>
-                <input v-model="empleadoForm.fechaingreso" type="date" class="w-full px-4 py-4 border-0 shadow-md bg-gray-50/80 rounded-2xl outline-none text-gray-700" />
+                <input v-model="empleadoForm.fechaingreso" type="date" class="w-full px-4 py-3 sm:py-4 border-0 shadow-md bg-gray-50/80 rounded-2xl outline-none text-gray-700" />
               </div>
               <div>
                 <label class="text-sm font-semibold text-gray-700 mb-1 block">Salario (Bs.)</label>
-                <input v-model.number="empleadoForm.salario" type="number" min="0" class="w-full px-4 py-4 border-0 shadow-md bg-gray-50/80 rounded-2xl outline-none text-gray-700" />
+                <input v-model.number="empleadoForm.salario" type="number" min="0" class="w-full px-4 py-3 sm:py-4 border-0 shadow-md bg-gray-50/80 rounded-2xl outline-none text-gray-700" />
               </div>
             </div>
           </div>
@@ -408,34 +370,72 @@
 
         <!-- Datos de Proveedor (opcional) -->
         <div v-if="esNuevo" class="bg-white/80 backdrop-blur-sm shadow-xl border-white/50 rounded-3xl overflow-hidden animate-fade-in-up delay-400">
-          <div class="bg-gradient-to-r from-emerald-50 to-green-50 border-b border-emerald-100 p-6">
-            <h3 class="text-xl text-gray-800 flex items-center gap-2 font-semibold">
-              <Truck class="h-5 w-5 text-emerald-600" />
-              Datos de Proveedor <span class="text-sm font-normal text-gray-500 ml-2">(opcional)</span>
+          <div class="bg-gradient-to-r from-emerald-50 to-green-50 border-b border-emerald-100 p-4 sm:p-6">
+            <h3 class="text-lg sm:text-xl text-gray-800 flex items-center gap-2 font-semibold">
+              <Truck class="h-5 w-5 text-emerald-600 shrink-0" />
+              <span class="min-w-0">Datos de Proveedor</span> <span class="text-xs sm:text-sm font-normal text-gray-500 shrink-0">(opcional)</span>
             </h3>
           </div>
-          <div class="p-6">
+          <div class="p-4 sm:p-6">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label class="text-sm font-semibold text-gray-700 mb-1 block">NIT</label>
-                <input v-model="proveedorForm.nit" type="text" placeholder="Ingrese NIT" class="w-full px-4 py-4 border-0 shadow-md bg-gray-50/80 rounded-2xl outline-none text-gray-700" />
+                <input v-model="proveedorForm.nit" type="text" placeholder="Ingrese NIT" class="w-full px-4 py-3 sm:py-4 border-0 shadow-md bg-gray-50/80 rounded-2xl outline-none text-gray-700" />
               </div>
               <div>
                 <label class="text-sm font-semibold text-gray-700 mb-1 block">Razón Social</label>
-                <input v-model="proveedorForm.razonSocial" type="text" placeholder="Ingrese razón social" class="w-full px-4 py-4 border-0 shadow-md bg-gray-50/80 rounded-2xl outline-none text-gray-700" />
+                <input v-model="proveedorForm.razonSocial" type="text" placeholder="Ingrese razón social" class="w-full px-4 py-3 sm:py-4 border-0 shadow-md bg-gray-50/80 rounded-2xl outline-none text-gray-700" />
               </div>
             </div>
           </div>
         </div>
       </div>
+
+      <!-- Session Table (después de side panels en mobile, alineada con form en desktop) -->
+      <div v-if="esNuevo && registrosSesion.length > 0" class="xl:col-span-2 order-3 xl:order-3 bg-white/80 backdrop-blur-sm shadow-xl border-white/50 rounded-3xl overflow-hidden animate-fade-in-up">
+        <div class="bg-gradient-to-r from-orange-50 to-red-50 border-b border-orange-100 p-4 sm:p-6">
+          <h3 class="text-lg sm:text-xl text-gray-800 flex items-center gap-2 font-semibold">
+            <UserPlus class="h-5 w-5 text-orange-600" />
+            Registros de esta sesión ({{ registrosSesion.length }})
+          </h3>
+        </div>
+        <div class="p-4 sm:p-6 overflow-x-auto">
+          <table class="w-full text-left">
+            <thead>
+              <tr class="text-gray-400 text-xs sm:text-sm uppercase tracking-wider">
+                <th class="pb-3 pr-2 sm:pr-4">#</th>
+                <th class="pb-3 pr-2 sm:pr-4">Nombre</th>
+                <th class="pb-3 pr-2 sm:pr-4 hidden sm:table-cell">Apellido</th>
+                <th class="pb-3 pr-2 sm:pr-4">Tipo</th>
+                <th class="pb-3 pr-2 sm:pr-4 hidden sm:table-cell">Documento</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+              <tr v-for="(r, i) in registrosSesion" :key="r.id" class="hover:bg-gray-50/50 transition-colors">
+                <td class="py-3 pr-2 sm:pr-4 font-bold text-gray-700 text-sm">{{ i + 1 }}</td>
+                <td class="py-3 pr-2 sm:pr-4 text-gray-800 text-sm">{{ r.nombre }}</td>
+                <td class="py-3 pr-2 sm:pr-4 text-gray-600 text-sm hidden sm:table-cell">{{ r.apellidoPaterno }}</td>
+                <td class="py-3 pr-2 sm:pr-4">
+                  <span :class="['px-2 sm:px-3 py-1 rounded-full text-[10px] sm:text-xs font-bold whitespace-nowrap',
+                    r.tipo === 'EMPLEADO' ? 'bg-blue-100 text-blue-600' :
+                    r.tipo === 'USUARIO' ? 'bg-purple-100 text-purple-600' :
+                    r.tipo === 'PROVEEDOR' ? 'bg-emerald-100 text-emerald-600' :
+                    'bg-orange-100 text-orange-600']">{{ r.tipo }}</span>
+                </td>
+                <td class="py-3 pr-2 sm:pr-4 text-gray-600 text-sm hidden sm:table-cell">{{ r.documento || '—' }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
 
     <!-- Buttons -->
-    <div class="flex justify-end gap-4 pt-6 border-t border-gray-200 animate-fade-in-up delay-400">
+    <div class="flex flex-col-reverse sm:flex-row justify-end gap-3 sm:gap-4 pt-6 border-t border-gray-200 animate-fade-in-up delay-400">
       <button
         type="button"
         @click="$emit('cancelar')"
-        class="px-8 py-3 border border-gray-200 hover:bg-gray-50 rounded-2xl bg-transparent transition-colors flex items-center gap-2"
+        class="w-full sm:w-auto px-6 sm:px-8 py-3 border border-gray-200 hover:bg-gray-50 rounded-2xl bg-transparent transition-colors flex items-center justify-center gap-2"
       >
         <X class="h-4 w-4" />
         Cancelar
@@ -446,7 +446,7 @@
           v-if="registrosSesion.length > 0"
           @click="finalizar"
           :disabled="guardando"
-          class="px-8 py-3 bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 flex items-center gap-2 disabled:opacity-75"
+          class="w-full sm:w-auto px-6 sm:px-8 py-3 bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-75"
         >
           <LoaderCircle v-if="guardando" class="animate-spin h-4 w-4" />
           <UserPlus v-else class="h-4 w-4" />
@@ -455,7 +455,7 @@
         <button
           @click="guardarYContinuar"
           :disabled="guardando"
-          class="px-8 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-2xl shadow-lg transition-all duration-300 flex items-center gap-2 disabled:opacity-75"
+          class="w-full sm:w-auto px-6 sm:px-8 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-2xl shadow-lg transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-75"
         >
           <LoaderCircle v-if="guardando" class="animate-spin h-4 w-4" />
           <Save v-else class="h-4 w-4" />
@@ -467,7 +467,7 @@
         v-else
         @click="guardar"
         :disabled="guardando"
-        class="px-8 py-3 bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 flex items-center gap-2 disabled:opacity-75"
+        class="w-full sm:w-auto px-6 sm:px-8 py-3 bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-75"
       >
         <LoaderCircle v-if="guardando" class="animate-spin h-4 w-4" />
         <Save v-else class="h-4 w-4" />
@@ -690,7 +690,7 @@ const inicializar = () => {
 
 watch(() => props.persona, inicializar, { immediate: true });
 
-const inputBase = 'w-full px-4 py-4 border-0 shadow-md bg-gray-50/80 rounded-2xl transition-all duration-300 text-gray-700 placeholder:text-gray-400 outline-none focus:bg-white focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500/30';
+const inputBase = 'w-full px-4 py-3 sm:py-4 border-0 shadow-md bg-gray-50/80 rounded-2xl transition-all duration-300 text-gray-700 placeholder:text-gray-400 outline-none focus:bg-white focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500/30';
 
 const inputClass = (campo) =>
   campo && errors[campo]

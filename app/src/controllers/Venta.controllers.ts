@@ -62,7 +62,7 @@ export const registrarVenta = async (req: Request, res: Response) => {
 
   try {
     const { ventas, detalles } = req.body;
- 
+
     // 1. Validaciones básicas
     if (!ventas.IdUsuario || !ventas.IdSucursal) {
       throw new HttpError(400, "Usuario y Sucursal son requeridos para la venta.");
@@ -84,6 +84,7 @@ export const registrarVenta = async (req: Request, res: Response) => {
     if(ventas.Monto > 0) venta.PrecioTotal = Number(ventas.Monto)
     venta.FechaVenta = ventas.FechaVenta || fecha;
     venta.HoraVenta = ventas.HoraVenta || hora;
+    venta.GastoExtra = Number(ventas.GastoExtra) || 0;
   
 
     // Guardar venta dentro de la transacción
@@ -128,7 +129,9 @@ export const registrarVenta = async (req: Request, res: Response) => {
             promocion,
             prod.Cantidad,
             prod.precioUnitario,
-            ventas.IdSucursal
+            ventas.IdSucursal,
+            "SALIDA_VENTA",
+            prod.precioMayor
           );
         }
       }
@@ -310,6 +313,7 @@ export const getVentasSucursal = async (req: Request, res: Response) => {
         v.fechaventa,
         v.horaventa,
         v.preciototal,
+        v.gastoextra,
         v.estado,
         COUNT(*) OVER() AS total,
 
@@ -599,11 +603,12 @@ export const getVentasSucursal = async (req: Request, res: Response) => {
         ON ped.idpedido = v.idpedido
 
      GROUP BY
-  v.idventa,
-  v.fechaventa,
-  v.horaventa,
-  v.preciototal,
-  v.estado,
+   v.idventa,
+   v.fechaventa,
+   v.horaventa,
+   v.preciototal,
+   v.gastoextra,
+   v.estado,
 
   per.idpersona,
 
@@ -728,7 +733,7 @@ export const actualizarVenta = async (req: Request, res: Response) => {
     if (ventas.Monto > 0) venta.PrecioTotal = Number(ventas.Monto);
      venta.FechaVenta = ventas.FechaVenta || fecha;
      venta.HoraVenta = ventas.HoraVenta || hora;
-     
+     if (ventas.GastoExtra !== undefined) venta.GastoExtra = Number(ventas.GastoExtra) || 0;
     await queryRunner.manager.save(venta);
 
     // 3. Manejo de Pagos
@@ -773,7 +778,9 @@ export const actualizarVenta = async (req: Request, res: Response) => {
           promocion,
           prod.Cantidad,
           prod.precioUnitario,
-          IdSucursalNueva
+          IdSucursalNueva,
+          "SALIDA_VENTA",
+          prod.precioMayor
         );
       }
     }

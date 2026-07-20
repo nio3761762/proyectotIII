@@ -52,10 +52,15 @@
           @mouseenter="onHoverMedida(medida)"
           @mouseleave="resetRotation"
         >
-          <span class="text-gray-700 font-medium">
-            {{ (typeof medida.presentacion === 'object' ? medida.presentacion.nombre : medida.presentacion) || medida.Nombre || 'Estándar' }} x {{ medida.cantidad }}
-          </span>
-          <span :class="['font-bold', disabled ? 'text-gray-400' : 'text-green-600']">Bs. {{ medida.precioventa || medida.Precio }}</span>
+          <div class="flex flex-col min-w-0">
+            <span class="text-gray-700 font-medium truncate">
+              {{ (typeof medida.presentacion === 'object' ? medida.presentacion.nombre : medida.presentacion) || medida.Nombre || 'Estándar' }} x {{ medida.cantidad }}
+            </span>
+            <span v-if="medida.preciomayor || medida.PrecioMayor" class="text-[9px] text-orange-500 font-semibold">
+              Por Mayor: Bs. {{ medida.preciomayor || medida.PrecioMayor }}
+            </span>
+          </div>
+          <span :class="['font-bold whitespace-nowrap ml-2', disabled ? 'text-gray-400' : 'text-green-600']">Bs. {{ medida.precioventa || medida.Precio }}</span>
         </div>
       </div>
     </div>

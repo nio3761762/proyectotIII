@@ -247,7 +247,10 @@ const processedVentasGrouped = computed(() => {
 
     const clientName = venta.cliente || 'Consumidor Final';
     const itemsCount = (venta.detalles && venta.detalles.length > 0) ? venta.detalles.length : 1;
+    const gastoExtra = parseFloat(venta.gastoextra || 0);
     grouped[fechaKey].totalIngreso += parseFloat(venta.preciototal || 0);
+    if (!grouped[fechaKey].totalGastoExtra) grouped[fechaKey].totalGastoExtra = 0;
+    grouped[fechaKey].totalGastoExtra += gastoExtra;
 
     if (venta.detalles && venta.detalles.length > 0) {
       venta.detalles.forEach((detalle, index) => {
@@ -267,6 +270,8 @@ const processedVentasGrouped = computed(() => {
           hasFactura: venta.tiene_factura,
           nroFactura: venta.nro_factura || 'S/F',
           urlFactura: venta.factura_url,
+          gastoextra: gastoExtra.toFixed(2),
+          totalNeto: (parseFloat(venta.preciototal || 0) - gastoExtra).toFixed(2),
           precioTotalVenta: parseFloat(venta.preciototal || 0).toFixed(2),
           isFirstInSale: index === 0,
           clientRowspan: index === 0 ? itemsCount : 0,
@@ -286,6 +291,8 @@ const processedVentasGrouped = computed(() => {
         hasFactura: venta.tiene_factura,
         nroFactura: venta.nro_factura || 'S/F',
         urlFactura: venta.factura_url,
+        gastoextra: gastoExtra.toFixed(2),
+        totalNeto: (parseFloat(venta.preciototal || 0) - gastoExtra).toFixed(2),
         precioTotalVenta: parseFloat(venta.preciototal || 0).toFixed(2),
         isFirstInSale: true,
         clientRowspan: 1,

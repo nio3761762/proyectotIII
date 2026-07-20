@@ -18,7 +18,7 @@ export const getReporteFinancieroConsolidado = async (req: Request, res: Respons
         
         // 2. Ingresos Tienda agrupados por sucursal
         const sqlIngresosTienda = `
-            SELECT idsucursal, COALESCE(SUM(preciototal), 0) as total 
+            SELECT idsucursal, COALESCE(SUM(preciototal), 0) - COALESCE(SUM(gastoextra), 0) as total  
             FROM venta 
             WHERE fechaventa BETWEEN $1 AND $2 AND estado = 1 AND ($3::varchar IS NULL OR idsucursal = $3)
             GROUP BY idsucursal
@@ -132,7 +132,7 @@ export const getReporteFinancieroConsolidado = async (req: Request, res: Respons
  
         // 7. Cronología diaria (Ventas, Compras, Revendedores)
         const sqlVentasDiarias = `
-            SELECT fechaventa as fecha, SUM(preciototal) as monto 
+            SELECT fechaventa as fecha, COALESCE(SUM(preciototal), 0) - COALESCE(SUM(gastoextra), 0) as monto 
             FROM venta 
             WHERE fechaventa BETWEEN $1 AND $2 AND estado = 1 AND ($3::varchar IS NULL OR idsucursal = $3)
             GROUP BY fechaventa ORDER BY fechaventa
