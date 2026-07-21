@@ -503,7 +503,7 @@ const checkMobile = () => {
 
 const CerrarSesion = async () =>{
     try {
-    await logout();
+    logout();
     stopTokenRefreshTimer();
     sessionStore.resetSession();
     router.push('/login');

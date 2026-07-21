@@ -221,6 +221,21 @@
                   </button>
                 </div>
 
+                <!-- Sucursal Selector -->
+                <div class="w-full md:w-72">
+                  <label class="text-xs font-bold text-gray-500 mb-1 block">Sucursal</label>
+                  <select 
+                    v-model="existenciasSucursalId"
+                    @change="onExistenciasSucursalChange"
+                    class="w-full px-4 py-3 bg-white/60 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
+                  >
+                    <option value="" disabled>Seleccionar sucursal</option>
+                    <option v-for="suc in sucursales" :key="suc.idsucursal" :value="suc.idsucursal">
+                      {{ suc.nombre }}
+                    </option>
+                  </select>
+                </div>
+
                 <!-- Search and Filters -->
                 <div class="flex flex-col md:flex-row items-center gap-4 w-full flex-1">
                   <!-- Filtros Productos (Igual a Venta.vue) -->
@@ -384,9 +399,15 @@
                       <p class="text-xs font-bold text-gray-400 uppercase mb-1">Fecha</p>
                       <p class="text-gray-700">{{ formatDate(selectedTransferencia.fecha) }} {{ selectedTransferencia.hora }}</p>
                     </div>
-                    <div>
-                      <p class="text-xs font-bold text-gray-400 uppercase mb-1">Tipo</p>
-                      <p class="text-gray-700">{{ selectedTransferencia.tipo }}</p>
+                    <div v-if="selectedTransferencia.SucursalDestino">
+                      <p class="text-xs font-bold text-gray-400 uppercase mb-1">Sucursal Destino</p>
+                      <p class="text-gray-700">{{ selectedTransferencia.SucursalDestino.Nombre }}</p>
+                    </div>
+                    <div v-if="selectedTransferencia.EmpleadoDestino">
+                      <p class="text-xs font-bold text-gray-400 uppercase mb-1">Encargado</p>
+                      <p class="text-gray-700">
+                        {{ selectedTransferencia.EmpleadoDestino.Persona?.Nombre }} {{ selectedTransferencia.EmpleadoDestino.Persona?.ApellidoPaterno }}
+                      </p>
                     </div>
                   </div>
 
@@ -496,6 +517,7 @@ const filtroNombreExistencias = ref('');
 const categorias = ref([]);
 const filtroCategoriaExistencias = ref('TODOS');
 const filtroSubcategoriaExistencias = ref('TODOS');
+const existenciasSucursalId = ref('');
 
 // Paginación Existencias
 const pagProd = reactive({ page: 1, limit: 12, total: 0, totalPages: 1 });
@@ -584,6 +606,13 @@ const cargarCatalogos = async () => {
     ]);
     sucursales.value = suc.result || suc || [];
     empleados.value =  emp.result || emp || [];
+
+    // Inicializar selector de existencias con la sucursal del usuario
+    if (currentSucursalId.value) {
+      existenciasSucursalId.value = currentSucursalId.value;
+    } else if (sucursales.value.length > 0) {
+      existenciasSucursalId.value = sucursales.value[0].idsucursal;
+    }
   } catch (error) {
     console.error(error);
   }
@@ -610,13 +639,19 @@ const fetchTransferencias = async () => {
   }
 };
 
+const onExistenciasSucursalChange = () => {
+  pagProd.page = 1;
+  pagIns.page = 1;
+  fetchExistencias();
+};
+
 const fetchExistencias = async () => {
-  if (!currentSucursalId.value) return;
+  if (!existenciasSucursalId.value) return;
   loadingExistencias.value = true;
   try {
     if (subTabExistencias.value === 'productos') {
       const res = await ListarProductosOnSucursal(
-        currentSucursalId.value,
+        existenciasSucursalId.value,
         filtroNombreExistencias.value,
         pagProd.limit,
         pagProd.page,
@@ -669,6 +704,9 @@ const cargarCategorias = async () => {
 const handleTabChange = (tab) => {
   tabActiva.value = tab;
   if (tab === 'existencias') {
+    if (!existenciasSucursalId.value && sucursales.value.length > 0) {
+      existenciasSucursalId.value = currentSucursalId.value || sucursales.value[0].idsucursal;
+    }
     fetchExistencias();
     cargarCategorias();
   } else {

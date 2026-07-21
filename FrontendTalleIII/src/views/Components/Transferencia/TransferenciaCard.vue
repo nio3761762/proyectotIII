@@ -39,13 +39,16 @@
             <span class="font-medium">{{ transferencia.SucursalOrigen?.Nombre || 'N/A' }}</span>
           </div>
         </div>
-        <div class="flex flex-col gap-1">
+        <div v-if="transferencia.tipo === 'SUCURSAL'" class="flex flex-col gap-1">
           <span class="text-xs font-semibold text-gray-400 uppercase">Destino</span>
-          <div v-if="transferencia.tipo === 'SUCURSAL'" class="flex items-center gap-2 text-gray-700">
+          <div class="flex items-center gap-2 text-gray-700">
             <Building2 class="h-4 w-4 text-blue-500" />
             <span class="font-medium">{{ transferencia.SucursalDestino?.Nombre || 'N/A' }}</span>
           </div>
-          <div v-else class="flex items-center gap-2 text-gray-700">
+        </div>
+        <div v-if="transferencia.EmpleadoDestino" class="flex flex-col gap-1">
+          <span class="text-xs font-semibold text-gray-400 uppercase">Encargado</span>
+          <div class="flex items-center gap-2 text-gray-700">
             <User class="h-4 w-4 text-purple-500" />
             <span class="font-medium">
               {{ transferencia.EmpleadoDestino?.Persona?.Nombre }} {{ transferencia.EmpleadoDestino?.Persona?.ApellidoPaterno }}

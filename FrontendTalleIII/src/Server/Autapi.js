@@ -50,23 +50,14 @@ export const refreshToken = async () => {
 };
 
 //logout
-export const logout = async () => {
+export const logout = () => {
   const usuario = JSON.parse(localStorage.getItem('usuario'));
   stopTokenRefreshTimer();
-  try {
-    const response = await API.post('logout', { login: usuario.IdUsuario });
-    localStorage.removeItem('token');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('usuario');
-    localStorage.removeItem('userMenus');
-    return response.data;
-  } catch (error) {
-    console.error("Error al hacer logout:", error.response || error);
-    localStorage.removeItem('token');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('usuario');
-    throw error;
-  }
+  localStorage.removeItem('token');
+  localStorage.removeItem('refreshToken');
+  localStorage.removeItem('usuario');
+  localStorage.removeItem('userMenus');
+  API.post('logout', { login: usuario?.IdUsuario }).catch(() => {});
 };
 
 export const startTokenRefreshTimer = () => {

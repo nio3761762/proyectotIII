@@ -65,9 +65,9 @@
               />
             </div>
 
-            <!-- Selector de Destino -->
+            <!-- Sucursal Destino -->
             <div>
-              <label class="text-sm font-semibold text-gray-700 mb-2 block">Seleccionar Sucursal Destino</label>
+              <label class="text-sm font-semibold text-gray-700 mb-2 block">Sucursal Destino</label>
               <select 
                 v-model="sucursalDestino"
                 class="w-full px-4 py-3 bg-white/60 border border-orange-200 rounded-2xl shadow-md focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
@@ -80,6 +80,24 @@
                   :disabled="suc.idsucursal === selectedSucursalId"
                 >
                   {{ suc.nombre }} {{ suc.idsucursal === selectedSucursalId ? '(Origen)' : '' }}
+                </option>
+              </select>
+            </div>
+
+            <!-- Empleado Encargado -->
+            <div>
+              <label class="text-sm font-semibold text-gray-700 mb-2 block">Empleado Encargado del Transporte</label>
+              <select 
+                v-model="empleadoDestino"
+                class="w-full px-4 py-3 bg-white/60 border border-orange-200 rounded-2xl shadow-md focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
+              >
+                <option :value="null">Sin empleado</option>
+                <option 
+                  v-for="emp in empleadosDisponibles" 
+                  :key="emp.idempleado" 
+                  :value="emp"
+                >
+                  {{ emp.nombre }} {{ emp.apellidopaterno || '' }}
                 </option>
               </select>
             </div>
@@ -339,6 +357,7 @@ import {
 // Services
 import { Listsucursal } from '@/Server/Sucural';
 import { SucursalUsuario } from '@/Server/Usuario';
+import { getEmpleadosVendedores } from '@/Server/Empleado';
 
 import { ListarProductosOnSucursal } from '@/Server/Producto';
 import { getInsumosSucursal } from '@/Server/Produccion';
@@ -367,8 +386,8 @@ const emit = defineEmits(['cancel', 'success']);
 const esEdicion = computed(() => !!props.transferenciaEdit);
 
 // State
-const tipoDestino = ref('SUCURSAL');
 const sucursalDestino = ref(null);
+const empleadoDestino = ref(null);
 
 const activeTab = ref('productos');
 const filtroNombre = ref('');
@@ -389,6 +408,7 @@ const paginacionIns = reactive({ paginaActual: 1, totalPaginas: 1, total: 0, lim
 
 // Datos Maestros
 const sucursalesDisponibles = ref([]);
+const empleadosDisponibles = ref([]);
 
 const categorias = ref([]);
 const productos = ref([]);
@@ -462,18 +482,21 @@ const fetchItems = async () => {
 
 const onSucursalOrigenChange = () => {
   sucursalDestino.value = null;
+  empleadoDestino.value = null;
   carrito.value = [];
   fetchItems();
 };
 
 const cargarDatosBase = async () => {
   try {
-    const [suc, cat] = await Promise.all([
+    const [suc, cat, emp] = await Promise.all([
       Listsucursal(),
-      listCategorias()
+      listCategorias(),
+      getEmpleadosVendedores()
     ]);
     sucursalesDisponibles.value = suc.result || suc || [];
     categorias.value = cat.result || cat || [];
+    empleadosDisponibles.value = emp.result || emp || [];
   } catch (error) {
     showNotification('Error al cargar datos maestros', 'error');
   }
@@ -689,7 +712,7 @@ const procesarTransferencia = async () => {
       Tipo: 'SUCURSAL',
       IdsucursalOrigen: selectedSucursalId.value,
       IdsucursalDestino: sucursalDestino.value?.idsucursal || null,
-      IdempleadoDestino: null,
+      IdempleadoDestino: empleadoDestino.value?.idempleado || null,
       Fecha: fechaTransferencia.value
     };
 
@@ -725,16 +748,23 @@ const cargarDatosEdicion = () => {
     selectedSucursalId.value = trans.SucursalOrigen.IdSucursal;
   }
 
-  // Tipo
-  tipoDestino.value = 'SUCURSAL';
-
-  // Destino
-  if (trans.SucursalDestino) {
+  // Sucursal Destino
+  if (trans.SucursalDestino?.IdSucursal) {
     const match = sucursalesDisponibles.value.find(
       s => s.idsucursal === trans.SucursalDestino.IdSucursal
     );
     if (match) {
       sucursalDestino.value = match;
+    }
+  }
+
+  // Empleado Encargado
+  if (trans.EmpleadoDestino) {
+    const match = empleadosDisponibles.value.find(
+      e => e.idempleado === (trans.EmpleadoDestino.IdEmpleado || trans.EmpleadoDestino.idempleado)
+    );
+    if (match) {
+      empleadoDestino.value = match;
     }
   }
 

@@ -1,4 +1,4 @@
-import API from './Api';
+import API from './api';
 
 export const getInventario = async (IdSucursal, search = '', page = 1, limit = 10, categoria = '', subcategoria = '') => {
   try {
