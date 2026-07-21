@@ -12,7 +12,9 @@ import {
   agregarEmpleadoProduccion,
   anularProduccion,
   registrarMermaProduccion,
-  descartarProductosDaniados
+  descartarProductosDaniados,
+  registrarSalidaProductoMasiva,
+  actualizarProduccion
 } from '../controllers/Produccion.controllers';
 import { authMiddleware } from '../middleware/verifyToken';
 
@@ -31,6 +33,8 @@ router.post('/produccion/Descartarproducto', authMiddleware, descartarProductosD
 router.post('/produccion/horno/cambio-combustible', authMiddleware, cambiarCombustibleHorno);
 router.post('/produccion/finalizar', authMiddleware, finalizarProduccionTotal);
 router.put('/produccion/anular/:id', authMiddleware, anularProduccion);
+router.put('/produccion/:id', authMiddleware, actualizarProduccion);
+router.post('/produccion/producto/salida-masiva', authMiddleware, registrarSalidaProductoMasiva);
 router.post('/produccion/Apagarhorno', authMiddleware, apagarHorno);
 
 export default router;

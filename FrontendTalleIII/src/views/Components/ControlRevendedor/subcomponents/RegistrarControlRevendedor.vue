@@ -26,9 +26,9 @@
 
     <!-- Main Work Area -->
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-      <!-- Catalog (7 cols) -->
-      <div class="lg:col-span-7">
-        <div class="bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl border border-white/50 p-6 flex flex-col h-full min-h-[600px]">
+      <!-- Catalog (5 cols) -->
+      <div class="lg:col-span-5">
+        <div class="bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl border border-white/50 p-6 flex flex-col h-full min-h-[300px] lg:min-h-[600px]">
           <h3 class="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2 uppercase tracking-tight">
             <Search class="h-5 w-5 text-orange-500" />
             Catálogo de Productos
@@ -89,8 +89,8 @@
         </div>
       </div>
 
-      <!-- Current Entry Editor (5 cols) -->
-      <div class="lg:col-span-5 flex flex-col gap-6">
+      <!-- Current Entry Editor (7 cols) -->
+      <div class="lg:col-span-7 flex flex-col gap-6">
         <!-- Configuration Area -->
         <div class="bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl border border-white/50 p-6 space-y-4 relative z-10" style="overflow: visible;">
           <div class="space-y-1.5">
@@ -171,62 +171,62 @@
         </div>
 
         <!-- Current Products List -->
-        <div class="flex-1 bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl border border-white/50 p-6 flex flex-col min-h-[400px]">
-          <div class="flex items-center justify-between mb-4">
-            <h3 class="text-base font-bold text-gray-800 flex items-center gap-2 uppercase tracking-tight">
-              <ShoppingCart class="h-4 w-4 text-orange-500" />
+        <div class="bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl border border-white/50 p-6 flex flex-col">
+          <div class="flex items-center justify-between mb-4 shrink-0">
+            <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2 uppercase tracking-tight">
+              <ShoppingCart class="h-5 w-5 text-orange-500" />
               Preparación: {{ currentPersonaNombre }}
             </h3>
           </div>
 
-          <div class="flex-1 overflow-y-auto custom-scrollbar bg-gray-50/50 rounded-2xl p-4 border border-gray-100 mb-4">
+          <div class="overflow-y-auto custom-scrollbar bg-gray-50/50 rounded-2xl p-5 border border-gray-100 mb-4 lg:max-h-[calc(100vh-520px)] min-h-[100px]">
             <div v-if="currentDetalles.length === 0" class="flex flex-col items-center justify-center h-full text-gray-300 py-10">
-               <Package class="h-8 w-8 mb-2 opacity-10" />
-               <p class="text-[9px] font-black uppercase tracking-widest text-center">Selecciona productos del catálogo</p>
+               <Package class="h-12 w-12 mb-3 opacity-10" />
+               <p class="text-sm font-black uppercase tracking-widest text-center">Selecciona productos del catálogo</p>
             </div>
             
-            <div class="space-y-3">
+            <div class="space-y-4">
               <div v-for="(det, idx) in currentDetalles" :key="det.idProductoMedida" 
-                class="bg-white p-3 rounded-2xl shadow-sm border border-orange-50 flex flex-col gap-3">
+                class="bg-white p-4 rounded-2xl shadow-sm border border-orange-50 flex flex-col gap-3">
                 
-                <div class="flex gap-3">
-                  <div class="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center overflow-hidden shrink-0 border border-gray-100">
+                <div class="flex gap-4">
+                  <div class="w-14 h-14 rounded-xl bg-gray-50 flex items-center justify-center overflow-hidden shrink-0 border border-gray-100">
                     <img v-if="det.imagen" :src="det.imagen" class="w-full h-full object-cover" />
-                    <Package v-else class="h-5 w-5 text-orange-500" />
+                    <Package v-else class="h-7 w-7 text-orange-500" />
                   </div>
                   <div class="flex-1 min-w-0">
-                    <p class="text-[10px] font-black text-gray-800 truncate leading-tight">{{ det.nombre }}</p>
-                    <p class="text-[8px] text-gray-400 font-bold uppercase tracking-widest">{{ det.presentacion }}</p>
-                    <div class="flex gap-2 mt-1">
-                      <span class="text-[7px] font-black text-gray-400 uppercase">P.Venta: <b class="text-gray-500">Bs {{ det.precioNormal }}</b></span>
-                      <span class="text-[7px] font-black text-orange-400 uppercase">P.Mayor: <b class="text-orange-600">Bs {{ det.precioMayor }}</b></span>
-                      <span class="text-[7px] font-black text-emerald-400 uppercase">Com: <b class="text-emerald-600">Bs {{ det.comisionUnitaria }}</b></span>
+                    <p class="text-sm font-black text-gray-800 truncate leading-tight">{{ det.nombre }}</p>
+                    <p class="text-xs text-gray-400 font-bold uppercase tracking-widest">{{ det.presentacion }}</p>
+                    <div class="flex gap-3 mt-1.5">
+                      <span class="text-[11px] font-black text-gray-400 uppercase">P.Venta: <b class="text-gray-500">Bs {{ det.precioNormal }}</b></span>
+                      <span class="text-[11px] font-black text-orange-400 uppercase">P.Mayor: <b class="text-orange-600">Bs {{ det.precioMayor }}</b></span>
+                      <span class="text-[11px] font-black text-emerald-400 uppercase">Com: <b class="text-emerald-600">Bs {{ det.comisionUnitaria }}</b></span>
                     </div>
                   </div>
                   <button @click="currentDetalles.splice(idx, 1)" class="text-red-300 hover:text-red-500 transition-colors">
-                    <Trash2 class="h-3.5 w-3.5" />
+                    <Trash2 class="h-5 w-5" />
                   </button>
                 </div>
 
-                <div class="flex items-center justify-between border-t border-gray-50 pt-2">
-                   <div class="flex items-center gap-2">
-                      <div class="flex items-center gap-1 bg-orange-50 rounded-lg p-1">
-                        <button @click="updateQtyCurrent(idx, -1)" class="w-6 h-6 flex items-center justify-center bg-white rounded-md text-orange-600 text-[10px] font-black shadow-sm">-</button>
-                        <input v-model.number="det.cantidadEntregada" type="number" min="0" class="w-14 text-center text-[10px] font-black bg-white border-0 rounded-md outline-none shadow-sm py-1 [&::-webkit-inner-spin-button]:opacity-100" />
-                        <button @click="updateQtyCurrent(idx, 1)" class="w-6 h-6 flex items-center justify-center bg-white rounded-md text-orange-600 text-[10px] font-black shadow-sm">+</button>
+                <div class="flex items-center justify-between border-t border-gray-50 pt-3">
+                   <div class="flex items-center gap-3">
+                      <div class="flex items-center gap-1 bg-orange-50 rounded-lg p-1.5">
+                        <button @click="updateQtyCurrent(idx, -1)" class="w-8 h-8 flex items-center justify-center bg-white rounded-md text-orange-600 text-sm font-black shadow-sm">-</button>
+                        <input v-model.number="det.cantidadEntregada" type="number" min="0" class="w-16 text-center text-sm font-black bg-white border-0 rounded-md outline-none shadow-sm py-1 [&::-webkit-inner-spin-button]:opacity-100" />
+                        <button @click="updateQtyCurrent(idx, 1)" class="w-8 h-8 flex items-center justify-center bg-white rounded-md text-orange-600 text-sm font-black shadow-sm">+</button>
                       </div>
-                      <span class="text-[8px] font-black text-gray-400 uppercase">Entregados</span>
+                      <span class="text-xs font-black text-gray-400 uppercase">Entregados</span>
                    </div>
                    <button @click="openAjusteSubModal(idx)" 
-                     class="px-3 py-1.5 bg-orange-50 hover:bg-orange-600 hover:text-white text-orange-600 rounded-xl text-[9px] font-black uppercase tracking-tight flex items-center gap-1 transition-all">
-                     <Edit2 class="h-3 w-3" /> Ajustar
+                     class="px-4 py-2 bg-orange-50 hover:bg-orange-600 hover:text-white text-orange-600 rounded-xl text-xs font-black uppercase tracking-tight flex items-center gap-1.5 transition-all">
+                     <Edit2 class="h-4 w-4" /> 
                    </button>
                 </div>
 
-                <div v-if="det.cantidadDevuelta > 0 || (det.ajustes && det.ajustes.length > 0)" class="flex flex-wrap gap-2 pt-1 border-t border-dashed border-orange-100">
-                   <span v-if="det.cantidadDevuelta > 0" class="px-2 py-0.5 bg-orange-100 text-orange-700 rounded-md text-[8px] font-black uppercase">No Vendido: {{ det.cantidadDevuelta }}</span>
+                <div v-if="det.cantidadDevuelta > 0 || (det.ajustes && det.ajustes.length > 0)" class="flex flex-wrap gap-2 pt-2 border-t border-dashed border-orange-100">
+                   <span v-if="det.cantidadDevuelta > 0" class="px-3 py-1 bg-orange-100 text-orange-700 rounded-md text-xs font-black uppercase">No Vendido: {{ det.cantidadDevuelta }}</span>
                    <template v-for="(aj, aIdx) in (det.ajustes || [])" :key="aIdx">
-                     <span class="px-2 py-0.5 bg-red-100 text-red-700 rounded-md text-[8px] font-black uppercase">Ajuste #{{ aIdx + 1 }}: {{ aj.cantidad }} @ Bs {{ aj.precioVenta }}</span>
+                     <span class="px-3 py-1 bg-red-100 text-red-700 rounded-md text-xs font-black uppercase">Ajuste #{{ aIdx + 1 }}: {{ aj.cantidad }} @ Bs {{ aj.precioVenta }}</span>
                    </template>
                 </div>
               </div>
@@ -235,13 +235,13 @@
 
           <div class="space-y-4">
              <div class="space-y-1.5">
-               <label class="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Observación Individual</label>
+               <label class="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Observación Individual</label>
                <textarea v-model="currentObservacion" rows="2" placeholder="..."
-                 class="w-full px-4 py-2 bg-gray-50 border-0 rounded-xl font-bold text-[10px] text-gray-700 outline-none shadow-inner resize-none"></textarea>
+                 class="w-full px-4 py-3 bg-gray-50 border-0 rounded-xl font-bold text-sm text-gray-700 outline-none shadow-inner resize-none"></textarea>
              </div>
              
              <button @click="stageRegistro" :disabled="!isCurrentValid"
-               class="w-full py-4 bg-orange-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-orange-100 hover:bg-orange-600 disabled:opacity-50 transition-all flex items-center justify-center gap-2">
+               class="w-full py-5 bg-orange-500 text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-lg shadow-orange-100 hover:bg-orange-600 disabled:opacity-50 transition-all flex items-center justify-center gap-2">
                <Plus class="h-5 w-5" /> Añadir al Lote de Envío
              </button>
           </div>
@@ -295,13 +295,20 @@
                        {{ getPersonaNombre(reg.idpersona ?? reg.idEmpleado)[0] }}
                     </div>
                     <div class="flex flex-col gap-1.5">
-                      <span class="font-black text-gray-800 text-lg leading-none">{{ getPersonaNombre(reg.idpersona ?? reg.idEmpleado) }}</span>
                       <div class="flex items-center gap-2">
-                        <label class="text-[8px] font-black text-gray-400 uppercase tracking-widest">Fecha:</label>
-                        <input v-model="reg.fecha" type="date"
-                          class="px-2 py-1 bg-gray-50 border-0 rounded-lg text-[9px] font-bold text-gray-700 outline-none shadow-inner w-32" />
+                        <label class="text-[8px] font-black text-gray-400 uppercase tracking-widest">Persona:</label>
+                        <select v-model="reg.idpersona" class="px-2 py-1 bg-gray-50 border-0 rounded-lg text-[9px] font-bold text-gray-700 outline-none shadow-inner w-36">
+                          <option v-for="p in personas" :key="p.idpersona ?? p.idempleado ?? p.empleado?.idempleado" :value="p.idpersona ?? p.idempleado ?? p.empleado?.idempleado">
+                            {{ p.nombre ?? p.Nombre ?? '' }} {{ p.apellidopaterno ?? p.ApellidoPaterno ?? '' }}
+                          </option>
+                        </select>
                       </div>
-                      <span v-if="reg.observacion" class="text-[10px] text-gray-400 italic font-bold">Obs: {{ reg.observacion }}</span>
+                       <div class="flex items-center gap-2">
+                         <label class="text-[8px] font-black text-gray-400 uppercase tracking-widest">Fecha:</label>
+                         <input v-model="reg.fecha" type="date"
+                           class="px-2 py-1 bg-gray-50 border-0 rounded-lg text-[9px] font-bold text-gray-700 outline-none shadow-inner w-32" />
+                       </div>
+                       <span v-if="reg.observacion" class="text-[10px] text-gray-400 italic font-bold">Obs: {{ reg.observacion }}</span>
                     </div>
                   </div>
                 </td>
@@ -352,7 +359,7 @@
                         <tr>
                           <th class="px-6 py-3">Producto</th>
                           <th class="px-4 py-3 text-center">Entregado</th>
-                          <th class="px-4 py-3 text-center">P. Menor</th>
+                          <th class="px-4 py-3 text-center">P. Venta</th>
                           <th class="px-4 py-3 text-center">P. Mayor</th>
                           <th class="px-4 py-3 text-center">Comisión</th>
                           <th class="px-4 py-3 text-center text-red-600">Devueltos</th>
@@ -383,7 +390,6 @@
                           <td class="px-4 py-3 text-center font-medium">Bs {{ d.precioNormal }}</td>
                           <td class="px-4 py-3 text-center font-medium">Bs {{ d.precioMayor }}</td>
                           <td class="px-4 py-3 text-center text-emerald-600 font-bold">Bs {{ d.comisionUnitaria }}</td>
-                        
                           <td class="px-4 py-3 text-center text-red-500 font-black">{{ d.cantidadDevuelta || 0 }}</td>
                           <td class="px-4 py-3 text-center">
                             <template v-if="d.ajustes && d.ajustes.length > 0">
@@ -398,9 +404,24 @@
                             Bs {{ calcDetalleNeto(d).toFixed(2) }}
                           </td>
                           <td class="px-4 py-3 text-center">
-                            <button @click="removeDetailFromLote(idx, dIdx)" class="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all" title="Eliminar producto">
-                              <Trash2 class="h-3.5 w-3.5" />
-                            </button>
+                            <div class="flex items-center justify-center gap-1">
+                              <button @click="openBatchAjusteModal(idx, dIdx)" class="p-1.5 text-orange-500 hover:text-orange-700 hover:bg-orange-50 rounded-lg transition-all" title="Ajustar precio">
+                                <Edit2 class="h-3.5 w-3.5" />
+                              </button>
+                              <button @click="removeDetailFromLote(idx, dIdx)" class="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all" title="Eliminar producto">
+                                <Trash2 class="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                        <!-- Add existing product row -->
+                        <tr class="bg-orange-50/30">
+                          <td class="px-6 py-3" colspan="10">
+                            <div class="flex items-center gap-2">
+                              <button @click="openProductSelector(idx)" class="px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-1">
+                                <Plus class="h-3 w-3" /> Agregar Producto Existente
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       </tbody>
@@ -496,6 +517,151 @@
                 CANCELAR
               </button>
             </div>
+          </div>
+        </div>
+      </div>
+    </Transition>
+
+    <!-- Modal Ajuste de Detalle (Lote/Batch) -->
+    <Transition name="fade-backdrop">
+      <div v-if="showBatchAjusteModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[500] flex items-center justify-center p-4">
+        <div class="bg-white rounded-[3rem] w-full max-w-xl overflow-hidden shadow-2xl animate-scale-in">
+          <div class="bg-linear-to-r from-orange-600 to-red-700 p-8 text-white relative">
+            <div class="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl"></div>
+            <h3 class="text-xl font-black uppercase tracking-tight relative z-10">Ajustar Producto</h3>
+            <p class="text-orange-100 text-[10px] font-bold uppercase tracking-widest mt-1 relative z-10">
+              {{ batchAjusteDetalle?.nombre }} - {{ batchAjusteDetalle?.presentacion }}
+            </p>
+          </div>
+
+          <div class="p-8 space-y-6 max-h-[80vh] overflow-y-auto custom-scrollbar">
+            <div class="space-y-1.5">
+              <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">No Vendidos (Retorno)</label>
+              <input v-model.number="batchAjusteForm.cantidadDevuelta" type="number" min="0" :max="batchAjusteDetalle?.cantidadEntregada"
+                class="w-full px-4 py-3 bg-gray-50 border-0 rounded-2xl focus:ring-2 focus:ring-orange-500/20 font-black text-sm outline-none shadow-inner" />
+            </div>
+
+            <div class="space-y-3">
+              <div class="flex items-center justify-between">
+                <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Ajustes de Precio</label>
+                <button @click="batchAjusteForm.ajustes.push({ cantidad: 0, precioVenta: 0, observacion: '' })"
+                  class="px-3 py-1.5 bg-orange-50 hover:bg-orange-100 text-orange-600 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-1">
+                  <Plus class="h-3.5 w-3.5" /> Añadir Ajuste
+                </button>
+              </div>
+
+              <div v-if="batchAjusteForm.ajustes.length === 0" class="bg-gray-50/50 rounded-2xl p-6 text-center text-gray-400 text-[10px] font-black uppercase tracking-widest border border-dashed border-gray-200">
+                No hay ajustes. Agrega uno para registrar una venta con precio modificado.
+              </div>
+
+              <div v-for="(ajuste, idx) in batchAjusteForm.ajustes" :key="idx"
+                class="bg-orange-50/30 rounded-2xl p-4 border border-orange-100/50 space-y-3">
+                <div class="flex items-center justify-between">
+                  <span class="text-[9px] font-black text-orange-500 uppercase tracking-widest">Ajuste #{{ idx + 1 }}</span>
+                  <button @click="batchAjusteForm.ajustes.splice(idx, 1)" class="text-red-300 hover:text-red-500 transition-colors p-1">
+                    <Trash2 class="h-3.5 w-3.5" />
+                  </button>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                  <div class="space-y-1">
+                    <label class="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-1">Cantidad</label>
+                    <input v-model.number="ajuste.cantidad" type="number" min="0"
+                      class="w-full px-3 py-2.5 bg-white border-0 rounded-xl focus:ring-2 focus:ring-orange-500/20 font-black text-xs text-gray-700 outline-none shadow-sm" />
+                  </div>
+                  <div class="space-y-1">
+                    <label class="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-1">Precio (Bs)</label>
+                    <input v-model.number="ajuste.precioVenta" type="number" step="0.01" min="0"
+                      class="w-full px-3 py-2.5 bg-white border-0 rounded-xl focus:ring-2 focus:ring-orange-500/20 font-black text-xs text-gray-700 outline-none shadow-sm" />
+                  </div>
+                </div>
+                <div class="space-y-1">
+                  <label class="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-1">Observación</label>
+                  <input v-model="ajuste.observacion" type="text" placeholder="Motivo de este ajuste..."
+                    class="w-full px-3 py-2.5 bg-white border-0 rounded-xl focus:ring-2 focus:ring-orange-500/20 font-bold text-[10px] text-gray-700 outline-none shadow-sm" />
+                </div>
+              </div>
+            </div>
+
+            <div class="space-y-1.5">
+              <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Motivo General</label>
+              <textarea v-model="batchAjusteForm.motivo" rows="2" placeholder="Describe brevemente por qué realizas este ajuste..."
+                class="w-full px-4 py-3 bg-gray-50 border-0 rounded-2xl focus:bg-white focus:ring-2 focus:ring-orange-500/20 font-bold text-xs text-gray-700 outline-none transition-all shadow-inner resize-none"></textarea>
+            </div>
+
+            <div v-if="totalBatchAjusteForm > 0" class="bg-gray-50 rounded-2xl p-4 border border-gray-100">
+              <div class="flex items-center justify-between text-[10px] font-black text-gray-500 uppercase tracking-widest">
+                <span>Total Ajustado</span>
+                <span class="text-orange-700">{{ totalBatchAjusteForm }} unidades</span>
+              </div>
+            </div>
+
+            <div class="pt-4 flex flex-col gap-3">
+              <button @click="saveBatchAjuste"
+                class="w-full py-4 bg-linear-to-r from-orange-600 to-red-700 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-orange-100 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+                GUARDAR CAMBIOS
+              </button>
+              <button @click="showBatchAjusteModal = false" class="w-full py-4 bg-gray-100 text-gray-500 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-200">
+                CANCELAR
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Transition>
+
+    <!-- Modal Selector de Productos (Lote) -->
+    <Transition name="fade-backdrop">
+      <div v-if="showProductSelector" class="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[500] flex items-center justify-center p-4">
+        <div class="bg-white rounded-[3rem] w-full max-w-lg overflow-hidden shadow-2xl animate-scale-in">
+          <div class="bg-linear-to-r from-orange-600 to-red-700 p-6 text-white relative">
+            <div class="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl"></div>
+            <h3 class="text-lg font-black uppercase tracking-tight relative z-10">Agregar Producto</h3>
+            <p class="text-orange-100 text-[10px] font-bold uppercase tracking-widest mt-1 relative z-10">
+              Selecciona un producto del catálogo
+            </p>
+          </div>
+          <div class="p-6 space-y-4 max-h-[70vh] overflow-y-auto custom-scrollbar">
+            <input v-model="productQuery" type="text" placeholder="Buscar producto..."
+              class="w-full px-4 py-3 bg-gray-50 border-0 rounded-2xl focus:ring-2 focus:ring-orange-500/20 font-bold text-sm text-gray-700 outline-none shadow-inner" />
+            <div class="space-y-2">
+              <div v-for="p in productFiltered" :key="p.idproducto || p.IdProducto"
+                class="bg-gray-50 rounded-2xl p-4 border border-gray-100 cursor-pointer transition-all"
+                :class="selectedProduct === p ? 'ring-2 ring-orange-500 border-orange-300' : 'hover:border-orange-200'"
+                @click="selectedProduct = p; selectedMedidaId = null">
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-lg bg-white flex items-center justify-center overflow-hidden border border-gray-100">
+                    <img v-if="p.imagen || p.Imagen?.Url" :src="p.imagen || p.Imagen?.Url" class="w-full h-full object-cover" />
+                    <Package v-else class="h-4 w-4 text-orange-300" />
+                  </div>
+                  <span class="font-bold text-gray-800 text-sm">{{ p.nombre || p.Nombre }}</span>
+                </div>
+                <div v-if="selectedProduct === p && (p.medidas || p.Productomedida || []).length > 0" class="mt-3 space-y-1">
+                  <label class="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Presentación</label>
+                  <select v-model="selectedMedidaId" class="w-full px-3 py-2 bg-white border border-orange-100 rounded-xl text-[11px] font-bold text-gray-700 outline-none shadow-sm">
+                    <option :value="null" disabled>Seleccionar presentación</option>
+                    <option v-for="m in (p.medidas || p.Productomedida || [])" :key="m.idproductomedida || m.IdProductoMedida" :value="m.idproductomedida || m.IdProductoMedida">
+                      {{ (typeof m.presentacion === 'object' ? m.presentacion.nombre : m.presentacion) || m.Nombre }} - Bs {{ m.precioventa || m.Precio || 0 }}
+                    </option>
+                  </select>
+                  <div class="flex items-center gap-2 mt-2">
+                    <label class="text-[9px] font-black text-gray-400 uppercase tracking-widest">Cantidad:</label>
+                    <input v-model.number="productQty" type="number" min="1" class="w-16 text-center text-[11px] font-bold bg-white border border-orange-100 rounded-md px-2 py-1 outline-none" />
+                  </div>
+                </div>
+              </div>
+              <div v-if="productFiltered.length === 0" class="text-center py-8 text-gray-400 text-[10px] font-black uppercase tracking-widest">
+                No se encontraron productos
+              </div>
+            </div>
+          </div>
+          <div class="p-6 pt-0 flex flex-col gap-2">
+            <button @click="confirmProductSelection" :disabled="!selectedMedida || !productQty || productQty < 1"
+              class="w-full py-3.5 bg-linear-to-r from-orange-600 to-red-700 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-orange-100 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+              AGREGAR AL LOTE
+            </button>
+            <button @click="showProductSelector = false" class="w-full py-3 bg-gray-100 text-gray-500 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-200">
+              CANCELAR
+            </button>
           </div>
         </div>
       </div>
@@ -761,7 +927,7 @@ const nuevaPersonaError = reactive({
   email: ''
 });
 
-// Ajuste Modal State
+// Ajuste Modal State (Preparación)
 const showAjusteModal = ref(false);
 const selectedDetalleIdx = ref(null);
 const selectedDetalle = computed(() => currentDetalles.value[selectedDetalleIdx.value] || null);
@@ -774,6 +940,118 @@ const ajusteForm = reactive({
 const totalAjusteForm = computed(() => {
   return ajusteForm.ajustes.reduce((sum, a) => sum + (a.cantidad || 0), 0);
 });
+
+// Ajuste Modal State (Lote/Batch)
+const showBatchAjusteModal = ref(false);
+const batchAjusteRegIdx = ref(null);
+const batchAjusteDetIdx = ref(null);
+const batchAjusteDetalle = computed(() => {
+  if (batchAjusteRegIdx.value === null || batchAjusteDetIdx.value === null) return null;
+  return loteRegistros.value[batchAjusteRegIdx.value]?.detalles?.[batchAjusteDetIdx.value] || null;
+});
+const batchAjusteForm = reactive({
+  cantidadDevuelta: 0,
+  motivo: '',
+  ajustes: []
+});
+
+const totalBatchAjusteForm = computed(() => {
+  return batchAjusteForm.ajustes.reduce((sum, a) => sum + (a.cantidad || 0), 0);
+});
+
+const openBatchAjusteModal = (regIdx, detIdx) => {
+  batchAjusteRegIdx.value = regIdx;
+  batchAjusteDetIdx.value = detIdx;
+  const d = loteRegistros.value[regIdx]?.detalles?.[detIdx];
+  if (!d) return;
+  batchAjusteForm.cantidadDevuelta = d.cantidadDevuelta || 0;
+  batchAjusteForm.motivo = d.motivo || '';
+  batchAjusteForm.ajustes = d.ajustes && d.ajustes.length > 0
+    ? d.ajustes.map(a => ({ ...a }))
+    : (d.cantidadAjustada > 0
+        ? [{ cantidad: d.cantidadAjustada, precioVenta: d.precioAjuste || d.precioVenta || 0, observacion: '' }]
+        : []);
+  showBatchAjusteModal.value = true;
+};
+
+const saveBatchAjuste = () => {
+  const d = loteRegistros.value[batchAjusteRegIdx.value]?.detalles?.[batchAjusteDetIdx.value];
+  if (!d) return;
+  d.cantidadDevuelta = batchAjusteForm.cantidadDevuelta || 0;
+  d.motivo = batchAjusteForm.motivo;
+  d.ajustes = batchAjusteForm.ajustes
+    .filter(a => a.cantidad > 0)
+    .map(a => ({ ...a }));
+  d.cantidadAjustada = d.ajustes.reduce((s, a) => s + a.cantidad, 0);
+  d.precioAjuste = d.ajustes.length > 0 ? d.ajustes[0].precioVenta : 0;
+  showBatchAjusteModal.value = false;
+  showNotification("Ajuste aplicado correctamente", "success");
+};
+
+// Product Selector Modal (for batch)
+const showProductSelector = ref(false);
+const productSelectorRegIdx = ref(null);
+const productQuery = ref('');
+const selectedProduct = ref(null);
+const selectedMedidaId = ref(null);
+const selectedMedida = computed(() => {
+  if (!selectedProduct.value || !selectedMedidaId.value) return null;
+  const medidas = selectedProduct.value.medidas || selectedProduct.value.Productomedida || [];
+  return medidas.find(m => (m.idproductomedida || m.IdProductoMedida) === selectedMedidaId.value) || null;
+});
+const productQty = ref(1);
+const productFiltered = computed(() => {
+  if (!productQuery.value) return productos.value;
+  const q = productQuery.value.toLowerCase();
+  return (productos.value || []).filter(p =>
+    (p.nombre || p.Nombre || '').toLowerCase().includes(q)
+  );
+});
+
+const openProductSelector = (regIdx) => {
+  productSelectorRegIdx.value = regIdx;
+  selectedProduct.value = null;
+  selectedMedidaId.value = null;
+  productQty.value = 1;
+  productQuery.value = '';
+  showProductSelector.value = true;
+};
+
+const confirmProductSelection = () => {
+  const pm = selectedMedida.value;
+  if (!selectedProduct.value || !pm || !productQty.value || productQty.value < 1) {
+    showNotification('Selecciona un producto, medida y cantidad', 'error');
+    return;
+  }
+  const reg = loteRegistros.value[productSelectorRegIdx.value];
+  if (!reg) return;
+  const retailPrice = pm.precioventa || pm.Precio || 0;
+  const wholesalePrice = pm.preciomayor || pm.PrecioMayor || retailPrice;
+  const idPM = pm.idproductomedida || pm.IdProductoMedida;
+  const existing = reg.detalles.find(d => d.idProductoMedida === idPM);
+  if (existing) {
+    existing.cantidadEntregada += productQty.value;
+  } else {
+    reg.detalles.push({
+      idProductoMedida: idPM,
+      nombre: selectedProduct.value.nombre || selectedProduct.value.Nombre,
+      presentacion: (typeof pm.presentacion === 'object' ? pm.presentacion.nombre : pm.presentacion) || pm.Nombre,
+      precioNormal: retailPrice,
+      precioMayor: wholesalePrice,
+      precioVenta: retailPrice,
+      comisionUnitaria: pm.comision || pm.Comision || 0,
+      cantidadEntregada: productQty.value,
+      cantidadDevuelta: 0,
+      cantidadAjustada: 0,
+      precioAjuste: 0,
+      motivo: '',
+      imagen: selectedProduct.value.imagen || selectedProduct.value.Imagen?.Url,
+      ajustes: []
+    });
+  }
+  showProductSelector.value = false;
+  showNotification('Producto agregado al lote', 'success');
+};
 
 const nuevaPersonaValida = computed(() => {
   return nuevaPersona.nombre.trim()
@@ -1196,6 +1474,7 @@ const stageRegistro = () => {
   currentDetalles.value = [];
   currentObservacion.value = '';
   repeticiones.value = 1;
+  filasRapidas.value = [];
   showNotification(`${total} registro(s) añadido(s) al lote`, "success");
 };
 
@@ -1237,13 +1516,15 @@ const handleSubmit = async () => {
         const qtyNormal = Math.max(0, d.cantidadEntregada - qtyDevuelta - qtyAjustada);
         const ajustes = d.ajustes || [];
 
+        const precioVentaNormal = d.precioNormal ?? d.precioVenta ?? 0;
+
         const detailObj = {
           idProductoMedida: d.idProductoMedida,
           cantidadEntregada: d.cantidadEntregada,
           cantidadDevuelta: qtyDevuelta,
           cantidadAjustada: qtyAjustada,
           precioAjuste: d.precioAjuste || 0,
-          precioVenta: d.precioVenta,
+          precioVenta: precioVentaNormal,
           comisionUnitaria: d.comisionUnitaria,
           motivo: d.motivo,
           precios: []
@@ -1252,7 +1533,7 @@ const handleSubmit = async () => {
         if (qtyNormal > 0) {
           detailObj.precios.push({
             cantidad: qtyNormal,
-            precioVenta: d.precioVenta,
+            precioVenta: precioVentaNormal,
             estado: 'NORMAL',
             observacion: null
           });

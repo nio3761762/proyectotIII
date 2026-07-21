@@ -80,6 +80,14 @@
           <Eye class="h-5 w-5" />
         </button>
         <button 
+          v-if="transferencia.estado === 1"
+          @click="$emit('edit', transferencia)"
+          class="p-2 rounded-xl bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
+          title="Editar Transferencia"
+        >
+          <PenSquare class="h-5 w-5" />
+        </button>
+        <button 
           v-if="puedeAnular"
           @click="$emit('anular', transferencia)"
           class="p-2 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
@@ -99,7 +107,7 @@
 import { computed, ref, onMounted, onUnmounted } from 'vue';
 import { 
   ArrowRightLeft, Calendar, Clock, Package, 
-  Home, Building2, User, Eye, Trash2, FlaskConical 
+  Home, Building2, User, Eye, Trash2, FlaskConical, PenSquare 
 } from 'lucide-vue-next';
 
 const props = defineProps({
@@ -109,7 +117,7 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(['view', 'anular']);
+const emit = defineEmits(['view', 'anular', 'edit']);
 
 // Reloj interno para actualizar la visibilidad del botón en tiempo real
 const now = ref(new Date());

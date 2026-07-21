@@ -43,3 +43,15 @@ export const anularTransferencia = async (id) => {
     throw error;
   }
 };
+
+export const actualizarTransferencia = async (id, transferencias, detalles) => {
+  try {
+    const response = await API.put(`actualizartransferencia/${id}`, {
+      transferencias, detalles
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error al actualizar transferencia:', error.response);
+    throw error;
+  }
+};

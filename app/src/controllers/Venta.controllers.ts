@@ -400,6 +400,7 @@ export const getVentasSucursal = async (req: Request, res: Response) => {
               'IdDetalleVenta', dv.iddetalleventa,
               'Cantidad', dv.cantidad,
               'Precio', dv.precio,
+              'PrecioMayor', dv.preciomayor,
               'Descuento', dv.descuento,
 
               --  PRODUCTO DIRECTO
@@ -681,6 +682,11 @@ export const actualizarVenta = async (req: Request, res: Response) => {
     const { id } = req.params;
     const { ventas, detalles } = req.body;
 
+    // Validaciones básicas (como en registrarVenta)
+    if (!ventas.IdUsuario || !ventas.IdSucursal) {
+      throw new HttpError(400, "Usuario y Sucursal son requeridos para actualizar la venta.");
+    }
+
     const venta = await queryRunner.manager.findOne(Venta, {
       where: { IdVenta: id },
       relations: [
@@ -786,7 +792,10 @@ export const actualizarVenta = async (req: Request, res: Response) => {
     }
 
     await queryRunner.commitTransaction();
-    return res.status(200).json({ message: "La venta se actualizó correctamente" });
+    return res.status(200).json({ 
+      message: "La venta se actualizó correctamente",
+      idVenta: id 
+    });
 
   } catch (error) {
     await queryRunner.rollbackTransaction();

@@ -155,25 +155,33 @@
 
       <!-- Actions -->
       <div class="flex flex-col gap-2 mt-4">
-        <button 
-          v-if="produccion.estado === 2" 
-          @click="$emit('gestionar', produccion)" 
-          class="w-full bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white rounded-2xl py-3.5 text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-orange-200 active:scale-95"
-        >
-          <Activity class="h-4 w-4" />
-          Administrar Producción
-        </button>
+        <div v-if="produccion.estado === 1 || produccion.estado === 2" class="grid grid-cols-2 gap-2">
+          <button 
+            @click="$emit('editar', produccion)" 
+            class="bg-blue-500 hover:bg-blue-600 text-white rounded-2xl py-3.5 text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-blue-200 active:scale-95"
+          >
+            <Edit class="h-4 w-4" />
+            Editar
+          </button>
+          <button 
+            v-if="produccion.estado === 2" 
+            @click="$emit('gestionar', produccion)" 
+            class="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white rounded-2xl py-3.5 text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-orange-200 active:scale-95"
+          >
+            <Activity class="h-4 w-4" />
+            Gestionar
+          </button>
+          <button 
+            v-if="produccion.estado === 1" 
+            @click="$emit('anular', produccion)" 
+            class="bg-white text-red-500 border-2 border-red-100 hover:bg-red-50 rounded-2xl py-3.5 text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 active:scale-95"
+          >
+            <X class="h-4 w-4" />
+            Anular
+          </button>
+        </div>
         
-        <button 
-          v-if="produccion.estado === 1" 
-          @click="$emit('anular', produccion)" 
-          class="w-full bg-white text-red-500 border-2 border-red-100 hover:bg-red-50 rounded-2xl py-3.5 text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 active:scale-95"
-        >
-          <X class="h-4 w-4" />
-          Anular Registro
-        </button>
-        
-        <div v-else-if="produccion.estado === 0" class="w-full py-3.5 text-center text-red-500 font-black bg-red-50 rounded-2xl border-2 border-dashed border-red-200 italic uppercase text-[10px] tracking-[0.2em]">
+        <div v-if="produccion.estado === 0" class="w-full py-3.5 text-center text-red-500 font-black bg-red-50 rounded-2xl border-2 border-dashed border-red-200 italic uppercase text-[10px] tracking-[0.2em]">
           Producción Anulada
         </div>
       </div>
@@ -183,13 +191,13 @@
 
 <script setup>
 import { ref } from 'vue';
-import { Factory, Building2, Package, Calendar, ChevronDown, Info, X, Activity, User, DollarSign,Flame } from 'lucide-vue-next';
+import { Factory, Building2, Package, Calendar, ChevronDown, Info, X, Activity, User, DollarSign, Flame, Edit } from 'lucide-vue-next';
 
 const props = defineProps({
   produccion: { type: Object, required: true }
 });
 
-defineEmits(['anular', 'gestionar']);
+defineEmits(['anular', 'gestionar', 'editar']);
 
 const expandido = ref(false); 
 

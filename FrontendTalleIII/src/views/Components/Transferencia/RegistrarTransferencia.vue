@@ -9,9 +9,9 @@
           </div>
           <div>
             <h1 class="text-2xl md:text-3xl font-bold bg-linear-to-r from-orange-600 via-red-600 to-orange-700 bg-clip-text text-transparent">
-              Registrar Transferencia
+              {{ esEdicion ? 'Actualizar Transferencia' : 'Registrar Transferencia' }}
             </h1>
-            <p class="text-gray-600 text-sm">Transfiere productos e insumos entre sucursales o a empleados</p>
+            <p class="text-gray-600 text-sm">{{ esEdicion ? 'Modifica los datos de la transferencia existente' : 'Transfiere productos e insumos entre sucursales o a empleados' }}</p>
           </div>
         </div>
         
@@ -55,112 +55,33 @@
               </select>
             </div>
 
-            <!-- Tipo de Transferencia -->
+            <!-- Fecha -->
             <div>
-              <label class="text-sm font-semibold text-gray-700 mb-3 block">Tipo de Destino</label>
-              <div class="grid grid-cols-2 gap-4">
-                <button 
-                  @click="cambiarTipo('SUCURSAL')"
-                  :class="[
-                    'py-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 font-bold',
-                    tipoDestino === 'SUCURSAL' 
-                      ? 'border-orange-500 bg-orange-50 text-orange-600 shadow-sm' 
-                      : 'border-gray-100 bg-gray-50 text-gray-400 hover:border-orange-200'
-                  ]"
-                >
-                  <Building2 class="h-6 w-6" />
-                  <span>Sucursal</span>
-                </button>
-                <button 
-                  @click="cambiarTipo('EMPLEADO')"
-                  :class="[
-                    'py-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 font-bold',
-                    tipoDestino === 'EMPLEADO' 
-                      ? 'border-orange-500 bg-orange-50 text-orange-600 shadow-sm' 
-                      : 'border-gray-100 bg-gray-50 text-gray-400 hover:border-orange-200'
-                  ]"
-                >
-                  <User class="h-6 w-6" />
-                  <span>Empleado</span>
-                </button>
-              </div>
+              <label class="text-sm font-semibold text-gray-700 mb-2 block">Fecha de Transferencia</label>
+              <input
+                type="date"
+                v-model="fechaTransferencia"
+                class="w-full px-4 py-3 bg-white/60 border border-orange-200 rounded-2xl shadow-md focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
+              />
             </div>
 
             <!-- Selector de Destino -->
-            <div class="relative">
-              <label class="text-sm font-semibold text-gray-700 mb-2 block">
-                {{ tipoDestino === 'SUCURSAL' ? 'Seleccionar Sucursal Destino' : 'Seleccionar Empleado Destino' }}
-              </label>
-              
-              <div v-if="tipoDestino === 'SUCURSAL'">
-                <select 
-                  v-model="sucursalDestino"
-                  class="w-full px-4 py-3 bg-white/60 border border-orange-200 rounded-2xl shadow-md focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
+            <div>
+              <label class="text-sm font-semibold text-gray-700 mb-2 block">Seleccionar Sucursal Destino</label>
+              <select 
+                v-model="sucursalDestino"
+                class="w-full px-4 py-3 bg-white/60 border border-orange-200 rounded-2xl shadow-md focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
+              >
+                <option :value="null" disabled>Seleccione una sucursal</option>
+                <option 
+                  v-for="suc in sucursalesDisponibles" 
+                  :key="suc.idsucursal" 
+                  :value="suc"
+                  :disabled="suc.idsucursal === selectedSucursalId"
                 >
-                  <option :value="null" disabled>Seleccione una sucursal</option>
-                  <option 
-                    v-for="suc in sucursalesDisponibles" 
-                    :key="suc.idsucursal" 
-                    :value="suc"
-                    :disabled="suc.idsucursal === selectedSucursalId"
-                  >
-                    {{ suc.nombre }} {{ suc.idsucursal === selectedSucursalId ? '(Origen)' : '' }}
-                  </option>
-                </select>
-              </div>
-
-              <div v-else>
-                 <Combobox v-model="empleadoDestino">
-                  <div class="relative mt-1">
-                    <div class="w-full px-4 py-3 bg-white/60 border border-orange-200 rounded-2xl shadow-md focus-within:outline-none focus-within:ring-2 focus-within:ring-orange-500/20 focus-within:border-orange-500 transition-all">
-                      <ComboboxInput
-                        class="w-full border-none outline-none ring-0 focus:ring-0 focus:outline-none bg-transparent text-gray-700 placeholder-gray-400"
-                        :displayValue="(emp) => emp ? `${emp.nombre} ${emp.apellidopaterno}` : ''"
-                        @change="queryEmpleado = $event.target.value"
-                        placeholder="Buscar empleado..."
-                      />
-                      <ComboboxButton class="absolute inset-y-0 right-0 flex items-center pr-2">
-                        <ChevronUpDownIcon class="h-5 w-5 text-gray-400" aria-hidden="true" />
-                      </ComboboxButton>
-                    </div>
-                    <TransitionRoot
-                      leave="transition ease-in duration-100"
-                      leaveFrom="opacity-100"
-                      leaveTo="opacity-0"
-                      @after-leave="queryEmpleado = ''"
-                    >
-                      <ComboboxOptions class="absolute z-50 mt-1 w-full bg-white rounded-2xl shadow-lg border max-h-60 overflow-auto">
-                        <div v-if="filteredEmpleados.length === 0 && queryEmpleado !== ''" class="relative cursor-default select-none px-4 py-2 text-gray-700">
-                          No se encontraron empleados.
-                        </div>
-                        <ComboboxOption
-                          v-for="emp in filteredEmpleados"
-                          :key="emp.idempleado"
-                          :value="emp"
-                          v-slot="{ selected, active }"
-                        >
-                          <li :class="{
-                            'bg-orange-500 text-white': active,
-                            'text-gray-900': !active,
-                            'relative cursor-default select-none py-3 pl-10 pr-4': true,
-                          }">
-                            <div class="flex items-center gap-3">
-                              <div class="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 font-bold text-xs overflow-hidden">
-                                <img v-if="emp.imagen" :src="emp.imagen" class="w-full h-full object-cover" />
-                                <span v-else>{{ emp.nombre?.charAt(0) }}</span>
-                              </div>
-                              <div class="flex flex-col">
-                                <span class="font-medium">{{ emp.nombre }} {{ emp.apellidopaterno }}</span>
-                                <span class="text-xs opacity-70">{{ emp.cargo }}</span>
-                              </div>
-                            </div>
-                          </li>
-                        </ComboboxOption>
-                      </ComboboxOptions>
-                    </TransitionRoot>
-                  </div>
-                </Combobox>
-              </div>
+                  {{ suc.nombre }} {{ suc.idsucursal === selectedSucursalId ? '(Origen)' : '' }}
+                </option>
+              </select>
             </div>
           </div>
         </div>
@@ -181,7 +102,6 @@
                 Productos
               </button>
               <button 
-                v-if="tipoDestino === 'SUCURSAL'"
                 @click="cambiarTab('insumos')"
                 :class="['px-4 py-2 rounded-lg text-sm font-bold transition-all', activeTab === 'insumos' ? 'bg-white text-orange-600 shadow-sm' : 'text-gray-500']"
               >
@@ -358,7 +278,7 @@
                 <span class="text-gray-500">Total Productos</span>
                 <span class="text-gray-800">{{ totalProductos }}</span>
               </div>
-              <div v-if="tipoDestino === 'SUCURSAL'" class="flex justify-between text-sm">
+              <div class="flex justify-between text-sm">
                 <span class="text-gray-500">Total Insumos</span>
                 <span class="text-gray-800">{{ totalInsumos }}</span>
               </div>
@@ -389,7 +309,7 @@
               >
                 <div v-if="enviando" class="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
                 <Send v-else class="h-5 w-5" />
-                <span>{{ enviando ? 'Registrando...' : 'Confirmar' }}</span>
+                <span>{{ enviando ? (esEdicion ? 'Actualizando...' : 'Registrando...') : (esEdicion ? 'Actualizar' : 'Confirmar') }}</span>
               </button>
             </div>
           </div>
@@ -411,23 +331,18 @@
 <script setup>
 import { ref, computed, onMounted, watch, reactive } from 'vue';
 import { 
-  ArrowRightLeft, X, Settings2, Building2, User, Package, 
+  ArrowRightLeft, X, Settings2, Package, 
   Search, ShoppingCart, Trash2, Plus, Minus, Send, Info,
   PackageOpen, CheckCircle, AlertTriangle
 } from 'lucide-vue-next';
-import { 
-  Combobox, ComboboxInput, ComboboxButton, ComboboxOptions, 
-  ComboboxOption, TransitionRoot 
-} from '@headlessui/vue';
-import { CheckIcon, ChevronUpDownIcon } from '@heroicons/vue/20/solid';
 
 // Services
 import { Listsucursal } from '@/Server/Sucural';
 import { SucursalUsuario } from '@/Server/Usuario';
-import { getEmpleadosVendedores } from '@/Server/Empleado';
+
 import { ListarProductosOnSucursal } from '@/Server/Producto';
 import { getInsumosSucursal } from '@/Server/Produccion';
-import { registrarTransferencia } from '@/Server/Transferencia';
+import { registrarTransferencia, actualizarTransferencia } from '@/Server/Transferencia';
 import { listCategorias } from '@/Server/Categoria';
 
 // Components
@@ -440,16 +355,21 @@ const props = defineProps({
   sucursalId: {
     type: String,
     default: ''
+  },
+  transferenciaEdit: {
+    type: Object,
+    default: null
   }
 });
 
 const emit = defineEmits(['cancel', 'success']);
 
+const esEdicion = computed(() => !!props.transferenciaEdit);
+
 // State
 const tipoDestino = ref('SUCURSAL');
 const sucursalDestino = ref(null);
-const empleadoDestino = ref(null);
-const queryEmpleado = ref('');
+
 const activeTab = ref('productos');
 const filtroNombre = ref('');
 const filtroCategoria = ref('TODOS');
@@ -461,6 +381,7 @@ const localNotification = ref(null);
 const currentUserId = ref(null);
 const selectedSucursalId = ref('');
 const sucursalFija = ref(false);
+const fechaTransferencia = ref(new Date().toLocaleDateString('en-CA'));
 
 // Paginacion logic like Venta.vue
 const paginacionProd = reactive({ paginaActual: 1, totalPaginas: 1, total: 0, limite: 12 });
@@ -468,7 +389,7 @@ const paginacionIns = reactive({ paginaActual: 1, totalPaginas: 1, total: 0, lim
 
 // Datos Maestros
 const sucursalesDisponibles = ref([]);
-const empleadosDisponibles = ref([]);
+
 const categorias = ref([]);
 const productos = ref([]);
 const insumos = ref([]);
@@ -476,21 +397,14 @@ const insumos = ref([]);
 let debounceTimer = null;
 
 // Computed
-const filteredEmpleados = computed(() => {
-  if (queryEmpleado.value === '') return empleadosDisponibles.value;
-  return empleadosDisponibles.value.filter(emp => {
-    const nombreCompleto = `${emp.Persona?.Nombre || ''} ${emp.Persona?.ApellidoPaterno || ''}`.toLowerCase();
-    return nombreCompleto.includes(queryEmpleado.value.toLowerCase());
-  });
-});
+
 
 const totalItems = computed(() => carrito.value.reduce((acc, item) => acc + item.cantidad, 0));
 const totalProductos = computed(() => carrito.value.filter(i => !i.esInsumo).reduce((acc, item) => acc + item.cantidad, 0));
 const totalInsumos = computed(() => carrito.value.filter(i => i.esInsumo).reduce((acc, item) => acc + item.cantidad, 0));
 
 const esValido = computed(() => {
-  const tieneDestino = tipoDestino.value === 'SUCURSAL' ? !!sucursalDestino.value : !!empleadoDestino.value;
-  return tieneDestino && carrito.value.length > 0;
+  return !!sucursalDestino.value && carrito.value.length > 0;
 });
 
 // Methods
@@ -554,13 +468,11 @@ const onSucursalOrigenChange = () => {
 
 const cargarDatosBase = async () => {
   try {
-    const [suc, emp, cat] = await Promise.all([
+    const [suc, cat] = await Promise.all([
       Listsucursal(),
-      getEmpleadosVendedores(),
       listCategorias()
     ]);
     sucursalesDisponibles.value = suc.result || suc || [];
-    empleadosDisponibles.value =emp.result || emp || [];
     categorias.value = cat.result || cat || [];
   } catch (error) {
     showNotification('Error al cargar datos maestros', 'error');
@@ -583,15 +495,7 @@ const onLimiteChange = (limite) => {
   fetchItems();
 };
 
-const cambiarTipo = (tipo) => {
-  tipoDestino.value = tipo;
-  sucursalDestino.value = null;
-  empleadoDestino.value = null;
-  if (tipo === 'EMPLEADO') {
-    activeTab.value = 'productos';
-    carrito.value = carrito.value.filter(item => !item.esInsumo);
-  }
-};
+
 
 // --- HELPERS ---
 const getProdId = (obj) => obj?.idproducto || obj?.IdProducto;
@@ -603,15 +507,33 @@ const productosConStockReal = computed(() => {
   return productos.value.map(p => {
     const productId = getProdId(p);
     
+    // Stock comprometido por items existentes de la transferencia (solo en edición)
+    let oldComprometido = 0;
+    if (esEdicion.value) {
+      oldComprometido = (props.transferenciaEdit?.Detalletransferencia || [])
+        .filter(det => det.Producto && (det.Producto.IdProducto || det.Producto.idproducto) === productId)
+        .reduce((acc, det) => {
+          if (det.ProductoMedida) {
+            return acc + Number(det.Cantidad) * Number(det.ProductoMedida.Cantidad);
+          }
+          return acc;
+        }, 0);
+    }
+    
     // Descontar lo que ya está en el carrito para este producto base
     const usadoEnCarrito = carrito.value
       .filter(i => !i.esInsumo && i.idBase === productId)
       .reduce((acc, i) => acc + (i.cantidad * (parseFloat(i.multiplicador) || 1)), 0);
     
+    const stockBase = parseFloat(p.stock) || parseFloat(p.cantidad) || 0;
+    const disponible = esEdicion.value
+      ? stockBase + oldComprometido - usadoEnCarrito
+      : stockBase - usadoEnCarrito;
+    
     return {
       ...p,
       // Usamos 'cantidad' porque Productocard.vue lee esa propiedad para el stock
-      cantidad: Math.max(0, (parseFloat(p.stock) || parseFloat(p.cantidad) || 0) - usadoEnCarrito)
+      cantidad: Math.max(0, disponible)
     };
   });
 });
@@ -620,15 +542,33 @@ const insumosConStockReal = computed(() => {
   return insumos.value.map(ins => {
     const insumoId = ins.IdInsumo || ins.idinsumo;
     
+    // Stock comprometido por items existentes (solo en edición)
+    let oldComprometido = 0;
+    if (esEdicion.value) {
+      oldComprometido = (props.transferenciaEdit?.Detalletransferencia || [])
+        .filter(det => det.Insumo && (det.Insumo.IdInsumo || det.Insumo.idinsumo) === insumoId)
+        .reduce((acc, det) => {
+          if (det.Insumomedida) {
+            return acc + Number(det.Cantidad) * Number(det.Insumomedida.Cantidad);
+          }
+          return acc;
+        }, 0);
+    }
+    
     // Descontar lo que ya está en el carrito para este insumo (en gramos)
     const usadoEnCarritoGramos = carrito.value
       .filter(i => i.esInsumo && i.idInsumoBase === insumoId)
       .reduce((acc, i) => acc + (i.cantidad * (parseFloat(i.multiplicador) || 1)), 0);
+    
+    const stockBase = parseFloat(ins.StockGramos) || 0;
+    const disponible = esEdicion.value
+      ? stockBase + oldComprometido - usadoEnCarritoGramos
+      : stockBase - usadoEnCarritoGramos;
       
     return {
       ...ins,
       // InsumoCard.vue usa 'StockGramos' para sus cálculos
-      StockGramos: Math.max(0, (parseFloat(ins.StockGramos) || 0) - usadoEnCarritoGramos)
+      StockGramos: Math.max(0, disponible)
     };
   });
 });
@@ -746,10 +686,11 @@ const procesarTransferencia = async () => {
     const dataTransferencia = {
       IdUsuario: currentUserId.value,
       IdSucursal: selectedSucursalId.value,
-      Tipo: tipoDestino.value,
+      Tipo: 'SUCURSAL',
       IdsucursalOrigen: selectedSucursalId.value,
       IdsucursalDestino: sucursalDestino.value?.idsucursal || null,
-      IdempleadoDestino: empleadoDestino.value?.idempleado || null
+      IdempleadoDestino: null,
+      Fecha: fechaTransferencia.value
     };
 
     const detalles = {
@@ -760,12 +701,84 @@ const procesarTransferencia = async () => {
       }))
     };
 
-    await registrarTransferencia(dataTransferencia, detalles);
-    emit('success');
+    if (esEdicion.value) {
+      await actualizarTransferencia(props.transferenciaEdit.idtransferencia, dataTransferencia, detalles);
+      emit('success', 'Transferencia actualizada con éxito');
+    } else {
+      await registrarTransferencia(dataTransferencia, detalles);
+      emit('success', 'Transferencia registrada con éxito');
+    }
   } catch (error) {
-    showNotification(error.response?.data?.message || 'Error al registrar transferencia', 'error');
+    showNotification(error.response?.data?.message || 'Error al procesar transferencia', 'error');
   } finally {
     enviando.value = false;
+  }
+};
+
+const cargarDatosEdicion = () => {
+  if (!props.transferenciaEdit) return;
+
+  const trans = props.transferenciaEdit;
+
+  // Sucursal origen
+  if (trans.SucursalOrigen?.IdSucursal) {
+    selectedSucursalId.value = trans.SucursalOrigen.IdSucursal;
+  }
+
+  // Tipo
+  tipoDestino.value = 'SUCURSAL';
+
+  // Destino
+  if (trans.SucursalDestino) {
+    const match = sucursalesDisponibles.value.find(
+      s => s.idsucursal === trans.SucursalDestino.IdSucursal
+    );
+    if (match) {
+      sucursalDestino.value = match;
+    }
+  }
+
+  // Fecha (formatear a YYYY-MM-DD para input type="date")
+  if (trans.fecha) {
+    const d = new Date(trans.fecha);
+    if (!isNaN(d.getTime())) {
+      fechaTransferencia.value = d.toLocaleDateString('en-CA');
+    } else {
+      fechaTransferencia.value = trans.fecha;
+    }
+  }
+
+  // Construir carrito desde los detalles
+  if (trans.Detalletransferencia && trans.Detalletransferencia.length > 0) {
+    carrito.value = trans.Detalletransferencia.map(det => {
+      if (det.Producto) {
+        return {
+          idUnico: `prod-${det.ProductoMedida?.IdProductoMedida || det.IdDetalleTransferencia}`,
+          idBase: det.Producto.IdProducto,
+          idPaquete: det.ProductoMedida?.IdProductoMedida,
+          nombre: det.Producto.Nombre || det.Producto.nombre,
+          presentacion: det.ProductoMedida?.Presentacion?.Nombre || '',
+          imagen: null,
+          cantidad: Number(det.Cantidad),
+          multiplicador: Number(det.ProductoMedida?.Cantidad) || 1,
+          esInsumo: false
+        };
+      } else if (det.Insumo) {
+        return {
+          idUnico: `ins-${det.Insumomedida?.IdinsumoMedida || det.IdDetalleTransferencia}`,
+          idInsumoBase: det.Insumo.IdInsumo,
+          idInsumoMedida: det.Insumomedida?.IdinsumoMedida,
+          idInsumo: det.Insumomedida?.IdinsumoMedida,
+          nombre: det.Insumo.Nombre || det.Insumo.nombre,
+          imagen: det.Insumo.Imagen || null,
+          cantidad: Number(det.Cantidad),
+          multiplicador: Number(det.Insumomedida?.Cantidad) || 1,
+          esInsumo: true,
+          presentacion: det.Insumomedida?.Unidadmedida?.Nombre || ''
+        };
+      }
+      return null;
+    }).filter(Boolean);
   }
 };
 
@@ -790,12 +803,15 @@ onMounted(async () => {
       const sucResp = await SucursalUsuario(u.IdUsuario);
       if (sucResp?.idsucursal) {
         selectedSucursalId.value = sucResp.idsucursal;
-        sucursalFija.value = true;
+        sucursalFija.value = !esEdicion.value;
       }
     } catch (e) { console.error(e); }
   }
   await cargarDatosBase();
-  if (!selectedSucursalId.value && sucursalesDisponibles.value.length > 0) {
+  if (esEdicion.value) {
+    cargarDatosEdicion();
+    sucursalFija.value = false;
+  } else if (!selectedSucursalId.value && sucursalesDisponibles.value.length > 0) {
     selectedSucursalId.value = sucursalesDisponibles.value[0].idsucursal;
   }
   fetchItems();

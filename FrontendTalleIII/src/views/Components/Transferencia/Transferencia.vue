@@ -27,7 +27,8 @@
         <div v-if="modoRegistro" key="registro">
           <RegistrarTransferencia 
             :sucursalId="currentSucursalId"
-            @cancel="modoRegistro = false"
+            :transferenciaEdit="transferenciaEdit"
+            @cancel="onCancelEdit"
             @success="onTransferenciaSuccess"
           />
         </div>
@@ -176,6 +177,7 @@
                   :transferencia="trans"
                   @view="verDetalle"
                   @anular="confirmarAnulacion"
+                  @edit="editarTransferencia"
                 />
               </div>
               <div v-else class="text-center py-20 bg-white/40 backdrop-blur-sm rounded-3xl border border-dashed border-gray-300 animate-fade-in">
@@ -504,6 +506,9 @@ const showAnularModal = ref(false);
 const idTransferenciaParaAnular = ref('');
 const loadingAnulacion = ref(false);
 
+// Edición logic state
+const transferenciaEdit = ref(null);
+
 // Paginación y Filtros
 const page = ref(1);
 const limit = ref(12);
@@ -676,12 +681,23 @@ const handleSubTabExistencias = (subTab) => {
   fetchExistencias();
 };
 
-const onTransferenciaSuccess = () => {
+const onTransferenciaSuccess = (msg) => {
   modoRegistro.value = false;
+  transferenciaEdit.value = null;
   tabActiva.value = 'historial';
   page.value = 1;
   fetchTransferencias();
-  showNotification('Transferencia registrada con éxito', 'success');
+  showNotification(msg || 'Transferencia registrada con éxito', 'success');
+};
+
+const editarTransferencia = (trans) => {
+  transferenciaEdit.value = trans;
+  modoRegistro.value = true;
+};
+
+const onCancelEdit = () => {
+  modoRegistro.value = false;
+  transferenciaEdit.value = null;
 };
 
 const onPageChange = (newPage) => {

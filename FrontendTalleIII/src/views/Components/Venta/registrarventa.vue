@@ -300,7 +300,12 @@
                     <span class="text-xs font-semibold text-gray-500">Al por menor</span>
                     <div class="flex items-center gap-2 bg-orange-50 rounded-xl p-1">
                       <button @click="cambiarCantidadMenor(index, -1)" class="w-7 h-7 rounded-lg bg-white text-orange-600 shadow-sm hover:bg-orange-500 hover:text-white transition-all font-bold text-sm">-</button>
-                      <span class="w-10 text-center font-bold text-orange-700 text-base">{{ item.cantidadMenor }}</span>
+                      <input 
+                        type="number"
+                        :value="item.cantidadMenor"
+                        @change="onDirectCantidadMenor(index, $event.target.value)"
+                        class="w-14 text-center font-bold text-orange-700 bg-transparent border-none focus:ring-0 text-base [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
                       <button @click="cambiarCantidadMenor(index, 1)" class="w-7 h-7 rounded-lg bg-white text-orange-600 shadow-sm hover:bg-orange-500 hover:text-white transition-all font-bold text-sm">+</button>
                     </div>
                     <span class="text-sm font-bold text-gray-700">Bs {{ (item.cantidadMenor * item.precioVentaOriginal).toFixed(2) }}</span>
@@ -309,7 +314,12 @@
                     <span class="text-xs font-semibold text-orange-500">Al por mayor</span>
                     <div class="flex items-center gap-2 bg-orange-50 rounded-xl p-1">
                       <button @click="cambiarCantidadMayor(index, -1)" class="w-7 h-7 rounded-lg bg-white text-orange-600 shadow-sm hover:bg-orange-500 hover:text-white transition-all font-bold text-sm">-</button>
-                      <span class="w-10 text-center font-bold text-orange-700 text-base">{{ item.cantidadMayor }}</span>
+                      <input 
+                        type="number"
+                        :value="item.cantidadMayor"
+                        @change="onDirectCantidadMayor(index, $event.target.value)"
+                        class="w-14 text-center font-bold text-orange-700 bg-transparent border-none focus:ring-0 text-base [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
                       <button @click="cambiarCantidadMayor(index, 1)" class="w-7 h-7 rounded-lg bg-white text-orange-600 shadow-sm hover:bg-orange-500 hover:text-white transition-all font-bold text-sm">+</button>
                     </div>
                     <span class="text-sm font-bold text-orange-600">Bs {{ (item.cantidadMayor * item.precioMayorOriginal).toFixed(2) }}</span>
@@ -1299,6 +1309,18 @@ const cambiarCantidadMenor = (index, delta) => {
   item.cantidad = item.cantidadMenor + item.cantidadMayor;
 };
 
+const onDirectCantidadMenor = (index, value) => {
+  const item = carrito.value[index];
+  if (item.type !== 'producto') return;
+  const intVal = parseInt(value);
+  if (isNaN(intVal) || intVal < 0) { showNotification('Cantidad inválida', 'error'); return; }
+  if (item.cantidadMayor + intVal < 1) { showNotification('Debe haber al menos 1 unidad', 'error'); return; }
+  const delta = intVal - item.cantidadMenor;
+  if (!verificarStockProducto(item, delta)) return;
+  item.cantidadMenor = intVal;
+  item.cantidad = item.cantidadMenor + item.cantidadMayor;
+};
+
 const cambiarCantidadMayor = (index, delta) => {
   const item = carrito.value[index];
   if (item.type !== 'producto') return;
@@ -1306,6 +1328,18 @@ const cambiarCantidadMayor = (index, delta) => {
   if (nueva < 0 || item.cantidadMenor + nueva < 1) return;
   if (!verificarStockProducto(item, delta)) return;
   item.cantidadMayor = nueva;
+  item.cantidad = item.cantidadMenor + item.cantidadMayor;
+};
+
+const onDirectCantidadMayor = (index, value) => {
+  const item = carrito.value[index];
+  if (item.type !== 'producto') return;
+  const intVal = parseInt(value);
+  if (isNaN(intVal) || intVal < 0) { showNotification('Cantidad inválida', 'error'); return; }
+  if (item.cantidadMenor + intVal < 1) { showNotification('Debe haber al menos 1 unidad', 'error'); return; }
+  const delta = intVal - item.cantidadMayor;
+  if (!verificarStockProducto(item, delta)) return;
+  item.cantidadMayor = intVal;
   item.cantidad = item.cantidadMenor + item.cantidadMayor;
 };
 
@@ -1449,6 +1483,7 @@ onMounted(async () => {
       }
       if (selectedSucursalId.value) {
         await cargarUsuariosSucursal();
+        fetchItems();
         if (!selectedUsuarioId.value && u?.IdUsuario) {
           selectedUsuarioId.value = u.IdUsuario;
         }
@@ -1459,14 +1494,19 @@ onMounted(async () => {
     if (props.ventaParaEditar) {
       const v = props.ventaParaEditar;
 
-      if (v.idsucursal || v.IdSucursal) {
-        selectedSucursalId.value = v.idsucursal || v.IdSucursal;
+      const sucursalId = v.idsucursal || v.IdSucursal || v.Sucursal?.IdSucursal || v.sucursal?.idsucursal;
+      if (sucursalId) {
+        selectedSucursalId.value = sucursalId;
         sucursalFija.value = false;
       }
-      if (v.idusuario || v.IdUsuario) {
-        selectedUsuarioId.value = v.idusuario || v.IdUsuario;
+      const usuarioId = v.idusuario || v.IdUsuario || v.Usuario?.IdUsuario || v.usuario?.idusuario;
+      if (usuarioId) {
+        selectedUsuarioId.value = usuarioId;
       }
-      if (selectedSucursalId.value) await cargarUsuariosSucursal();
+      if (selectedSucursalId.value) {
+        await cargarUsuariosSucursal();
+        fetchItems();
+      }
       
       // Select client
       const persona = v.Persona || v.persona;
@@ -1476,7 +1516,7 @@ onMounted(async () => {
         else selectedCliente.value = persona;
       }
 
-      // Populate Cart
+      // Populate Cart (agrupado por producto+medida, como en registro)
       const detalles = v.Detalle || v.Detalleventa || [];
       const productosMap = {};
       carrito.value = [];
@@ -1494,31 +1534,28 @@ onMounted(async () => {
           const idMedida = d.idproductomedida || d.IdProductoMedida || d.Productomedida?.IdProductoMedida || d.Productomedida?.idproductomedida;
           const productId = d.Productomedida?.Producto?.IdProducto || d.Productomedida?.IdProducto || d.idproducto;
           const key = productId + '|' + idMedida;
+          const hasPrecioMayor = d.PrecioMayor != null && d.PrecioMayor > 0;
+          const qty = parseInt(d.Cantidad || d.cantidad || 0);
+
           if (!productosMap[key]) {
-            const esMayor = d.PrecioMayor != null && d.PrecioMayor > 0;
             productosMap[key] = {
               type: 'producto',
               id: productId,
               idMedida: idMedida,
               nombre: d.Productomedida?.Producto?.Nombre || d.Productomedida?.Producto?.nombre || 'Producto',
               medidaNombre: d.Productomedida?.Presentacion?.Nombre || d.Productomedida?.Presentacion?.nombre || 'Unidad',
-              precioVentaOriginal: parseFloat(d.Precio || d.precio || 0),
-              precioMayorOriginal: parseFloat(d.PrecioMayor || 0),
+              precioVentaOriginal: parseFloat(d.Productomedida?.PrecioVenta || d.Productomedida?.precioventa || 0),
+              precioMayorOriginal: parseFloat(d.Productomedida?.PrecioMayor || d.Productomedida?.preciomayor || 0),
               cantidad: 0, cantidadMenor: 0, cantidadMayor: 0,
               multiplicador: parseFloat(d.Productomedida?.Cantidad || d.Productomedida?.cantidad || 1)
             };
           }
-          const qty = parseInt(d.Cantidad || d.cantidad || 0);
-          const hasPrecioMayor = d.PrecioMayor != null && d.PrecioMayor > 0;
           if (hasPrecioMayor) {
             productosMap[key].cantidadMayor += qty;
           } else {
             productosMap[key].cantidadMenor += qty;
           }
           productosMap[key].cantidad += qty;
-          if (!productosMap[key].precioMayorOriginal) {
-            productosMap[key].precioMayorOriginal = parseFloat(d.PrecioMayor || 0);
-          }
         }
       });
       carrito.value = [...carrito.value, ...Object.values(productosMap)];
@@ -1581,6 +1618,10 @@ watch(() => props.sucursalId, (id) => {
     fetchItems();
   }
 });
+
+watch(subtotal, (val) => {
+  montoRecibido.value = val;
+}, { immediate: true });
 
 
 </script>

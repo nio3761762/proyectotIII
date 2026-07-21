@@ -644,6 +644,299 @@ export const anularProduccion = async (req: Request, res: Response) => {
 };
 
 /**
+ * REGISTRO MASIVO DE SALIDAS DE PRODUCTO
+ */
+export const registrarSalidaProductoMasiva = async (req: Request, res: Response) => {
+  const queryRunner = AppDataSource.createQueryRunner();
+  await queryRunner.connect();
+  await queryRunner.startTransaction();
+  try {
+    const { IdProduccion, Salidas } = req.body;
+    if (!Array.isArray(Salidas) || Salidas.length === 0) {
+      throw new Error("Debe enviar al menos una salida");
+    }
+
+    const produccion = await queryRunner.manager.findOne(Produccion, { where: { IdProduccion }, relations: ["Sucursal"] });
+    if (!produccion) throw new Error("Producción no encontrada");
+    if (produccion.estado === 0) throw new Error("La producción está anulada");
+    const IdSucursal = produccion.Sucursal.IdSucursal;
+
+    let totalCostoInsumos = 0;
+    const resultados: any[] = [];
+
+    for (const salida of Salidas) {
+      const { IdProducto, IdEmpleado, Cantidad, IdHorno, HoraRegistro } = salida;
+      if (!IdProducto || !Cantidad || !IdHorno) {
+        throw new Error("Cada salida debe tener IdProducto, Cantidad e IdHorno");
+      }
+
+      const empleado = IdEmpleado ? await verifyEmpleado(IdEmpleado) : null;
+
+      const sesionHorno = await queryRunner.manager.findOne(ProduccionHornoDetalle, {
+        where: { Produccion: { IdProduccion }, Horno: { IdHorno }, HoraFin: IsNull() }
+      });
+      if (!sesionHorno) throw new Error(`No hay sesión de horno activa para el horno ${IdHorno}`);
+
+      // 1. Registro detallado
+      const hp = new Hornoproducto();
+      hp.Idhornoproducto = await generarIdSecuencial("HPROD", queryRunner);
+      hp.ProduccionHornoDetalle = sesionHorno;
+      hp.Producto = await verifyProducto({ ProductoId: IdProducto });
+      if (empleado) hp.Empleado = empleado;
+      hp.Cantidad = Cantidad;
+      hp.Hora = HoraRegistro;
+      await queryRunner.manager.save(hp);
+
+      // 2. Descontar Insumos (FIFO)
+      const receta = await queryRunner.manager.findOne(Receta, { where: { Producto: { IdProducto } }, relations: ["Ingredientes", "Ingredientes.Insumo"] });
+      let costoInsumosNuevos = 0;
+      if (receta) {
+        const factor = Cantidad / Number(receta.Rendimiento);
+        for (const ing of receta.Ingredientes) {
+          costoInsumosNuevos += await consumirInsumoFIFO(queryRunner, ing.Insumo.IdInsumo, Number(ing.Pesoconvertido) * factor, IdSucursal, IdProduccion);
+        }
+      }
+
+      // 3. Detalle Producción (Acumulado)
+      let detalle = await queryRunner.manager.findOne(DetalleProduccion, {
+        where: { Produccion: { IdProduccion }, Producto: { IdProducto }, ...(empleado ? { Empleado: { IdEmpleado } } : {}) }
+      });
+      if (detalle) {
+        detalle.Cantidad = Number(detalle.Cantidad) + Number(Cantidad);
+        detalle.CostoTotal = Number(detalle.CostoTotal) + costoInsumosNuevos;
+        detalle.CostoUnitario = Number(detalle.CostoTotal) / Number(detalle.Cantidad);
+      } else {
+        detalle = new DetalleProduccion();
+        detalle.IdDetalleProduccion = await generarIdSecuencial("DTPRO", queryRunner);
+        detalle.Produccion = produccion;
+        detalle.Producto = await verifyProducto({ ProductoId: IdProducto });
+        if (empleado) detalle.Empleado = empleado;
+        detalle.Cantidad = Cantidad;
+        detalle.CostoTotal = costoInsumosNuevos;
+        detalle.CostoUnitario = costoInsumosNuevos / Cantidad;
+      }
+      await queryRunner.manager.save(detalle);
+
+      totalCostoInsumos += costoInsumosNuevos;
+
+      // 4. Entrada al inventario
+      await createLoteInventario(queryRunner, IdProducto, null, Number(Cantidad), detalle.CostoUnitario, IdSucursal, 'ENTRADA_PRODUCCION', IdProduccion, detalle.CostoUnitario, undefined);
+
+      resultados.push({ IdProducto, Cantidad });
+    }
+
+    // 5. Actualizar cabecera
+    produccion.CostoInsumos = Number(produccion.CostoInsumos) + totalCostoInsumos;
+    await queryRunner.manager.save(produccion);
+
+    // 6. Si la producción ya estaba finalizada, recalculamos costos
+    if (produccion.HoraFin) {
+      await recalcularCostosProduccion(queryRunner, IdProduccion);
+    }
+
+    await queryRunner.commitTransaction();
+    return res.status(200).json({
+      message: `${resultados.length} salida(s) registrada(s) correctamente`,
+      salidas: resultados
+    });
+  } catch (error) {
+    await queryRunner.rollbackTransaction();
+    if (error instanceof Error) return res.status(500).json({ message: error.message });
+  } finally {
+    await queryRunner.release();
+  }
+};
+
+/**
+ * ACTUALIZAR PRODUCCIÓN (editar observacion, fechas y cantidades)
+ */
+export const actualizarProduccion = async (req: Request, res: Response) => {
+  const queryRunner = AppDataSource.createQueryRunner();
+  await queryRunner.connect();
+  await queryRunner.startTransaction();
+  try {
+    const { id } = req.params;
+    const { Observacion, FechaProduccion, HoraInicio, HoraFin, Productos } = req.body;
+
+    const produccion = await queryRunner.manager.findOne(Produccion, {
+      where: { IdProduccion: id },
+      relations: ["Sucursal"]
+    });
+    if (!produccion) throw new Error("Producción no encontrada");
+    if (produccion.estado === 0) throw new Error("No se puede editar una producción anulada");
+
+    const IdSucursal = produccion.Sucursal.IdSucursal;
+
+    // Actualizar campos básicos
+    if (Observacion !== undefined) produccion.Observacion = Observacion;
+    if (FechaProduccion !== undefined) produccion.FechaProduccion = FechaProduccion;
+    if (HoraInicio !== undefined) produccion.HoraInicio = HoraInicio;
+    if (HoraFin !== undefined) produccion.HoraFin = HoraFin;
+    await queryRunner.manager.save(produccion);
+
+    // Actualizar productos si se enviaron
+    if (Array.isArray(Productos) && Productos.length > 0) {
+      let totalCostoInsumosDelta = 0;
+
+      for (const prod of Productos) {
+        const { IdProducto, Cantidad, IdEmpleado, IdHorno, HoraRegistro } = prod;
+        if (!IdProducto || Cantidad === undefined) continue;
+
+        // Buscar detalle existente
+        const detalleExistente = await queryRunner.manager.findOne(DetalleProduccion, {
+          where: { Produccion: { IdProduccion: id }, Producto: { IdProducto } }
+        });
+
+        const cantidadActual = detalleExistente ? Number(detalleExistente.Cantidad) : 0;
+        const diferencia = Number(Cantidad) - cantidadActual;
+
+        if (diferencia > 0) {
+          // Aumentar cantidad - registrar salida adicional
+          const empleado = IdEmpleado ? await verifyEmpleado(IdEmpleado) : null;
+          let sesionHorno = null;
+          if (IdHorno) {
+            sesionHorno = await queryRunner.manager.findOne(ProduccionHornoDetalle, {
+              where: { Produccion: { IdProduccion: id }, Horno: { IdHorno }, HoraFin: IsNull() }
+            });
+          } else {
+            sesionHorno = await queryRunner.manager.findOne(ProduccionHornoDetalle, {
+              where: { Produccion: { IdProduccion: id }, HoraFin: IsNull() }
+            });
+          }
+
+          if (sesionHorno) {
+            const hp = new Hornoproducto();
+            hp.Idhornoproducto = await generarIdSecuencial("HPROD", queryRunner);
+            hp.ProduccionHornoDetalle = sesionHorno;
+            hp.Producto = await verifyProducto({ ProductoId: IdProducto });
+            if (empleado) hp.Empleado = empleado;
+            hp.Cantidad = diferencia;
+            hp.Hora = HoraRegistro;
+            await queryRunner.manager.save(hp);
+          }
+
+          // Consumir insumos adicionales
+          const receta = await queryRunner.manager.findOne(Receta, {
+            where: { Producto: { IdProducto } },
+            relations: ["Ingredientes", "Ingredientes.Insumo"]
+          });
+          let costoExtra = 0;
+          if (receta) {
+            const factor = diferencia / Number(receta.Rendimiento);
+            for (const ing of receta.Ingredientes) {
+              costoExtra += await consumirInsumoFIFO(queryRunner, ing.Insumo.IdInsumo, Number(ing.Pesoconvertido) * factor, IdSucursal, id);
+            }
+          }
+
+          // Actualizar o crear detalle
+          if (detalleExistente) {
+            detalleExistente.Cantidad = Number(Cantidad);
+            detalleExistente.CostoTotal = Number(detalleExistente.CostoTotal) + costoExtra;
+            detalleExistente.CostoUnitario = Number(detalleExistente.CostoTotal) / Number(Cantidad);
+            await queryRunner.manager.save(detalleExistente);
+          } else {
+            const nuevoDetalle = new DetalleProduccion();
+            nuevoDetalle.IdDetalleProduccion = await generarIdSecuencial("DTPRO", queryRunner);
+            nuevoDetalle.Produccion = produccion;
+            nuevoDetalle.Producto = await verifyProducto({ ProductoId: IdProducto });
+            if (IdEmpleado) nuevoDetalle.Empleado = await verifyEmpleado(IdEmpleado);
+            nuevoDetalle.Cantidad = Cantidad;
+            nuevoDetalle.CostoTotal = costoExtra;
+            nuevoDetalle.CostoUnitario = Cantidad > 0 ? costoExtra / Cantidad : 0;
+            await queryRunner.manager.save(nuevoDetalle);
+          }
+
+          // Entrada al inventario
+          const costoUnitarioProducto = detalleExistente ? Number(detalleExistente.CostoUnitario) : (Cantidad > 0 ? costoExtra / Cantidad : 0);
+          await createLoteInventario(queryRunner, IdProducto, null, diferencia, costoUnitarioProducto, IdSucursal, 'ENTRADA_PRODUCCION', id, costoUnitarioProducto, undefined);
+          totalCostoInsumosDelta += costoExtra;
+
+        } else if (diferencia < 0) {
+          // Reducir cantidad
+          const cantidadAReducir = Math.abs(diferencia);
+          if (!detalleExistente) throw new Error(`No existe registro del producto ${IdProducto} para reducir`);
+
+          // Reducir inventario
+          const lote = await queryRunner.manager.findOne(Inventario, {
+            where: { IdReferencia: id, Producto: { IdProducto }, Estado: 1 }
+          });
+          if (lote) {
+            lote.Stock = Number(lote.Stock) - cantidadAReducir;
+            if (lote.Stock <= 0) {
+              lote.Estado = 0;
+              lote.Stock = 0;
+            }
+            await queryRunner.manager.save(lote);
+            await registrarMovimientoSalida(queryRunner, lote, 'AJUSTE_PRODUCCION', cantidadAReducir, id);
+          }
+
+          // Actualizar detalle
+          detalleExistente.Cantidad = Number(Cantidad);
+          if (Number(detalleExistente.Cantidad) <= 0) {
+            detalleExistente.CantidadMala = Number(detalleExistente.CantidadMala) + Math.abs(Number(detalleExistente.Cantidad));
+          }
+          // Recalcular costo proporcionalmente
+          const proporcionReducir = cantidadAReducir / (cantidadActual || 1);
+          detalleExistente.CostoTotal = Number(detalleExistente.CostoTotal) * (1 - proporcionReducir);
+          detalleExistente.CostoUnitario = Number(Cantidad) > 0 ? Number(detalleExistente.CostoTotal) / Number(Cantidad) : 0;
+          await queryRunner.manager.save(detalleExistente);
+        }
+        // diferencia === 0 → no hay cambio
+      }
+
+      // Recalcular costos totales si la producción ya estaba finalizada o hubo cambios en productos
+      if (produccion.HoraFin || Productos.some((p: any) => p.Cantidad !== undefined)) {
+        await recalcularCostosProduccion(queryRunner, id);
+      }
+    }
+
+    await queryRunner.commitTransaction();
+    return res.json({ message: "Producción actualizada correctamente", IdProduccion: id });
+  } catch (error) {
+    await queryRunner.rollbackTransaction();
+    if (error instanceof Error) return res.status(500).json({ message: error.message });
+  } finally {
+    await queryRunner.release();
+  }
+};
+
+/**
+ * Recalcular costos de una producción (después de ediciones)
+ */
+const recalcularCostosProduccion = async (queryRunner: QueryRunner, IdProduccion: string) => {
+  const produccion = await queryRunner.manager.findOne(Produccion, {
+    where: { IdProduccion },
+    relations: ["ProduccionEmpleado", "DetalleHorno", "Detalle", "Sucursal"]
+  });
+  if (!produccion) return;
+
+  // MO
+  const totalMO = produccion.ProduccionEmpleado.reduce((acc, pe) => acc + Number(pe.CostoTotal), 0);
+  // Energía hornos
+  const totalEnergia = produccion.DetalleHorno.reduce((acc, dh) => acc + Number(dh.Costo), 0);
+  // Agua (proporcional)
+  const horasMax = Math.max(...produccion.ProduccionEmpleado.map(pe => Number(pe.Horas)), 0.1);
+  const totalAgua = await calcularGastoProporcional(produccion.Sucursal.IdSucursal, "Agua", horasMax);
+  const costosIndirectos = totalEnergia + totalAgua;
+
+  produccion.CostoManoObra = totalMO;
+  produccion.CostoIndirecto = costosIndirectos;
+
+  // Recalcular detalle costs con prorrateo
+  const totalInsumos = Number(produccion.CostoInsumos) || 1;
+  for (const det of produccion.Detalle) {
+    const proporcion = Number(det.CostoTotal) / totalInsumos;
+    const asignados = (totalMO * proporcion) + (costosIndirectos * proporcion);
+    det.CostoTotal = Number(det.CostoTotal) + asignados;
+    det.CostoUnitario = Number(det.Cantidad) > 0 ? Number(det.CostoTotal) / Number(det.Cantidad) : 0;
+    await queryRunner.manager.save(det);
+  }
+
+  produccion.CostoTotal = Number(produccion.CostoInsumos) + totalMO + costosIndirectos;
+  await queryRunner.manager.save(produccion);
+};
+
+/**
  * APOYO
  */
 export const consumirInsumoFIFO = async (queryRunner: QueryRunner, IdInsumo: string | undefined, Cantidad: number, IdSucursal: string, IdReferencia: string, tipoMovimiento: string = "SALIDA_PRODUCCION") => {

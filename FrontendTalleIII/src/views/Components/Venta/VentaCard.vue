@@ -86,113 +86,158 @@
       </div>
 
       <!-- Expanded Details -->
-      <div v-if="isExpanded" class="mb-4 space-y-3 animate-fade-in max-h-64 overflow-y-auto p-1">
-        <div class="p-3 bg-white/70 rounded-xl shadow-sm border border-gray-100">
-          <div class="font-semibold text-gray-800 mb-2 text-sm">Detalles de Ítems</div>
-          <div class="overflow-x-auto">
+      <div v-if="isExpanded" class="mb-4 space-y-3 animate-fade-in">
+        <div class="max-h-56 overflow-y-auto space-y-2 p-1">
+          <!-- Items V. Menor -->
+          <div v-if="itemsMenor.length > 0" class="p-3 bg-gray-50/80 rounded-xl border border-gray-200">
+            <div class="text-[11px] uppercase font-bold text-gray-600 mb-2 flex items-center gap-1">
+              <span class="w-2 h-2 rounded-full bg-gray-400"></span> V. Menor
+            </div>
             <table class="w-full text-sm">
               <thead>
-                <tr class="border-b border-gray-200">
-                  <th class="text-left py-2 px-2 font-semibold text-gray-700">Tipo</th>
-                  <th class="text-left py-2 px-2 font-semibold text-gray-700">Nombre</th>
-                  <th class="text-center py-2 px-2 font-semibold text-gray-700">Cant.</th>
-                    <th class="text-center py-2 px-2 font-semibold text-gray-700">Precio</th>
-                  <th class="text-center py-2 px-2 font-semibold text-gray-700">Subtotal</th>
+                <tr class="border-b border-gray-200 text-[10px] text-gray-500 uppercase">
+                  <th class="text-left py-1 px-1 font-semibold">Nombre</th>
+                  <th class="text-center py-1 px-1 font-semibold">Cant.</th>
+                  <th class="text-center py-1 px-1 font-semibold">Precio</th>
+                  <th class="text-center py-1 px-1 font-semibold">Subtotal</th>
                 </tr>
               </thead>
               <tbody>
-                <template v-for="item in (venta.Detalle || venta.Detalleventa)" :key="item.IdDetalleVenta">
-                  <tr class="border-b border-gray-100 hover:bg-white/50 transition-colors">
-                    <td class="py-3 px-2">
-                      <div class="w-10 h-10 rounded-lg overflow-hidden bg-gray-100 shadow-sm border border-gray-200">
-                        <img 
-                          v-if="item.Productomedida?.Imagen || item.Producto?.Imagen || item.Promocion?.Imagen"
-                          :src="item.Productomedida?.Imagen || item.Producto?.Imagen || item.Promocion?.Imagen" 
-                          :alt="item.Productomedida?.Producto?.Nombre || item.Promocion?.Nombre"
-                          class="w-full h-full object-cover"
-                        />
-                        <div v-else class="w-full h-full flex items-center justify-center">
-                          <Package v-if="item.Productomedida" class="h-5 w-5 text-gray-400" />
-                          <Tag v-else class="h-5 w-5 text-gray-400" />
-                        </div>
-                      </div>
-                    </td>
-                    <td class="py-3 px-2">
-                      <div class="flex flex-col">
-                        <span class="font-bold text-gray-800 flex items-center gap-2">
-                          {{ item.Productomedida?.Producto?.Nombre || item.Promocion?.Nombre || 'Desconocido' }}
-                          <button 
-                            v-if="item.Promocion?.Productos?.length > 0"
-                            @click="togglePromo(item.IdDetalleVenta)"
-                            class="p-1 hover:bg-orange-100 rounded-lg transition-colors text-orange-600"
-                            title="Ver productos del combo"
-                          >
-                            <Info v-if="!expandedPromos.has(item.IdDetalleVenta)" class="h-4 w-4" />
-                            <ChevronUp v-else class="h-4 w-4" />
-                          </button>
-                        </span>
-                        <span v-if="item.Productomedida?.Presentacion" class="text-xs text-gray-500">
-                          {{ item.Productomedida.Presentacion.Nombre }}
-                        </span>
-                        <span v-if="item.Promocion" class="text-[10px] uppercase font-bold text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full w-fit mt-1">
-                          Promoción
-                        </span>
-                      </div>
-                    </td>
-                    <td class="py-3 px-2 text-center font-bold text-gray-700">{{ item.Cantidad }}</td>
-                    <td class="py-3 px-2 text-center font-bold text-gray-700">{{ item.Precio }}</td>
-                    <td class="py-3 px-2 text-center font-bold text-green-600">Bs. {{ (item.Precio * item.Cantidad).toFixed(2) }}</td>
-                  </tr>
-                  
-                  <!-- Nested Promotion Products -->
-                  <Transition name="fade-slide">
-                    <tr v-if="item.Promocion?.Productos?.length > 0 && expandedPromos.has(item.IdDetalleVenta)" class="bg-gray-50/50">
-                      <td colspan="4" class="py-3 px-4">
-                        <div class="border-l-4 border-orange-400 pl-4 space-y-3">
-                          <p class="text-xs font-bold text-orange-700 uppercase tracking-wider">Productos incluidos en el combo:</p>
-                          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <div v-for="p in item.Promocion.Productos" :key="p.IdPromocionProducto" class="flex items-center gap-3 bg-white p-2 rounded-xl shadow-sm border border-gray-100">
-                              <div class="w-8 h-8 rounded-lg overflow-hidden bg-gray-50 flex-shrink-0">
-                                <img 
-                                  v-if="p.Productomedida?.Imagen || p.Productomedida?.Producto?.Imagen"
-                                  :src="p.Productomedida?.Imagen || p.Productomedida?.Producto?.Imagen" 
-                                  class="w-full h-full object-cover"
-                                />
-                                <Package v-else class="h-4 w-4 m-2 text-gray-300" />
-                              </div>
-                              <div class="min-w-0">
-                                <p class="text-xs font-bold text-gray-800 truncate">{{ p.Productomedida?.Producto?.Nombre || 'Producto' }}</p>
-                                <p class="text-[10px] text-gray-500">Cant: {{ p.Cantidad }} x {{ p.Productomedida?.Presentacion?.Nombre || 'Unidad' }}</p>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                    </tr>
-                  </Transition>
-                </template>
+                <tr v-for="item in itemsMenor" :key="item.IdDetalleVenta" class="border-b border-gray-100">
+                  <td class="py-2 px-1">
+                    <span class="font-bold text-gray-800 text-[11px]">{{ item.Productomedida?.Producto?.Nombre || 'Ítem' }}</span>
+                    <span v-if="item.Productomedida?.Presentacion" class="text-[10px] text-gray-500 ml-1">{{ item.Productomedida.Presentacion.Nombre }}</span>
+                  </td>
+                  <td class="py-2 px-1 text-center font-bold text-gray-700 text-[11px]">{{ item.Cantidad }}</td>
+                  <td class="py-2 px-1 text-center font-bold text-gray-700 text-[11px]">Bs. {{ Number(item.Precio).toFixed(2) }}</td>
+                  <td class="py-2 px-1 text-center font-bold text-green-600 text-[11px]">Bs. {{ (item.Precio * item.Cantidad).toFixed(2) }}</td>
+                </tr>
               </tbody>
             </table>
           </div>
+
+          <!-- Items V. Mayor -->
+          <div v-if="itemsMayor.length > 0" class="p-3 bg-orange-50/80 rounded-xl border border-orange-200">
+            <div class="text-[11px] uppercase font-bold text-orange-600 mb-2 flex items-center gap-1">
+              <span class="w-2 h-2 rounded-full bg-orange-400"></span> V. Mayor
+            </div>
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b border-orange-200 text-[10px] text-orange-500 uppercase">
+                  <th class="text-left py-1 px-1 font-semibold">Nombre</th>
+                  <th class="text-center py-1 px-1 font-semibold">Cant.</th>
+                  <th class="text-center py-1 px-1 font-semibold">Precio</th>
+                  <th class="text-center py-1 px-1 font-semibold">Subtotal</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="item in itemsMayor" :key="item.IdDetalleVenta" class="border-b border-orange-100">
+                  <td class="py-2 px-1">
+                    <span class="font-bold text-orange-800 text-[11px]">{{ item.Productomedida?.Producto?.Nombre || 'Ítem' }}</span>
+                    <span v-if="item.Productomedida?.Presentacion" class="text-[10px] text-orange-500 ml-1">{{ item.Productomedida.Presentacion.Nombre }}</span>
+                  </td>
+                  <td class="py-2 px-1 text-center font-bold text-orange-700 text-[11px]">{{ item.Cantidad }}</td>
+                  <td class="py-2 px-1 text-center font-bold text-orange-700 text-[11px]">Bs. {{ Number(item.Precio).toFixed(2) }}</td>
+                  <td class="py-2 px-1 text-center font-bold text-orange-600 text-[11px]">Bs. {{ (item.Precio * item.Cantidad).toFixed(2) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Items Promocion -->
+          <div v-if="itemsPromo.length > 0" class="p-3 bg-purple-50/80 rounded-xl border border-purple-200">
+            <div class="text-[11px] uppercase font-bold text-purple-600 mb-2 flex items-center gap-1">
+              <span class="w-2 h-2 rounded-full bg-purple-400"></span> Promociones
+            </div>
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b border-purple-200 text-[10px] text-purple-500 uppercase">
+                  <th class="text-left py-1 px-1 font-semibold">Nombre</th>
+                  <th class="text-center py-1 px-1 font-semibold">Cant.</th>
+                  <th class="text-center py-1 px-1 font-semibold">Precio</th>
+                  <th class="text-center py-1 px-1 font-semibold">Subtotal</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="item in itemsPromo" :key="item.IdDetalleVenta" class="border-b border-purple-100">
+                  <td class="py-2 px-1">
+                    <span class="font-bold text-purple-800 text-[11px]">{{ item.Promocion?.Nombre || 'Promoción' }}</span>
+                    <button 
+                      v-if="item.Promocion?.Productos?.length > 0"
+                      @click="togglePromo(item.IdDetalleVenta)"
+                      class="ml-1 p-0.5 hover:bg-purple-100 rounded transition-colors text-purple-600 inline-flex"
+                    >
+                      <Info v-if="!expandedPromos.has(item.IdDetalleVenta)" class="h-3 w-3" />
+                      <ChevronUp v-else class="h-3 w-3" />
+                    </button>
+                  </td>
+                  <td class="py-2 px-1 text-center font-bold text-purple-700 text-[11px]">{{ item.Cantidad }}</td>
+                  <td class="py-2 px-1 text-center font-bold text-purple-700 text-[11px]">Bs. {{ Number(item.Precio).toFixed(2) }}</td>
+                  <td class="py-2 px-1 text-center font-bold text-purple-600 text-[11px]">Bs. {{ (item.Precio * item.Cantidad).toFixed(2) }}</td>
+                </tr>
+                <!-- Nested Promotion Products -->
+                <Transition name="fade-slide">
+                  <tr v-if="item.Promocion?.Productos?.length > 0 && expandedPromos.has(item.IdDetalleVenta)">
+                    <td colspan="4" class="py-2 px-2">
+                      <div class="border-l-2 border-purple-300 pl-3 space-y-1">
+                        <p class="text-[10px] font-bold text-purple-700">Productos incluidos:</p>
+                        <div v-for="p in item.Promocion.Productos" :key="p.IdPromocionProducto" class="text-[10px] text-gray-600">
+                          {{ p.Productomedida?.Producto?.Nombre || 'Producto' }} x{{ p.Cantidad }}
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                </Transition>
+              </tbody>
+            </table>
+          </div>
+          
+          <!-- Info Pago -->
+          <div v-if="infoPagos && infoPagos.length > 0">
+             <div class="p-3 bg-white/70 rounded-xl shadow-sm border border-gray-100" v-for="pago in infoPagos" :key="pago.IdPago">
+              <div class="font-semibold text-gray-800 mb-2 text-sm">Información de Pago</div>
+              <div class="space-y-2">
+                <div class="flex items-center gap-2 text-xs text-gray-600">
+                  <CreditCard class="h-3 w-3 text-blue-500" />
+                  <span>Método: {{ pago.Metodopago?.Nombre || 'N/A' }}</span>
+                </div>
+                <div class="flex items-center gap-2 text-xs text-gray-600">
+                  <DollarSign class="h-3 w-3 text-green-500" />
+                  <span>Monto Pagado: Bs. {{ Number(pago.Monto) + Number(pago.Cambio) || '0.00' }}</span>
+                </div>
+                <div v-if="pago.Cambio > 0" class="flex items-center gap-2 text-xs text-gray-600">
+                  <Coins class="h-3 w-3 text-purple-500" />
+                  <span>Cambio: Bs. {{ pago.Cambio || '0.00' }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-        
-        <!-- Info Pago -->
-        <div v-if="infoPagos && infoPagos.length > 0">
-           <div class="p-3 bg-white/70 rounded-xl shadow-sm border border-gray-100" v-for="pago in infoPagos" :key="pago.IdPago">
-            <div class="font-semibold text-gray-800 mb-2 text-sm">Información de Pago</div>
-            <div class="space-y-2">
-              <div class="flex items-center gap-2 text-xs text-gray-600">
-                <CreditCard class="h-3 w-3 text-blue-500" />
-                <span>Método: {{ pago.Metodopago?.Nombre || 'N/A' }}</span>
-              </div>
-              <div class="flex items-center gap-2 text-xs text-gray-600">
-                <DollarSign class="h-3 w-3 text-green-500" />
-                <span>Monto Pagado: Bs. {{ Number(pago.Monto) + Number(pago.Cambio) || '0.00' }}</span>
-              </div>
-              <div v-if="pago.Cambio > 0" class="flex items-center gap-2 text-xs text-gray-600">
-                <Coins class="h-3 w-3 text-purple-500" />
-                <span>Cambio: Bs. {{ pago.Cambio || '0.00' }}</span>
-              </div>
+
+        <!-- Resumen V. Menor / V. Mayor (siempre visible) -->
+        <div class="p-3 bg-white/70 rounded-xl shadow-sm border border-gray-100">
+          <div class="font-semibold text-gray-800 mb-2 text-sm">Resumen por Tipo de Venta</div>
+          <div class="space-y-2">
+            <div class="flex justify-between text-xs">
+              <span class="font-bold text-gray-600">V. Menor</span>
+              <span class="font-bold text-gray-700">Bs. {{ totalMenor.toFixed(2) }}</span>
+            </div>
+            <div class="flex justify-between text-xs">
+              <span class="font-bold text-orange-600">V. Mayor</span>
+              <span class="font-bold text-orange-600">Bs. {{ totalMayor.toFixed(2) }}</span>
+            </div>
+            <hr class="border-gray-200" />
+            <div class="flex justify-between text-sm">
+              <span class="font-bold text-gray-700">Total general</span>
+              <span class="font-bold text-green-600">Bs. {{ totalGeneral.toFixed(2) }}</span>
+            </div>
+            <div v-if="gastoExtraVal > 0" class="flex justify-between text-xs">
+              <span class="text-red-500 font-medium">Gasto Extra</span>
+              <span class="text-red-500 font-medium">- Bs. {{ gastoExtraVal.toFixed(2) }}</span>
+            </div>
+            <div class="flex justify-between text-sm pt-1 border-t border-gray-200">
+              <span class="font-black text-gray-800">Venta Neta</span>
+              <span class="font-black text-blue-600">Bs. {{ ventaNeta.toFixed(2) }}</span>
             </div>
           </div>
         </div>
@@ -351,6 +396,46 @@ const totalCalculado = computed(() => {
   const totalVal = detalles.reduce((acc, item) => acc + (parseFloat(item.Precio) * item.Cantidad), 0);
   return totalVal.toFixed(2);
 });
+
+const items = computed(() => props.venta.Detalle || props.venta.Detalleventa || []);
+
+const esMayorItem = (i) => {
+  const v = i.PrecioMayor ?? i.precioMayor ?? i.preciomayor;
+  if (v != null && Number(v) > 0) return true;
+  const pm = i.Productomedida;
+  const p = i.Producto ?? i.producto;
+  const refMenor = pm?.Precio ?? pm?.precioventa ?? p?.PrecioVenta ?? p?.precioventa ?? p?.Precio ?? 0;
+  const refMayor = pm?.PrecioMayor ?? pm?.preciomayor ?? p?.PrecioMayor ?? p?.preciomayor ?? 0;
+  if (refMayor > 0 && Number(i.Precio) <= Number(refMayor)) return true;
+  if (refMenor > 0 && Number(i.Precio) < Number(refMenor)) return true;
+  return false;
+};
+
+const itemsMenor = computed(() => items.value.filter(i => !i.Promocion && !esMayorItem(i)));
+const itemsMayor = computed(() => items.value.filter(i => !i.Promocion && esMayorItem(i)));
+const itemsPromo = computed(() => items.value.filter(i => i.Promocion));
+
+const totalMenor = computed(() => {
+  return items.value.reduce((acc, item) => {
+    if (item.Promocion || esMayorItem(item)) return acc;
+    return acc + Number(item.Precio) * Number(item.Cantidad);
+  }, 0);
+});
+
+const totalMayor = computed(() => {
+  return items.value.reduce((acc, item) => {
+    if (item.Promocion || !esMayorItem(item)) return acc;
+    return acc + Number(item.Precio) * Number(item.Cantidad);
+  }, 0);
+});
+
+const totalGeneral = computed(() => {
+  return items.value.reduce((acc, item) => acc + Number(item.Precio) * Number(item.Cantidad), 0);
+});
+
+const gastoExtraVal = computed(() => Number(props.venta.gastoextra || props.venta.GastoExtra || 0));
+
+const ventaNeta = computed(() => totalGeneral.value - gastoExtraVal.value);
 
 const formatearFecha = (fechaStr) => {
   if (!fechaStr) return 'N/A';

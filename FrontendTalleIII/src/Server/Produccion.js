@@ -452,6 +452,38 @@ export const descartarProducto = async ( IdProduccion, IdProducto, Cantidad, Mot
   }
 };
 
+export const registrarMermaProduccion = async (IdProduccion, IdProducto, CantidadMala, Motivo) => {
+  try {
+    const response = await API.post('produccion/producto/merma', { IdProduccion, IdProducto, CantidadMala, Motivo });
+    return response.data;
+  } catch (error) {
+    console.error('Error al registrar merma:', error.response?.data?.message || error.message);
+    throw error;
+  }
+};
+
+export const registrarSalidaProductoMasiva = async (IdProduccion, Salidas) => {
+  try {
+    const response = await API.post('produccion/producto/salida-masiva', { IdProduccion, Salidas });
+    return response.data;
+  } catch (error) {
+    const msg = error.response?.data?.message || error.message || 'Error desconocido';
+    console.error('Error al registrar salidas masivas:', msg);
+    throw new Error(msg);
+  }
+};
+
+export const actualizarProduccion = async (IdProduccion, data) => {
+  try {
+    const response = await API.put(`produccion/${IdProduccion}`, data);
+    return response.data;
+  } catch (error) {
+    const msg = error.response?.data?.message || error.message || 'Error desconocido';
+    console.error('Error al actualizar producción:', msg);
+    throw new Error(msg);
+  }
+};
+
 export const apagarHorno = async ( IdProduccion, IdHorno, HoraFin) => {
   try {
     const response = await API.post('produccion/Apagarhorno',{IdProduccion, IdHorno, HoraFin});

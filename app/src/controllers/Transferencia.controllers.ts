@@ -24,15 +24,14 @@ export const registrarTransferencia = async (req: Request, res: Response) => {
 
   try {
     const { transferencias, detalles } = req.body;
-    console.log("1 - Body parseado OK");
+   
     // 1. Validaciones básicas
     if (!transferencias.IdSucursal) {
       throw new HttpError(400, "Sucursal es requerida para la transferencia.");
     }
-    console.log("2 - Validacion pasada");
+    
     // 2. Generar ID y preparar cabecera de Venta
     const nuevoIdVenta = await generarIdSecuencial('Trans');
-    console.log("3 - ID generado:", nuevoIdVenta)
     const transferencia = new Transferencia();
     transferencia.IdTransferencia = nuevoIdVenta;
     
@@ -43,21 +42,20 @@ export const registrarTransferencia = async (req: Request, res: Response) => {
    if(transferencias.IdsucursalOrigen)transferencia.SucursalOrigen = await verifySucursal({SucursalId:transferencias.IdsucursalOrigen})  
    if(transferencias.IdsucursalDestino) transferencia.SucursalDestino = await verifySucursal({SucursalId:transferencias.IdsucursalDestino})  
    if(transferencias.IdempleadoDestino) transferencia.EmpleadoDestino = await verifyEmpleado(transferencias.IdempleadoDestino)  
-   console.log("4 - verifySucursal/Empleado OK");
-         
+ 
     // Guardar transferencia dentro de la transacción
     await queryRunner.manager.save(transferencia);
-    console.log("5 - Transferencia guardada");
+   
 
  
 
    // 5. Procesar Detalles (Presentaciones Productos)
     if (detalles) {
-      console.log("6 - Procesando detalles, cantidad:", detalles.Producto?.length);
+    
       if (detalles.Producto?.length > 0) {
         for (let i = 0; i < detalles.Producto.length; i++) {
           const prod = detalles.Producto[i];
-          console.log(`7 - Detalle ${i}:`, prod);
+        
    
           let presentacion = null;
           if (prod.idPaquete) {
@@ -73,22 +71,22 @@ export const registrarTransferencia = async (req: Request, res: Response) => {
             insumomedida,
             prod.Cantidad
           );
-          console.log(`8 - Detalle ${i} procesado`);
+        
         }
       }
     }
-    console.log("9 - Todos los detalles procesados");
+  
 
     // Confirmar todo si llegamos aquí
     await queryRunner.commitTransaction();
-    console.log("10 - Transaccion commiteada");
+   
     return res.status(201).json({ 
       message: "La transferencia se registró correctamente", 
       idVenta: nuevoIdVenta 
     });
 
   } catch (error) {
-    console.log("ERROR en registrarTransferencia:", error);
+ 
     // Si algo falla, revertimos todos los cambios (Venta, Pagos e Inventario)
     await queryRunner.rollbackTransaction();
 
@@ -105,13 +103,139 @@ export const registrarTransferencia = async (req: Request, res: Response) => {
   }
 };
 
-export const createDetalleTransferencia= async (queryRunner: QueryRunner, transferencia: Transferencia, presentacion: Productomedida | null, insumo: Insumomedida | null, Cantidad: number) => {
-      console.log("  createDetalleTransferencia INICIO, Cantidad:", Cantidad, "presentacion:", !!presentacion, "insumo:", !!insumo);
-      const nuevoId = await generarIdSecuencial('DTRA'); 
-      console.log("  createDetalleTransferencia ID:", nuevoId);
+export const updateTransferencia = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const queryRunner = AppDataSource.createQueryRunner();
+  await queryRunner.connect();
+  await queryRunner.startTransaction();
 
-     console.log("  createDetalleTransferencia - transferencia:", transferencia.IdTransferencia,"Cantidad", Cantidad, "presentacion:", presentacion?.IdProductoMedida, "insumo:", insumo?.IdinsumoMedida); 
-   const detalletransferencia = new DetalleTransferencia()
+  try {
+    const { transferencias, detalles } = req.body;
+
+    const transferencia = await queryRunner.manager.findOne(Transferencia, {
+      where: { IdTransferencia: id },
+      relations: [
+        "Detalletransferencia",
+        "SucursalOrigen",
+        "SucursalDestino",
+        "Detalletransferencia.ProductoMedida",
+        "Detalletransferencia.ProductoMedida.Producto",
+        "Detalletransferencia.Insumomedida",
+        "Detalletransferencia.Insumomedida.Insumo",
+        "Detalletransferencia.Insumomedida.Unidadmedida"
+      ]
+    });
+
+    if (!transferencia) {
+      throw new HttpError(404, "Transferencia no encontrada.");
+    }
+
+    if (transferencia.Estado === 0) {
+      throw new HttpError(400, "No se puede actualizar una transferencia anulada.");
+    }
+
+    // 1. Revertir stock anterior (como anulación)
+    if (transferencia.SucursalDestino) {
+      await anularLotesPorReferencia(queryRunner, transferencia.IdTransferencia, "ENTRADA_TRANSFERENCIA", "ANULACION_ENTRADA_TRANSFERENCIA");
+    }
+
+    for (const detalle of transferencia.Detalletransferencia) {
+      if (detalle.ProductoMedida) {
+        await IncrementProducto(
+          queryRunner,
+          detalle.ProductoMedida,
+          transferencia.SucursalOrigen.IdSucursal,
+          detalle.Cantidad,
+          transferencia.IdTransferencia,
+          "ANULACION_SALIDA_TRANSFERENCIA"
+        );
+      }
+
+      if (detalle.Insumomedida) {
+        await IncrementInsumo(
+          queryRunner,
+          detalle.Insumomedida,
+          transferencia.SucursalOrigen.IdSucursal,
+          detalle.Cantidad,
+          transferencia.IdTransferencia,
+          "ANULACION_SALIDA_TRANSFERENCIA"
+        );
+      }
+    }
+
+    // 2. Eliminar detalles antiguos
+    if (transferencia.Detalletransferencia?.length > 0) {
+      await queryRunner.manager.remove(transferencia.Detalletransferencia);
+    }
+
+    // 3. Actualizar cabecera
+    if (transferencias.IdsucursalOrigen) {
+      transferencia.SucursalOrigen = await verifySucursal({ SucursalId: transferencias.IdsucursalOrigen });
+    }
+    if (transferencias.IdsucursalDestino !== undefined) {
+      transferencia.SucursalDestino = 
+         await verifySucursal({ SucursalId: transferencias.IdsucursalDestino })
+        
+    }
+    if (transferencias.IdempleadoDestino !== undefined) {
+      transferencia.EmpleadoDestino = 
+         await verifyEmpleado(transferencias.IdempleadoDestino)
+        
+    }
+    if (transferencias.Tipo) transferencia.Tipo = transferencias.Tipo;
+    if (transferencias.Fecha) transferencia.Fecha = transferencias.Fecha;
+
+    await queryRunner.manager.save(transferencia);
+
+    // 4. Crear nuevos detalles
+    if (detalles) {
+      if (detalles.Producto?.length > 0) {
+        for (const prod of detalles.Producto) {
+          let presentacion = null;
+          if (prod.idPaquete) {
+            presentacion = await verifyProductoMedida({ PaqueteId: prod.idPaquete });
+          }
+          let insumomedida = null;
+          if (prod.idInsumo) {
+            insumomedida = await verifyInsumoMedida({ PaqueteId: prod.idInsumo });
+          }
+          await createDetalleTransferencia(
+            queryRunner,
+            transferencia,
+            presentacion,
+            insumomedida,
+            prod.Cantidad
+          );
+        }
+      }
+    }
+
+    await queryRunner.commitTransaction();
+    return res.status(200).json({
+      message: "La transferencia se actualizó correctamente",
+      idVenta: id
+    });
+
+  } catch (error) {
+    await queryRunner.rollbackTransaction();
+    if (error instanceof HttpError) {
+      return res.status(error.statusCode).json({ message: error.message });
+    }
+    return res.status(500).json({
+      message: "Error al actualizar la transferencia",
+      error: error instanceof Error ? error.message : "Error desconocido"
+    });
+  } finally {
+    await queryRunner.release();
+  }
+};
+
+export const createDetalleTransferencia= async (queryRunner: QueryRunner, transferencia: Transferencia, presentacion: Productomedida | null, insumo: Insumomedida | null, Cantidad: number) => {
+    
+      const nuevoId = await generarIdSecuencial('DTRA', queryRunner); 
+     
+
+      const detalletransferencia = new DetalleTransferencia()
    
    detalletransferencia.IdDetalleTransferencia = nuevoId;
    detalletransferencia.Cantidad = Cantidad;
@@ -128,9 +252,8 @@ export const createDetalleTransferencia= async (queryRunner: QueryRunner, transf
      await queryRunner.manager.save(detalletransferencia);
      
     if (presentacion){
-    console.log("  createDetalleTransferencia - llamando DecrementProducto, QR existe:", !!queryRunner);
+   
     const decrementResult = await DecrementProducto(queryRunner,presentacion,transferencia.SucursalOrigen.IdSucursal,Cantidad, transferencia.IdTransferencia, "SALIDA_TRANSFERENCIA");
-    console.log("  createDetalleTransferencia - DecrementProducto OK, SucursalDestino:", !!transferencia.SucursalDestino);
     
     if (transferencia.SucursalDestino) {
       const idproducto = presentacion.Producto.IdProducto

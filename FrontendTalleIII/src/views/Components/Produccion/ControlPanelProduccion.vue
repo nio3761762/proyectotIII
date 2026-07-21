@@ -139,95 +139,116 @@
               <PackagePlus class="h-6 w-6 text-green-500" />
               Registrar Salida de Producto
             </h3>
-            <button 
-              @click="abrirModalDescartar"
-              class="px-4 py-2 bg-red-50 text-red-600 rounded-xl font-bold text-xs uppercase tracking-wider hover:bg-red-100 transition-all flex items-center gap-2"
-            >
-              <Trash2 class="h-4 w-4" />
-              Descartar Dañados
-            </button>
+            <div class="flex items-center gap-2">
+              <button 
+                @click="agregarFila"
+                class="px-4 py-2 bg-green-50 text-green-600 rounded-xl font-bold text-xs uppercase tracking-wider hover:bg-green-100 transition-all flex items-center gap-2"
+              >
+                <Plus class="h-4 w-4" />
+                Agregar Fila
+              </button>
+              <button 
+                @click="abrirModalDescartar"
+                class="px-4 py-2 bg-red-50 text-red-600 rounded-xl font-bold text-xs uppercase tracking-wider hover:bg-red-100 transition-all flex items-center gap-2"
+              >
+                <Trash2 class="h-4 w-4" />
+                Descartar Dañados
+              </button>
+            </div>
           </div>
 
-          <form @submit.prevent="handleRegistrarSalida" class="space-y-6">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <!-- Producto -->
-              <div class="space-y-2">
-                <label class="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Producto</label>
-                <select 
-                  v-model="salidaForm.IdProducto"
-                  required
-                  class="w-full px-4 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-orange-500 outline-none font-bold text-gray-700"
-                >
-                  <option value="" disabled>Seleccionar Producto</option>
-                  <option v-for="p in productos" :key="p.idproducto" :value="p.idproducto">{{ p.nombre }}</option>
-                </select>
-              </div>
-
-              <!-- Cantidad -->
-              <div class="space-y-2">
-                <label class="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Cantidad</label>
-                <input 
-                  v-model.number="salidaForm.Cantidad"
-                  type="number"
-                  required
-                  min="1"
-                  class="w-full px-4 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-orange-500 outline-none font-black text-gray-800 text-center text-xl"
-                  placeholder="0"
-                />
-              </div>
-
-              <!-- Horno -->
-              <div class="space-y-2">
-                <label class="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Horno Utilizado</label>
-                <select 
-                  v-model="salidaForm.IdHorno"
-                  required
-                  class="w-full px-4 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-orange-500 outline-none font-bold text-gray-700"
-                >
-                  <option value="" disabled>Seleccionar Horno</option>
-                  <option v-for="h in produccion.DetalleHorno.filter(h => !h.HoraFin)" :key="h.IdHorno" :value="h.Horno.IdHorno">
-                    {{ h.Horno.Nombre }}
-                  </option>
-                </select>
-              </div>
-
-              <!-- Empleado -->
-              <div class="space-y-2">
-                <label class="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Responsable</label>
-                <input 
-                  type="text"
-                  :value="produccion.Empleados?.find(e => !e.HoraFin)?.Empleado?.Nombre || 'Sistema'"
-                  readonly
-                  class="w-full px-4 py-4 bg-gray-100 border border-gray-200 rounded-2xl font-bold text-gray-700 cursor-not-allowed opacity-70"
-                />
-              </div>
-
-              <!-- Hora Registro -->
-              <div class="space-y-2">
-                <label class="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Hora de Registro</label>
-                <input 
-                  type="time"
-                  :value="horaActual"
-                  disabled
-                  class="w-full px-4 py-4 bg-gray-100 border border-gray-200 rounded-2xl font-bold text-gray-700 cursor-not-allowed opacity-70"
-                />
-              </div>
+          <!-- Bulk Registration Table -->
+          <div v-if="salidasMasivas.length > 0" class="space-y-4 mb-6">
+            <div class="overflow-x-auto">
+              <table class="w-full text-left">
+                <thead>
+                  <tr class="text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100">
+                    <th class="py-3 pr-2">Producto</th>
+                    <th class="py-3 px-2">Cantidad</th>
+                    <th class="py-3 px-2">Horno</th>
+                    <th class="py-3 px-2">Responsable</th>
+                    <th class="py-3 px-2">Hora</th>
+                    <th class="py-3 pl-2 w-10"></th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-50">
+                  <tr v-for="(fila, idx) in salidasMasivas" :key="idx" class="hover:bg-orange-50/20 transition-colors">
+                    <td class="py-2 pr-2">
+                      <select 
+                        v-model="fila.IdProducto"
+                        required
+                        class="w-full px-3 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none font-bold text-gray-700 text-xs"
+                      >
+                        <option value="" disabled>Producto</option>
+                        <option v-for="p in productos" :key="p.idproducto" :value="p.idproducto">{{ p.nombre }}</option>
+                      </select>
+                    </td>
+                    <td class="py-2 px-2">
+                      <input 
+                        v-model.number="fila.Cantidad"
+                        type="number"
+                        min="1"
+                        class="w-20 px-3 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none font-black text-gray-800 text-center text-sm"
+                      />
+                    </td>
+                    <td class="py-2 px-2">
+                      <select 
+                        v-model="fila.IdHorno"
+                        required
+                        class="w-full px-3 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none font-bold text-gray-700 text-xs"
+                      >
+                        <option value="" disabled>Horno</option>
+                        <option v-for="h in produccion.DetalleHorno?.filter(h => !h.HoraFin)" :key="h.Horno?.IdHorno" :value="h.Horno?.IdHorno">
+                          {{ h.Horno?.Nombre }}
+                        </option>
+                      </select>
+                    </td>
+                    <td class="py-2 px-2">
+                      <select 
+                        v-model="fila.IdEmpleado"
+                        class="w-full px-3 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none font-bold text-gray-700 text-xs"
+                      >
+                        <option value="">Seleccionar</option>
+                        <option v-for="emp in produccion.Empleados?.filter(e => !e.HoraFin)" :key="emp.Empleado?.IdEmpleado" :value="emp.Empleado?.IdEmpleado">
+                          {{ emp.Empleado?.Nombre }}
+                        </option>
+                      </select>
+                    </td>
+                    <td class="py-2 px-2">
+                      <input 
+                        type="time"
+                        v-model="fila.HoraRegistro"
+                        class="w-full px-3 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none font-bold text-gray-700 text-xs"
+                      />
+                    </td>
+                    <td class="py-2 pl-2">
+                      <button @click="removerFila(idx)" class="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all">
+                        <X class="h-4 w-4" />
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
+          </div>
 
-            <div class="pt-6">
-              <button 
-                type="submit"
-                :disabled="submittingSalida || !produccion.DetalleHorno.some(h => !h.HoraFin)"
-                class="w-full py-5 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-[2rem] font-black text-lg tracking-[0.2em] shadow-xl hover:shadow-green-200 transition-all transform hover:scale-[1.01] active:scale-95 flex items-center justify-center gap-3 disabled:opacity-50"
-              >
-                <component :is="submittingSalida ? Loader2 : CheckCircle" :class="['h-6 w-6', { 'animate-spin': submittingSalida }]" />
-                {{ submittingSalida ? 'PROCESANDO...' : 'REGISTRAR SALIDA' }}
-              </button>
-              <p v-if="!produccion.DetalleHorno.some(h => !h.HoraFin)" class="text-center text-xs text-red-500 font-bold mt-2 uppercase">
-                Debes encender al menos un horno para registrar productos
-              </p>
-            </div>
-          </form>
+          <div v-else class="text-center py-8 text-gray-400 border-2 border-dashed border-gray-100 rounded-2xl mb-6">
+            <p class="text-sm font-medium">Agregue filas para registrar salidas masivas</p>
+          </div>
+
+          <div class="pt-2">
+            <button 
+              @click="handleRegistrarMasivo"
+              :disabled="submittingSalida || !tieneHornosActivos || salidasMasivas.length === 0"
+              class="w-full py-5 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-[2rem] font-black text-lg tracking-[0.2em] shadow-xl hover:shadow-green-200 transition-all transform hover:scale-[1.01] active:scale-95 flex items-center justify-center gap-3 disabled:opacity-50"
+            >
+              <component :is="submittingSalida ? Loader2 : CheckCircle" :class="['h-6 w-6', { 'animate-spin': submittingSalida }]" />
+              {{ submittingSalida ? 'PROCESANDO...' : `REGISTRAR ${salidasMasivas.length} SALIDA(S)` }}
+            </button>
+            <p v-if="!tieneHornosActivos" class="text-center text-xs text-red-500 font-bold mt-2 uppercase">
+              Debes encender al menos un horno para registrar productos
+            </p>
+          </div>
 
           <!-- Detalle de Producción por Empleado (Now at the bottom) -->
           <div class="mt-12 border-t border-gray-100 pt-8">
@@ -609,10 +630,11 @@ import {
   Factory, Clock, Plus, Flame, Users, User, LogOut, PackagePlus, 
   Package, CheckCircle, Loader2, AlertTriangle, Power, X, Warehouse, Trash2
 } from 'lucide-vue-next';
+
 import { 
   encenderHorno, cambiarCombustibleHorno, finalizarTurnoEmpleado, 
   registrarSalidaProducto, finalizarProduccionTotal, Agregarempleado, getInsumosSucursal,
-  descartarProducto, apagarHorno
+  descartarProducto, apagarHorno, registrarSalidaProductoMasiva
 } from '@/Server/Produccion';
 import { ListHornos } from '@/Server/Sucural';
 import { listProduct } from '@/Server/Producto';
@@ -664,6 +686,28 @@ const salidaForm = reactive({
   IdHorno: '',
   IdEmpleado: '',
   HoraRegistro: ''
+});
+
+// Bulk Registration
+const salidasMasivas = ref([]);
+
+const agregarFila = () => {
+  const primerEmp = props.produccion.Empleados?.find(e => !e.HoraFin);
+  salidasMasivas.value.push({
+    IdProducto: '',
+    Cantidad: 1,
+    IdHorno: '',
+    IdEmpleado: primerEmp?.Empleado?.IdEmpleado || '',
+    HoraRegistro: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+  });
+};
+
+const removerFila = (idx) => {
+  salidasMasivas.value.splice(idx, 1);
+};
+
+const tieneHornosActivos = computed(() => {
+  return props.produccion.DetalleHorno?.some(h => !h.HoraFin) || false;
 });
 
 const descarteForm = reactive({
@@ -757,6 +801,7 @@ onMounted(() => {
   if (emp?.Empleado?.IdEmpleado) {
     salidaForm.IdEmpleado = emp.Empleado.IdEmpleado;
   }
+  agregarFila();
 });
 
 // Handlers
@@ -876,24 +921,21 @@ const handleFinTurno = async () => {
   }
 };
 
-const handleRegistrarSalida = async () => {
+const handleRegistrarMasivo = async () => {
+  const incompletas = salidasMasivas.value.filter(f => !f.IdProducto || !f.Cantidad || !f.IdHorno);
+  if (incompletas.length > 0) {
+    emit('toast', 'Complete todas las filas antes de registrar', 'error');
+    return;
+  }
+
   submittingSalida.value = true;
   try {
-    await registrarSalidaProducto(
-      props.produccion.IdProduccion,
-      salidaForm.IdProducto,
-      salidaForm.IdEmpleado,
-      salidaForm.Cantidad,
-      salidaForm.IdHorno, 
-      props.produccion.Sucursal.IdSucursal,
-      horaActual.value
-    );
-    emit('toast', 'Salida registrada con éxito', 'success');
-    salidaForm.IdProducto = '';
-    salidaForm.Cantidad = 1;
+    await registrarSalidaProductoMasiva(props.produccion.IdProduccion, salidasMasivas.value);
+    emit('toast', `${salidasMasivas.value.length} salida(s) registrada(s) con éxito`, 'success');
+    salidasMasivas.value = [];
     emit('updated');
   } catch (error) {
-    emit('toast', error.message || 'Error al registrar salida', 'error');
+    emit('toast', error.message || 'Error al registrar salidas', 'error');
   } finally {
     submittingSalida.value = false;
   }

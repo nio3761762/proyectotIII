@@ -99,6 +99,7 @@
               :produccion="transformProduccion(p)" 
               @anular="prepareAnular"
               @gestionar="handleGestionar"
+              @editar="handleEditar"
             />
           </div>
 
@@ -178,9 +179,13 @@
                       </td>
                       <td class="px-6 py-4 text-right">
                         <div class="flex items-center justify-end gap-2" @click.stop>
+                          <button v-if="p.estado === 1 || p.estado === 2" @click="handleEditar(p)" 
+                            class="p-2 text-blue-500 hover:bg-blue-50 rounded-xl transition-colors" title="Editar">
+                            <Pencil class="h-4 w-4" />
+                          </button>
                           <button v-if="p.estado === 2" @click="handleGestionar(p)" 
                             class="p-2 text-orange-600 hover:bg-orange-50 rounded-xl transition-colors" title="Gestionar">
-                            <Pencil class="h-4 w-4" />
+                            <Activity class="h-4 w-4" />
                           </button>
                           <button v-if="p.estado === 1" @click="prepareAnular(p)" 
                             class="p-2 text-red-500 hover:bg-red-50 rounded-xl transition-colors" title="Anular">
@@ -331,6 +336,14 @@
       @confirm="confirmAnular"
     />
 
+    <!-- Edit Modal -->
+    <EditarProduccion 
+      v-if="showEditModal"
+      :produccion="editProduccionData"
+      @saved="handleEditSaved"
+      @cancel="showEditModal = false"
+    />
+
     <!-- Notificacion (Similar to Insumo.vue) -->
     <Transition name="slide-up">
       <div v-if="notificacion.visible"
@@ -345,7 +358,7 @@
 
 <script setup>
 import { ref, reactive, onMounted, watch } from 'vue';
-import { Factory, Search, TrendingUp, CheckCircle, AlertCircle, AlertTriangle, LayoutGrid, List as ListIcon, Pencil, Trash2, Flame, User, Users, Package, ChevronDown } from 'lucide-vue-next';
+import { Factory, Search, TrendingUp, CheckCircle, AlertCircle, AlertTriangle, LayoutGrid, List as ListIcon, Pencil, Trash2, Flame, User, Users, Package, ChevronDown, Activity } from 'lucide-vue-next';
 
 import { getProducciones, anularProduccion } from '@/Server/Produccion';
 import { SucursalUsuario } from '@/Server/Usuario';
@@ -353,6 +366,7 @@ import FiltrosProduccion from './FiltrosProduccion.vue';
 import ProduccionCard from './ProduccionCard.vue';
 import RegistrarProduccion from './RegistrarProduccion.vue';
 import ControlPanelProduccion from './ControlPanelProduccion.vue';
+import EditarProduccion from './EditarProduccion.vue';
 import Paginado from '../Modals/Paginado.vue';
 import AnularVentaModal from '../Venta/AnularVentaModal.vue';
 
@@ -391,6 +405,8 @@ const currentFilters = ref({
 const showAnularModal = ref(false);
 const selectedProduccionId = ref(null);
 const anularLoading = ref(false);
+const showEditModal = ref(false);
+const editProduccionData = ref(null);
 
 // Notificacion State (Similar to Insumo.vue)
 const notificacion = reactive({ visible: false, mensaje: '', error: false });
@@ -552,6 +568,18 @@ const handleGestionar = async (p) => {
 
 const handleClosePanel = () => {
   showActivePanel.value = false;
+};
+
+const handleEditar = (p) => {
+  editProduccionData.value = p;
+  showEditModal.value = true;
+};
+
+const handleEditSaved = () => {
+  showEditModal.value = false;
+  editProduccionData.value = null;
+  fetchProducciones();
+  mostrarNotificacion('Producción actualizada con éxito');
 };
 
 // Watchers

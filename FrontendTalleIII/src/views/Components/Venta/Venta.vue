@@ -266,7 +266,9 @@
                         <th class="px-6 py-4 font-black">ID / Fecha</th>
                         <th class="px-6 py-4 font-black">Cliente</th>
                         <th class="px-6 py-4 font-black">Productos / Detalle</th>
-                        <th class="px-6 py-4 font-black">Total</th>
+                        <th class="px-6 py-4 font-black text-center">V. Menor</th>
+                        <th class="px-6 py-4 font-black text-center">V. Mayor</th>
+                        <th class="px-6 py-4 font-black text-center">Venta Neta</th>
                         <th class="px-6 py-4 font-black">Método Pago</th>
                         <th class="px-6 py-4 font-black">Estado</th>
                         <th class="px-6 py-4 font-black text-right">Acciones</th>
@@ -296,34 +298,48 @@
                           </div>
                         </td>
                         <td class="px-6 py-4">
-                          <div class="flex flex-col gap-2 max-w-[300px]">
-                            <div v-for="item in (venta.Detalle || venta.Detalleventa)" :key="item.IdDetalleVenta" 
-                                 class="flex flex-col bg-gray-50/80 p-2 rounded-xl border border-gray-200/50 shadow-xs">
-                              <div class="flex justify-between items-start gap-2">
-                                <span class="font-black text-gray-800 text-[11px] truncate flex-1">
-                                  {{ item.Productomedida?.Producto?.Nombre || item.Promocion?.Nombre || 'Ítem' }}
-                                </span>
-                                <span class="px-2 py-0.5 bg-orange-500 text-white rounded-lg font-black text-[10px] shadow-sm">
-                                  x{{ item.Cantidad }}
-                                </span>
+                          <div class="flex flex-col gap-1 max-w-[320px]">
+                            <div v-for="item in itemsMenorVenta(venta)" :key="item.IdDetalleVenta" 
+                                 class="flex items-center justify-between bg-gray-50/80 px-2.5 py-1.5 rounded-lg border border-gray-200/50 text-[11px]">
+                              <div class="flex items-center gap-1.5 min-w-0 flex-1">
+                                <span class="w-1.5 h-1.5 rounded-full bg-gray-400 shrink-0"></span>
+                                <span class="font-bold text-gray-800 truncate">{{ item.Productomedida?.Producto?.Nombre || 'Ítem' }}</span>
+                                <span class="text-gray-400">x{{ item.Cantidad }}</span>
                               </div>
-                              <div class="flex justify-between items-center mt-1 text-[10px]">
-                                <span class="text-gray-500 font-medium">
-                                  {{ item.Productomedida?.Presentacion?.Nombre || (item.Promocion ? 'Promoción / Combo' : 'S/D') }}
-                                </span>
-                                <span class="font-bold text-orange-600 bg-white px-1.5 rounded-md border border-orange-100">
-                                  Bs. {{ parseFloat(item.Precio).toFixed(2) }}
-                                </span>
+                              <span class="font-bold text-gray-700 shrink-0 ml-2">Bs. {{ (item.Precio * item.Cantidad).toFixed(2) }}</span>
+                            </div>
+                            <div v-for="item in itemsMayorVenta(venta)" :key="item.IdDetalleVenta" 
+                                 class="flex items-center justify-between bg-orange-50/80 px-2.5 py-1.5 rounded-lg border border-orange-200/50 text-[11px]">
+                              <div class="flex items-center gap-1.5 min-w-0 flex-1">
+                                <span class="w-1.5 h-1.5 rounded-full bg-orange-400 shrink-0"></span>
+                                <span class="font-bold text-orange-800 truncate">{{ item.Productomedida?.Producto?.Nombre || 'Ítem' }}</span>
+                                <span class="text-orange-400">x{{ item.Cantidad }}</span>
                               </div>
+                              <span class="font-bold text-orange-600 shrink-0 ml-2">Bs. {{ (item.Precio * item.Cantidad).toFixed(2) }}</span>
+                            </div>
+                            <div v-for="item in itemsPromoVenta(venta)" :key="item.IdDetalleVenta" 
+                                 class="flex items-center justify-between bg-purple-50/80 px-2.5 py-1.5 rounded-lg border border-purple-200/50 text-[11px]">
+                              <div class="flex items-center gap-1.5 min-w-0 flex-1">
+                                <span class="w-1.5 h-1.5 rounded-full bg-purple-400 shrink-0"></span>
+                                <span class="font-bold text-purple-800 truncate">{{ item.Promocion?.Nombre || 'Promoción' }}</span>
+                                <span class="text-purple-400">x{{ item.Cantidad }}</span>
+                              </div>
+                              <span class="font-bold text-purple-600 shrink-0 ml-2">Bs. {{ (item.Precio * item.Cantidad).toFixed(2) }}</span>
                             </div>
                           </div>
                         </td>
-                        <td class="px-6 py-4">
-                          <div class="flex flex-col">
-                            <span class="text-lg font-black text-green-600">Bs. {{ parseFloat(venta.preciototal).toFixed(2) }}</span>
-                            <span v-if="venta.gastoextra || venta.GastoExtra" class="text-[10px] text-red-500 font-medium">
-                                Gasto Extra: Bs. {{ Number(venta.gastoextra || venta.GastoExtra).toFixed(2) }}
-                              </span>
+                        <td class="px-6 py-4 text-center align-top">
+                          <span class="text-sm font-black text-gray-700">Bs. {{ totalMenorVenta(venta).toFixed(2) }}</span>
+                        </td>
+                        <td class="px-6 py-4 text-center align-top">
+                          <span class="text-sm font-black text-orange-600">Bs. {{ totalMayorVenta(venta).toFixed(2) }}</span>
+                        </td>
+                        <td class="px-6 py-4 text-center align-top">
+                          <div class="flex flex-col items-center">
+                            <span class="text-base font-black text-blue-600">Bs. {{ ventaNeta(venta).toFixed(2) }}</span>
+                            <span v-if="venta.gastoextra || venta.GastoExtra" class="text-[9px] text-red-500 font-medium">
+                              G.Extra: Bs. {{ Number(venta.gastoextra || venta.GastoExtra).toFixed(2) }}
+                            </span>
                           </div>
                         </td>
                         <td class="px-6 py-4">
@@ -983,7 +999,10 @@ const onVentaSuccess = async (payload) => {
     }
 
     if (ventaParaEditar.value) {
-      await actualizarventa(ventaParaEditar.value.idventa || ventaParaEditar.value.IdVenta, { ...payload, IdUsuario: usuarioId.value });
+      await actualizarventa(
+        ventaParaEditar.value.idventa || ventaParaEditar.value.IdVenta,
+        { ...payload, IdUsuario: payload.IdUsuario || usuarioId.value }
+      );
       showNotification('Venta actualizada con éxito', 'success');
       modoRegistro.value = false;
       ventaParaEditar.value = null;
@@ -992,7 +1011,7 @@ const onVentaSuccess = async (payload) => {
         throw new Error('Usuario no identificado. Inicia sesión nuevamente.');
       }
      
-      const res = await RegistrarVenta({ ...payload, IdUsuario: usuarioId.value });
+      const res = await RegistrarVenta({ ...payload, IdUsuario: payload.IdUsuario || usuarioId.value });
       showNotification('Venta registrada con éxito', 'success');
       
       if (res && res.idVenta) {
@@ -1143,6 +1162,39 @@ const confirmarGenerarFactura = async () => {
     generandoFactura.value = false;
   }
 };
+
+// --- Helper functions for table (V. Menor / V. Mayor / Venta Neta) ---
+const esPrecioMayor = (i) => {
+  const v = i.PrecioMayor ?? i.precioMayor ?? i.preciomayor;
+  if (v != null && Number(v) > 0) return true;
+  const pm = i.Productomedida;
+  const p = i.Producto ?? i.producto;
+  const refMenor = pm?.Precio ?? pm?.precioventa ?? p?.PrecioVenta ?? p?.precioventa ?? p?.Precio ?? 0;
+  const refMayor = pm?.PrecioMayor ?? pm?.preciomayor ?? p?.PrecioMayor ?? p?.preciomayor ?? 0;
+  if (refMayor > 0 && Number(i.Precio) <= Number(refMayor)) return true;
+  if (refMenor > 0 && Number(i.Precio) < Number(refMenor)) return true;
+  return false;
+};
+
+const itemsVenta = (venta) => venta.Detalle || venta.Detalleventa || [];
+const itemsMenorVenta = (venta) => itemsVenta(venta).filter(i => !i.Promocion && !esPrecioMayor(i));
+const itemsMayorVenta = (venta) => itemsVenta(venta).filter(i => !i.Promocion && esPrecioMayor(i));
+const itemsPromoVenta = (venta) => itemsVenta(venta).filter(i => i.Promocion);
+
+const totalMenorVenta = (venta) => {
+  return itemsMenorVenta(venta).reduce((acc, item) => acc + Number(item.Precio) * Number(item.Cantidad), 0);
+};
+
+const totalMayorVenta = (venta) => {
+  return itemsMayorVenta(venta).reduce((acc, item) => acc + Number(item.Precio) * Number(item.Cantidad), 0);
+};
+
+const ventaNeta = (venta) => {
+  const total = itemsVenta(venta).reduce((acc, item) => acc + Number(item.Precio) * Number(item.Cantidad), 0);
+  const gasto = Number(venta.gastoextra || venta.GastoExtra || 0);
+  return total - gasto;
+};
+// ---
 
 // Shared Catalog Handlers
 const onLimiteProductosChange = () => { paginacionProductos.paginaActual = 1; cargarProductosCatalogo(); };
