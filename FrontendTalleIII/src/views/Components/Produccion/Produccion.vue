@@ -19,16 +19,33 @@
           </div>
         </div>
         
-        <div class="flex items-center gap-4">
+          <div class="flex items-center gap-4">
           <div class="hidden lg:flex items-center space-x-6 mr-6">
             <div class="text-center">
               <div class="text-2xl font-bold text-gray-800">{{ totalItems }}</div>
               <div class="text-xs text-gray-400 uppercase font-bold tracking-wider">Total Registros</div>
             </div>
             <div class="w-px h-10 bg-gray-200"></div>
-            <div class="p-3 bg-orange-100 rounded-2xl text-orange-600">
+          <div class="p-3 bg-orange-100 rounded-2xl text-orange-600">
               <TrendingUp class="h-6 w-6" />
             </div>
+          </div>
+          
+          <div class="flex bg-gray-100 p-1 rounded-2xl">
+            <button 
+              @click="abrirModalBaja"
+              class="p-3 rounded-xl text-gray-500 hover:text-gray-700 hover:bg-white transition-all"
+              title="Dar de Baja"
+            >
+              <Trash2 class="h-5 w-5" />
+            </button>
+            <button 
+              @click="abrirModalVerDescarte"
+              class="p-3 rounded-xl text-gray-500 hover:text-gray-700 hover:bg-white transition-all"
+              title="Ver Descarte"
+            >
+              <Eye class="h-5 w-5" />
+            </button>
           </div>
         </div>
       </div>
@@ -344,7 +361,178 @@
       @cancel="showEditModal = false"
     />
 
-    <!-- Notificacion (Similar to Insumo.vue) -->
+    <!-- Modal: Dar de Baja Productos -->
+    <div v-if="showBajaModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[120] flex items-center justify-center p-4" @click.self="showBajaModal = false">
+      <div class="bg-white rounded-[2.5rem] w-full max-w-3xl max-h-[90vh] overflow-hidden shadow-2xl animate-scale-in flex flex-col">
+        <div class="p-6 pb-4 border-b border-gray-100 flex items-center justify-between shrink-0">
+          <div class="flex items-center gap-3">
+            <div class="p-3 bg-gray-700 rounded-2xl">
+              <Trash2 class="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <h3 class="text-2xl font-black text-gray-800">Dar de Baja Productos</h3>
+              <p class="text-sm text-gray-500 font-medium">Selecciona productos para dar de baja del inventario</p>
+            </div>
+          </div>
+          <button @click="showBajaModal = false" class="p-2 bg-gray-100 rounded-xl hover:bg-gray-200 transition-all">
+            <X class="h-5 w-5 text-gray-500" />
+          </button>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-6">
+          <div class="mb-4">
+            <label class="text-sm font-bold text-gray-700 mb-1 block">Sucursal</label>
+            <select v-model="bajaSucursalId" @change="cargarProductosBaja"
+              class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-gray-700 font-medium">
+              <option value="" disabled>Seleccionar sucursal</option>
+              <option v-for="s in sucursalesBaja" :key="s.idsucursal" :value="s.idsucursal">{{ s.nombre }}</option>
+            </select>
+          </div>
+
+          <div class="mb-4">
+            <label class="text-sm font-bold text-gray-700 mb-1 block">Fecha de Baja</label>
+            <input type="date" v-model="bajaFecha"
+              class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-gray-700 font-medium" />
+          </div>
+
+          <div v-if="!bajaSucursalId" class="text-center py-10 text-gray-500 font-medium">
+            Selecciona una sucursal para ver sus productos.
+          </div>
+          <div v-else-if="loadingBajaProductos" class="flex justify-center py-10">
+            <div class="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-gray-700"></div>
+          </div>
+          <div v-else-if="productosBaja.length === 0" class="text-center py-10 text-gray-500 font-medium">
+            No hay productos con stock disponible en esta sucursal.
+          </div>
+
+          <table v-else class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-gray-50 rounded-2xl">
+                <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">Producto</th>
+                <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Stock</th>
+                <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Cantidad a dar de baja</th>
+                <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">Motivo</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+              <tr v-for="item in productosBaja" :key="item.id" class="hover:bg-gray-50/30">
+                <td class="p-3 text-sm font-bold text-gray-700">{{ item.nombre }}</td>
+                <td class="p-3 text-center text-sm font-black text-gray-800">{{ item.stock }}</td>
+                <td class="p-3 text-center">
+                  <input v-model.number="item.cantidad" type="number" :min="0" :max="item.stock" class="w-24 px-2 py-1.5 bg-gray-50 border border-gray-100 rounded-xl text-center font-black text-sm outline-none focus:ring-2 focus:ring-gray-700" />
+                </td>
+                <td class="p-3">
+                  <input v-model="item.motivo" type="text" class="w-full px-3 py-1.5 bg-gray-50 border border-gray-100 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-gray-700" placeholder="Ej: No se vendió" :disabled="!item.cantidad" />
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="p-6 pt-4 border-t border-gray-100 bg-gray-50/50 flex items-center justify-between shrink-0">
+          <span class="text-sm font-bold text-gray-500">
+            {{ itemsBajaCount }} producto(s) seleccionados
+          </span>
+          <div class="flex gap-3">
+            <button @click="showBajaModal = false" class="px-6 py-3 bg-gray-100 text-gray-500 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-gray-200 transition-all">
+              Cancelar
+            </button>
+            <button @click="confirmarBaja" :disabled="itemsBajaCount === 0 || enviandoBaja" class="px-8 py-3 bg-gray-800 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg hover:bg-gray-900 transition-all disabled:opacity-50 flex items-center gap-2">
+              <Loader2 v-if="enviandoBaja" class="h-4 w-4 animate-spin" />
+              {{ enviandoBaja ? 'ENVIANDO...' : 'DAR DE BAJA' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Ver Descarte -->
+    <div v-if="showDescarteModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[120] flex items-center justify-center p-4" @click.self="showDescarteModal = false">
+      <div class="bg-white rounded-[2.5rem] w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-2xl animate-scale-in flex flex-col">
+        <div class="p-6 pb-4 border-b border-gray-100 flex items-center justify-between shrink-0">
+          <div class="flex items-center gap-3">
+            <div class="p-3 bg-blue-600 rounded-2xl">
+              <Eye class="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <h3 class="text-2xl font-black text-gray-800">Historial de Descarte</h3>
+              <p class="text-sm text-gray-500 font-medium">Productos dados de baja del inventario</p>
+            </div>
+          </div>
+          <button @click="showDescarteModal = false" class="p-2 bg-gray-100 rounded-xl hover:bg-gray-200 transition-all">
+            <X class="h-5 w-5 text-gray-500" />
+          </button>
+        </div>
+
+        <div class="p-6 border-b border-gray-100 bg-gray-50/30 flex flex-col md:flex-row gap-4 items-end shrink-0">
+          <div class="flex-1">
+            <label class="text-xs font-bold text-gray-600 mb-1 block">Sucursal</label>
+            <select v-model="descarteFiltroSucursal" @change="cargarDescartes"
+              class="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 font-medium">
+              <option value="TODOS">Todas las sucursales</option>
+              <option v-for="s in sucursalesBaja" :key="s.idsucursal" :value="s.idsucursal">{{ s.nombre }}</option>
+            </select>
+          </div>
+          <div class="w-full md:w-48">
+            <label class="text-xs font-bold text-gray-600 mb-1 block">Fecha</label>
+            <input type="date" v-model="descarteFiltroFecha" @change="cargarDescartes"
+              class="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 font-medium" />
+          </div>
+          <button @click="cargarDescartes" class="px-6 py-3 bg-blue-600 text-white rounded-2xl font-bold text-xs uppercase tracking-widest hover:bg-blue-700 transition-all flex items-center gap-2">
+            <Search class="h-4 w-4" />
+            Buscar
+          </button>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-6">
+          <div v-if="loadingDescartes" class="flex justify-center py-20">
+            <div class="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-600"></div>
+          </div>
+          <div v-else-if="descartesList.length === 0" class="text-center py-16 text-gray-500 font-medium">
+            <Eye class="h-12 w-12 mx-auto mb-4 opacity-30" />
+            No se encontraron registros de descarte.
+          </div>
+          <table v-else class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-gray-50 rounded-2xl">
+                <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">ID</th>
+                <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">Producto</th>
+                <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">Sucursal</th>
+                <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Cantidad</th>
+                <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">Motivo</th>
+                <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">Fecha</th>
+                <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">Hora</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+              <tr v-for="baja in descartesList" :key="baja.IdBaja" class="hover:bg-blue-50/20 transition-colors">
+                <td class="p-3 text-xs font-black text-blue-600">{{ baja.IdBaja }}</td>
+                <td class="p-3 text-sm font-bold text-gray-700">{{ baja.Producto?.Nombre }}</td>
+                <td class="p-3 text-sm text-gray-600">{{ baja.Sucursal?.Nombre }}</td>
+                <td class="p-3 text-center text-sm font-black text-red-600">{{ baja.Cantidad }}</td>
+                <td class="p-3 text-sm text-gray-600 max-w-[200px] truncate">{{ baja.Motivo }}</td>
+                <td class="p-3 text-sm text-gray-600">{{ baja.Fecha }}</td>
+                <td class="p-3 text-sm text-gray-600">{{ baja.Hora }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="p-6 pt-4 border-t border-gray-100 bg-gray-50/50 flex items-center justify-between shrink-0">
+          <span class="text-sm font-bold text-gray-500">{{ descartesList.length }} registro(s)</span>
+          <Paginado
+            v-if="descarteTotalPaginas > 0"
+            :paginaActual="descartePaginaActual"
+            :totalPaginas="descarteTotalPaginas"
+            :total="descarteTotalItems"
+            :limite="descarteLimite"
+            @update:paginaActual="onCambiarPaginaDescarte"
+          />
+        </div>
+      </div>
+    </div>
+
+    <!-- Notificacion (Similar a Insumo.vue) -->
     <Transition name="slide-up">
       <div v-if="notificacion.visible"
         class="fixed bottom-6 right-6 text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-2 z-50 font-bold"
@@ -357,11 +545,14 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, watch } from 'vue';
-import { Factory, Search, TrendingUp, CheckCircle, AlertCircle, AlertTriangle, LayoutGrid, List as ListIcon, Pencil, Trash2, Flame, User, Users, Package, ChevronDown, Activity } from 'lucide-vue-next';
+import { ref, reactive, onMounted, watch, computed } from 'vue';
+import { Factory, Search, TrendingUp, CheckCircle, AlertCircle, AlertTriangle, LayoutGrid, List as ListIcon, Pencil, Trash2, Flame, User, Users, Package, ChevronDown, Activity, Loader2, X, Calendar, Eye } from 'lucide-vue-next';
 
 import { getProducciones, anularProduccion } from '@/Server/Produccion';
 import { SucursalUsuario } from '@/Server/Usuario';
+import { registrarBajaInventario, listarBajas } from '@/Server/Inventario';
+import { ListarProductosOnSucursal } from '@/Server/Producto';
+import { Listsucursal } from '@/Server/Sucural';
 import FiltrosProduccion from './FiltrosProduccion.vue';
 import ProduccionCard from './ProduccionCard.vue';
 import RegistrarProduccion from './RegistrarProduccion.vue';
@@ -407,6 +598,123 @@ const selectedProduccionId = ref(null);
 const anularLoading = ref(false);
 const showEditModal = ref(false);
 const editProduccionData = ref(null);
+
+// Baja de productos
+const showBajaModal = ref(false);
+const enviandoBaja = ref(false);
+const bajaSucursalId = ref('');
+const bajaFecha = ref(new Date().toLocaleDateString('en-CA'));
+const productosBaja = ref([]);
+const loadingBajaProductos = ref(false);
+const sucursalesBaja = ref([]);
+const itemsBajaCount = computed(() => {
+  return productosBaja.value.filter(i => i.cantidad > 0).length;
+});
+
+const obtenerStockProducto = (p) => {
+  if (p.cantidad !== undefined && p.cantidad !== null) return Number(p.cantidad);
+  if (p.Cantidad !== undefined && p.Cantidad !== null) return Number(p.Cantidad);
+  if (p.Productosucursal?.[0]?.Cantidad) return Number(p.Productosucursal[0].Cantidad);
+  return 0;
+};
+
+const cargarProductosBaja = async () => {
+  if (!bajaSucursalId.value) return;
+  loadingBajaProductos.value = true;
+  try {
+    const res = await ListarProductosOnSucursal(bajaSucursalId.value, '', 999, 1);
+    const lista = res.result || [];
+    productosBaja.value = lista
+      .filter(p => obtenerStockProducto(p) > 0)
+      .map(p => ({
+        id: p.idproducto || p.IdProducto,
+        nombre: p.nombre || p.Nombre,
+        stock: obtenerStockProducto(p),
+        cantidad: 0,
+        motivo: '',
+        presentacion: (p.medidas && p.medidas[0]) ? p.medidas[0] : null
+      }));
+  } catch (e) {
+    console.error('Error cargarProductosBaja:', e);
+    mostrarNotificacion('Error al cargar productos', true);
+  } finally {
+    loadingBajaProductos.value = false;
+  }
+};
+
+const abrirModalBaja = () => {
+  bajaSucursalId.value = '';
+  bajaFecha.value = new Date().toLocaleDateString('en-CA');
+  productosBaja.value = [];
+  showBajaModal.value = true;
+};
+
+const confirmarBaja = async () => {
+  const items = productosBaja.value
+    .filter(i => i.cantidad > 0)
+    .map(i => ({
+      IdProductoMedida: i.presentacion?.idproductomedida || i.id,
+      Cantidad: i.cantidad,
+      Motivo: i.motivo || 'Sin venta'
+    }));
+
+  if (items.length === 0) return;
+
+  enviandoBaja.value = true;
+  try {
+    await registrarBajaInventario(bajaSucursalId.value, items, bajaFecha.value);
+    mostrarNotificacion(`${items.length} producto(s) dado(s) de baja correctamente`);
+    showBajaModal.value = false;
+  } catch (err) {
+    mostrarNotificacion(err.response?.data?.message || err.message || 'Error al dar de baja', true);
+  } finally {
+    enviandoBaja.value = false;
+  }
+};
+
+// Ver Descarte
+const showDescarteModal = ref(false);
+const descarteFiltroSucursal = ref('TODOS');
+const descarteFiltroFecha = ref('');
+const descartesList = ref([]);
+const loadingDescartes = ref(false);
+const descartePaginaActual = ref(1);
+const descarteTotalPaginas = ref(0);
+const descarteTotalItems = ref(0);
+const descarteLimite = ref(20);
+
+const abrirModalVerDescarte = () => {
+  descarteFiltroSucursal.value = currentFilters.value.idsucursal !== '-1' ? currentFilters.value.idsucursal : 'TODOS';
+  descarteFiltroFecha.value = '';
+  descartePaginaActual.value = 1;
+  showDescarteModal.value = true;
+  cargarDescartes();
+};
+
+const cargarDescartes = async () => {
+  loadingDescartes.value = true;
+  try {
+    const res = await listarBajas(
+      descarteFiltroSucursal.value,
+      descarteFiltroFecha.value || undefined,
+      descartePaginaActual.value,
+      descarteLimite.value
+    );
+    descartesList.value = res.data || [];
+    descarteTotalItems.value = parseInt(res.total) || 0;
+    descarteTotalPaginas.value = Math.ceil(descarteTotalItems.value / descarteLimite.value);
+  } catch (e) {
+    console.error('Error cargarDescartes:', e);
+    mostrarNotificacion('Error al cargar descartes', true);
+  } finally {
+    loadingDescartes.value = false;
+  }
+};
+
+const onCambiarPaginaDescarte = (page) => {
+  descartePaginaActual.value = page;
+  cargarDescartes();
+};
 
 // Notificacion State (Similar to Insumo.vue)
 const notificacion = reactive({ visible: false, mensaje: '', error: false });
@@ -601,6 +909,11 @@ onMounted(async () => {
   
   loadingSucursal.value = false;
   fetchProducciones();
+  
+  try {
+    const sRes = await Listsucursal();
+    sucursalesBaja.value = sRes.result || sRes || [];
+  } catch (e) { console.error('Error cargando sucursales:', e); }
 });
 </script>
 

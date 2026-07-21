@@ -21,6 +21,7 @@ import { createLoteInventario, registrarMovimientoSalida } from "./Inventario.co
 import { ProduccionHornoDetalle } from "../entities/Produccionhornodetalle";
 import { verifyHorno } from "./Horno.controllers";
 import { Hornoproducto } from "../entities/HornoProduccto";
+import { BajaProducto } from "../entities/BajaProducto";
 import { AppDataSource } from "../db";
 
 /**
@@ -1471,6 +1472,89 @@ export const registrarMermaProduccion = async (req: Request, res: Response) => {
     return res.status(200).json({ message: "Merma registrada correctamente y stock actualizado." });
   } catch (error) {
     await queryRunner.rollbackTransaction();
+    if (error instanceof Error) return res.status(500).json({ message: error.message });
+  } finally {
+    await queryRunner.release();
+  }
+};
+
+/**
+ * REGISTRAR BAJA DE PRODUCTO (productos que no se lograron vender)
+ * Elimina del inventario los productos y registra el motivo en la tabla BajaProducto
+ */
+export const registrarBajaProducto = async (req: Request, res: Response) => {
+  const queryRunner = AppDataSource.createQueryRunner();
+  await queryRunner.connect();
+  await queryRunner.startTransaction();
+  try {
+    const { fecha, hora } = getFechaHoraBolivia();
+    const { IdProduccion, IdProducto, Cantidad, Motivo } = req.body;
+
+    // 1. Validar que la producción exista
+    const produccion = await queryRunner.manager.findOne(Produccion, {
+      where: { IdProduccion },
+      relations: ["Sucursal"]
+    });
+    if (!produccion) throw new HttpError(404, "Producción no encontrada.");
+
+    // 2. Validar el producto
+    const producto = await verifyProducto({ ProductoId: IdProducto });
+
+    // 3. Buscar el lote en inventario asociado a esta producción
+    const lote = await queryRunner.manager.findOne(Inventario, {
+      where: {
+        IdReferencia: IdProduccion,
+        Producto: { IdProducto },
+        Sucursal: { IdSucursal: produccion.Sucursal.IdSucursal },
+        Estado: 1
+      }
+    });
+
+    if (!lote) throw new HttpError(404, "No se encontró stock en inventario para este lote de producción.");
+    if (Number(lote.Stock) < Number(Cantidad)) {
+      throw new HttpError(400, `Stock insuficiente en el lote. Disponible: ${lote.Stock}`);
+    }
+
+    // 4. Descontar del inventario
+    lote.Stock = Number(lote.Stock) - Number(Cantidad);
+    if (lote.Stock <= 0) lote.Estado = 0;
+    await queryRunner.manager.save(lote);
+
+    // 5. Registrar movimiento de salida
+    await registrarMovimientoSalida(queryRunner, lote, 'BAJA_PRODUCTO', Number(Cantidad), IdProduccion);
+
+    // 6. Actualizar el detalle de producción existente
+    const detalle = await queryRunner.manager.findOne(DetalleProduccion, {
+      where: { Produccion: { IdProduccion }, Producto: { IdProducto } }
+    });
+    if (detalle) {
+      detalle.CantidadMala = Number(detalle.CantidadMala) + Number(Cantidad);
+      if (Motivo) detalle.Motivo = Motivo;
+      await queryRunner.manager.save(detalle);
+    }
+
+    // 7. Registrar en la tabla BajaProducto
+    const baja = new BajaProducto();
+    baja.IdBaja = await generarIdSecuencial('BAJA', queryRunner);
+    baja.Produccion = produccion;
+    baja.Sucursal = produccion.Sucursal;
+    baja.Producto = producto;
+    baja.Cantidad = Number(Cantidad);
+    baja.Motivo = Motivo || null;
+    baja.Fecha = fecha;
+    baja.Hora = hora;
+    await queryRunner.manager.save(baja);
+
+    await queryRunner.commitTransaction();
+    return res.status(200).json({
+      message: "Producto dado de baja correctamente.",
+      cantidad: Cantidad
+    });
+  } catch (error) {
+    await queryRunner.rollbackTransaction();
+    if (error instanceof HttpError) {
+      return res.status(error.statusCode).json({ message: error.message });
+    }
     if (error instanceof Error) return res.status(500).json({ message: error.message });
   } finally {
     await queryRunner.release();

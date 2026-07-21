@@ -627,7 +627,7 @@
               <div v-for="p in productFiltered" :key="p.idproducto || p.IdProducto"
                 class="bg-gray-50 rounded-2xl p-4 border border-gray-100 cursor-pointer transition-all"
                 :class="selectedProduct === p ? 'ring-2 ring-orange-500 border-orange-300' : 'hover:border-orange-200'"
-                @click="selectedProduct = p; selectedMedidaId = null">
+                @click="selectProductInModal(p)">
                 <div class="flex items-center gap-3">
                   <div class="w-8 h-8 rounded-lg bg-white flex items-center justify-center overflow-hidden border border-gray-100">
                     <img v-if="p.imagen || p.Imagen?.Url" :src="p.imagen || p.Imagen?.Url" class="w-full h-full object-cover" />
@@ -655,9 +655,13 @@
             </div>
           </div>
           <div class="p-6 pt-0 flex flex-col gap-2">
-            <button @click="confirmProductSelection" :disabled="!selectedMedida || !productQty || productQty < 1"
-              class="w-full py-3.5 bg-linear-to-r from-orange-600 to-red-700 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-orange-100 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2">
-              AGREGAR AL LOTE
+            <button @click="confirmProductSelection()" :disabled="!selectedMedida || !productQty || productQty < 1"
+              class="w-full py-3.5 bg-orange-500 hover:bg-orange-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+              AGREGAR OTRO
+            </button>
+            <button @click="confirmProductSelection(true)" :disabled="!selectedMedida || !productQty || productQty < 1"
+              class="w-full py-3.5 bg-linear-to-r from-orange-600 to-red-700 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+              AGREGAR Y CERRAR
             </button>
             <button @click="showProductSelector = false" class="w-full py-3 bg-gray-100 text-gray-500 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-200">
               CANCELAR
@@ -1008,6 +1012,13 @@ const productFiltered = computed(() => {
   );
 });
 
+const selectProductInModal = (p) => {
+  if (selectedProduct.value !== p) {
+    selectedMedidaId.value = null;
+  }
+  selectedProduct.value = p;
+};
+
 const openProductSelector = (regIdx) => {
   productSelectorRegIdx.value = regIdx;
   selectedProduct.value = null;
@@ -1015,9 +1026,15 @@ const openProductSelector = (regIdx) => {
   productQty.value = 1;
   productQuery.value = '';
   showProductSelector.value = true;
+  if (!idSucursalGeneral.value) return;
+  // Asegurar que el catálogo cargue suficientes productos
+  if (paginacionProd.limite < 50) {
+    paginacionProd.limite = 50;
+  }
+  fetchItems();
 };
 
-const confirmProductSelection = () => {
+const confirmProductSelection = (closeAfter = false) => {
   const pm = selectedMedida.value;
   if (!selectedProduct.value || !pm || !productQty.value || productQty.value < 1) {
     showNotification('Selecciona un producto, medida y cantidad', 'error');
@@ -1049,8 +1066,16 @@ const confirmProductSelection = () => {
       ajustes: []
     });
   }
-  showProductSelector.value = false;
-  showNotification('Producto agregado al lote', 'success');
+  if (closeAfter) {
+    showProductSelector.value = false;
+    showNotification('Producto agregado al lote', 'success');
+  } else {
+    selectedProduct.value = null;
+    selectedMedidaId.value = null;
+    productQty.value = 1;
+    productQuery.value = '';
+    showNotification('Producto agregado. Puedes seguir agregando.', 'success');
+  }
 };
 
 const nuevaPersonaValida = computed(() => {
@@ -1474,7 +1499,6 @@ const stageRegistro = () => {
   currentDetalles.value = [];
   currentObservacion.value = '';
   repeticiones.value = 1;
-  filasRapidas.value = [];
   showNotification(`${total} registro(s) añadido(s) al lote`, "success");
 };
 

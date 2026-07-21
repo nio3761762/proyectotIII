@@ -1029,18 +1029,64 @@ const getProdId = (obj) => obj?.idproducto || obj?.IdProducto;
 const getPromoId = (obj) => obj?.idpromocion || obj?.IdPromocion;
 const getCantidadProp = (obj) => parseFloat(obj?.Cantidad || obj?.cantidad || 0);
 
-// --- STOCK LOGIC ---
+// --- COMMITTED (original sale) QUANTITIES FOR EDIT MODE ---
+// These track how many units each product already has "committed" in the original sale.
+// During editing, DB stock already reflects this commitment, so we must add it back
+// before subtracting the new cart quantities to avoid double-counting.
+
+const commitidoProductos = computed(() => {
+  if (!props.ventaParaEditar) return {};
+  const detalles = props.ventaParaEditar.Detalle || props.ventaParaEditar.Detalleventa || [];
+  const map = {};
+  for (const d of detalles) {
+    if (!d.Promocion && !d.idpromocion) {
+      const prodId = d.Productomedida?.Producto?.IdProducto || d.Productomedida?.Producto?.idproducto || d.Productomedida?.IdProducto || d.idproducto;
+      if (prodId) {
+        const medidaQty = parseFloat(d.Productomedida?.Cantidad || d.Productomedida?.cantidad || 1);
+        const commitido = parseInt(d.Cantidad || d.cantidad || 0) * medidaQty;
+        map[prodId] = (map[prodId] || 0) + commitido;
+      }
+    }
+  }
+  return map;
+});
+
+const commitidoEnPromosProductos = computed(() => {
+  if (!props.ventaParaEditar) return {};
+  const detalles = props.ventaParaEditar.Detalle || props.ventaParaEditar.Detalleventa || [];
+  const map = {};
+  for (const d of detalles) {
+    if (d.Promocion || d.idpromocion) {
+      const promo = d.Promocion || {};
+      const componentes = promo.Productos || promo.Promocionproducto || [];
+      const cantPromo = parseInt(d.Cantidad || d.cantidad || 0);
+      for (const pp of componentes) {
+        const innerProdId = getProdId(pp.Productomedida?.Producto) || getProdId(pp.Productomedida) || getProdId(pp);
+        if (innerProdId) {
+          const unidadesFisicasPorPaquete = getCantidadProp(pp.Productomedida);
+          const paquetesEnCombo = getCantidadProp(pp);
+          const commitido = cantPromo * paquetesEnCombo * unidadesFisicasPorPaquete;
+          map[innerProdId] = (map[innerProdId] || 0) + commitido;
+        }
+      }
+    }
+  }
+  return map;
+});
 
 const productosConStockReal = computed(() => {
   return productos.value.map(p => {
     const productId = getProdId(p);
     
-    // 1. Consumption from direct product additions
+    // Quantities already committed to the original sale (only relevant in edit mode)
+    const commitido = (commitidoProductos.value[productId] || 0) + (commitidoEnPromosProductos.value[productId] || 0);
+    
+    // 1. Consumption from direct product additions in the NEW cart
     const usadoDirecto = carrito.value
       .filter(i => i.type === 'producto' && i.id === productId)
       .reduce((acc, i) => acc + (i.cantidad * (parseFloat(i.multiplicador) || 1)), 0);
     
-    // 2. Consumption from bundled products inside promos
+    // 2. Consumption from bundled products inside promos in the NEW cart
     const usadoEnPromos = carrito.value
       .filter(i => i.type === 'promocion')
       .reduce((acc, cartItem) => {
@@ -1067,7 +1113,7 @@ const productosConStockReal = computed(() => {
     
     return {
       ...p,
-      cantidad: Math.max(0, (parseFloat(p.cantidad) || 0) - usadoDirecto - usadoEnPromos)
+      cantidad: Math.max(0, (parseFloat(p.cantidad) || 0) + commitido - usadoDirecto - usadoEnPromos)
     };
   });
 });

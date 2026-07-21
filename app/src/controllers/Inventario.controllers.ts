@@ -2,6 +2,8 @@ import { Request, Response } from "express";
 import { EntityManager, MoreThan, QueryRunner } from "typeorm";
 import { Inventario } from "../entities/Inventario";
 import { MovimientoInventario } from "../entities/MovimientoInventario";
+import { BajaProducto } from "../entities/BajaProducto";
+import { Sucursal } from "../entities/Sucursal";
 import { generarIdSecuencial } from "../utils/idGenerator";
 import { verifyInsumo } from "./Insumo.controllers";
 import { verifyProducto } from "./Producto.controllers";
@@ -531,5 +533,124 @@ export const IncrementPromocion = async (queryRunner: QueryRunner,SucursalId: st
       const cantidadTotal = Number(promo.Cantidad) * Cantidad
       await IncrementProducto(queryRunner,presentacion, SucursalId, cantidadTotal, id);
     }
+  }
+};
+
+/**
+ * Dar de baja productos del inventario por falta de venta
+ * Recibe: { IdSucursal, items: [{ IdProductoMedida, Cantidad, Motivo }] }
+ * Usa ProductoMedida para obtener el producto base y la conversión de unidades
+ */
+export const listarBajas = async (req: Request, res: Response) => {
+  try {
+    const { IdSucursal, Fecha, page = '1', limit = '20' } = req.query;
+    const pagina = parseInt(page as string, 10) || 1;
+    const limite = parseInt(limit as string, 10) || 20;
+    const skip = (pagina - 1) * limite;
+
+    const where: any = {};
+    if (IdSucursal && IdSucursal !== 'TODOS') where.Sucursal = { IdSucursal: IdSucursal as string };
+    if (Fecha) where.Fecha = Fecha as string;
+
+    const [data, total] = await BajaProducto.findAndCount({
+      where,
+      relations: ['Sucursal', 'Producto'],
+      order: { Fecha: 'DESC', Hora: 'DESC' },
+      skip,
+      take: limite
+    });
+
+    return res.status(200).json({
+      data,
+      total,
+      totalPages: Math.ceil(total / limite),
+      currentPage: pagina
+    });
+  } catch (error) {
+    if (error instanceof Error) return res.status(500).json({ message: error.message });
+  }
+};
+
+export const registrarBajaInventario = async (req: Request, res: Response) => {
+  const queryRunner = AppDataSource.createQueryRunner();
+  await queryRunner.connect();
+  await queryRunner.startTransaction();
+  try {
+    const { fecha: fechaBolivia, hora } = getFechaHoraBolivia();
+    const { items, IdSucursal, Fecha } = req.body;
+    const fecha = Fecha || fechaBolivia;
+
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      throw new HttpError(400, 'Debe proporcionar un array de productos a dar de baja.');
+    }
+    if (!IdSucursal) {
+      throw new HttpError(400, 'ID de sucursal requerido.');
+    }
+
+    const sucursal = await queryRunner.manager.findOne(Sucursal, { where: { IdSucursal: IdSucursal } });
+    if (!sucursal) throw new HttpError(404, 'Sucursal no encontrada.');
+
+    const resultados: any[] = [];
+
+    for (const item of items) {
+      const { IdProductoMedida, Cantidad, Motivo } = item;
+
+      if (!IdProductoMedida || !Cantidad || Cantidad <= 0) {
+        resultados.push({ IdProductoMedida, success: false, message: 'Datos inválidos' });
+        continue;
+      }
+
+      // Obtener presentación (ProductoMedida) con su producto
+      const presentacion = await verifyProductoMedida({ PaqueteId: IdProductoMedida });
+      const producto = presentacion.Producto;
+      // Calcular unidades reales: cantidad * unidades por presentación
+      const unidadesReales = Number(Cantidad) * Number(presentacion.Cantidad);
+
+      // Usar DecrementProducto (FIFO) para descontar del inventario
+      try {
+        await DecrementProducto(queryRunner, presentacion, IdSucursal, Number(Cantidad), `BAJA_${fecha}`, 'BAJA_INVENTARIO');
+      } catch (err) {
+        resultados.push({
+          IdProductoMedida, success: false,
+          message: err instanceof Error ? err.message : 'Error al descontar stock'
+        });
+        continue;
+      }
+
+      // Registrar en BajaProducto
+      const baja = new BajaProducto();
+      baja.IdBaja = await generarIdSecuencial('BAJA', queryRunner);
+      baja.Produccion = null;
+      baja.Sucursal = sucursal;
+      baja.Producto = producto;
+      baja.Cantidad = unidadesReales;
+      baja.Motivo = Motivo || 'Sin venta';
+      baja.Fecha = fecha;
+      baja.Hora = hora;
+      await queryRunner.manager.save(baja);
+
+      resultados.push({
+        IdProductoMedida,
+        Nombre: producto.Nombre,
+        Presentacion: presentacion.IdProductoMedida,
+        success: true,
+        cantidad: Number(Cantidad),
+        unidades: unidadesReales
+      });
+    }
+
+    await queryRunner.commitTransaction();
+    return res.status(200).json({
+      message: 'Proceso de baja completado.',
+      resultados
+    });
+  } catch (error) {
+    await queryRunner.rollbackTransaction();
+    if (error instanceof HttpError) {
+      return res.status(error.statusCode).json({ message: error.message });
+    }
+    if (error instanceof Error) return res.status(500).json({ message: error.message });
+  } finally {
+    await queryRunner.release();
   }
 };

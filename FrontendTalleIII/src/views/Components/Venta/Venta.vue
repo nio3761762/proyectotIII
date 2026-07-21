@@ -649,6 +649,7 @@ import { listarPersonas, RegistrarPersona, UpdatePersona } from '@/Server/person
 import { listarComplemento } from '@/Server/Complemento';
 import { listarBarrios, SubirFoto } from '@/Server/api';
 
+
 const sessionStore = useSessionStore();
 
 // Loading states
@@ -749,6 +750,8 @@ const loadingPersonas = ref(false);
 const selectedVenta = ref(null);
 const showComprobante = ref(false);
 const notification = ref(null);
+
+
 
 // Factura logic state
 const showModalFactura = ref(false);
@@ -1269,4 +1272,6 @@ watch(busquedaCatalogo, () => {
 @keyframes bounce { 0%, 100% { transform: translateY(-5%); } 50% { transform: translateY(0); } }
 .animate-fade-in { animation: fadeIn 0.4s ease-out; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.animate-scale-in { animation: scaleIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+@keyframes scaleIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
 </style>

@@ -621,6 +621,7 @@
         </div>
       </div>
     </div>
+
   </div>
 </template>
 
@@ -668,7 +669,6 @@ const showFinalizarModal = ref(false);
 const showAddEmpleadoModal = ref(false);
 const showInsumosModal = ref(false);
 const showDescartarModal = ref(false);
-
 // Forms
 const hornoForm = reactive({
   IdHorno: '',

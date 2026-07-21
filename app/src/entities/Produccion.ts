@@ -6,6 +6,7 @@ import { DetalleProduccion } from "./Detalleproduccuin";
 import { ProduccionEmpleado } from "./ProduccionEmpleado";
 import { Horno } from "./Horno";
 import { ProduccionHornoDetalle } from "./Produccionhornodetalle";
+import { BajaProducto } from "./BajaProducto";
 
 @Entity()
 export class Produccion extends BaseEntity {
@@ -54,4 +55,6 @@ export class Produccion extends BaseEntity {
   @OneToMany(() => ProduccionHornoDetalle, he => he.Produccion)
   DetalleHorno: ProduccionHornoDetalle[];
 
+  @OneToMany(() => BajaProducto, (b) => b.Produccion)
+  Bajas: BajaProducto[];
 }

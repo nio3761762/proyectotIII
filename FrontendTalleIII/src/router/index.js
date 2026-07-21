@@ -120,7 +120,7 @@ const router = createRouter({
         path: 'reporte',
         name: 'reporte',
        component: () => import('@/views/Components/Reporte/Reporte.vue'),
-      }
+      },
       ]
   }
   ]

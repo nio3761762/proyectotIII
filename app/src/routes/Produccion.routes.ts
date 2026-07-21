@@ -14,7 +14,8 @@ import {
   registrarMermaProduccion,
   descartarProductosDaniados,
   registrarSalidaProductoMasiva,
-  actualizarProduccion
+  actualizarProduccion,
+  registrarBajaProducto
 } from '../controllers/Produccion.controllers';
 import { authMiddleware } from '../middleware/verifyToken';
 
@@ -36,6 +37,7 @@ router.put('/produccion/anular/:id', authMiddleware, anularProduccion);
 router.put('/produccion/:id', authMiddleware, actualizarProduccion);
 router.post('/produccion/producto/salida-masiva', authMiddleware, registrarSalidaProductoMasiva);
 router.post('/produccion/Apagarhorno', authMiddleware, apagarHorno);
+router.post('/produccion/producto/baja', authMiddleware, registrarBajaProducto);
 
 export default router;
 

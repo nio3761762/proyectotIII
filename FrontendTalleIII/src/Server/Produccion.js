@@ -484,6 +484,16 @@ export const actualizarProduccion = async (IdProduccion, data) => {
   }
 };
 
+export const registrarBajaProducto = async (IdProduccion, IdProducto, Cantidad, Motivo) => {
+  try {
+    const response = await API.post('produccion/producto/baja', { IdProduccion, IdProducto, Cantidad, Motivo });
+    return response.data;
+  } catch (error) {
+    console.error('Error al dar de baja producto:', error.response?.data?.message || error.message);
+    throw error;
+  }
+};
+
 export const apagarHorno = async ( IdProduccion, IdHorno, HoraFin) => {
   try {
     const response = await API.post('produccion/Apagarhorno',{IdProduccion, IdHorno, HoraFin});

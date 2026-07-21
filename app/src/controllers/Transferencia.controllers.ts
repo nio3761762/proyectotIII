@@ -14,9 +14,6 @@ import { DetalleTransferencia } from "../entities/DetalleTransferencia";
 import { verifyInsumoMedida } from "./Insumomedida.controllers";
 import { Insumomedida } from "../entities/InsumoMedida";
 import { createLoteInventario, DecrementInsumo, DecrementProducto, IncrementProducto, IncrementInsumo, anularLotesPorReferencia } from "./Inventario.controllers";
-const { fecha, hora } = getFechaHoraBolivia();
-
-
 export const registrarTransferencia = async (req: Request, res: Response) => {
   const queryRunner = AppDataSource.createQueryRunner();
   await queryRunner.connect();
@@ -36,8 +33,14 @@ export const registrarTransferencia = async (req: Request, res: Response) => {
     transferencia.IdTransferencia = nuevoIdVenta;
     
     // 3. Manejo de Cliente (Persona)
-    transferencia.Fecha = fecha
-    transferencia.Hora = hora
+    const { hora } = getFechaHoraBolivia();
+    transferencia.Hora = hora;
+    if (transferencias.Fecha) {
+      transferencia.Fecha = new Date(transferencias.Fecha + 'T00:00:00');
+    } else {
+      const { fecha } = getFechaHoraBolivia();
+      transferencia.Fecha = fecha;
+    }
     transferencia.Tipo = transferencias.Tipo
    if(transferencias.IdsucursalOrigen)transferencia.SucursalOrigen = await verifySucursal({SucursalId:transferencias.IdsucursalOrigen})  
    if(transferencias.IdsucursalDestino) transferencia.SucursalDestino = await verifySucursal({SucursalId:transferencias.IdsucursalDestino})  

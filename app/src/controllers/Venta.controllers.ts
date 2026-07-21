@@ -705,8 +705,9 @@ export const actualizarVenta = async (req: Request, res: Response) => {
 
     const IdSucursalAntigua = venta.Sucursal.IdSucursal;
 
-    // 1. Si hay nuevos detalles, restauramos el stock de los antiguos y los eliminamos
-    if (detalles) {
+    // 1. Restauramos el stock de los detalles antiguos y los eliminamos
+    //    Solo se procesa si el frontend envía detalles.Producto (array)
+    if (detalles && Array.isArray(detalles.Producto)) {
       if (venta.Detalleventa) {
         for (const detalle of venta.Detalleventa) {
           if (detalle.Productomedida) {
