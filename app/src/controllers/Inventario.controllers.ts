@@ -323,6 +323,47 @@ export const getInventario = async (req: Request, res: Response) => {
   }
 };
 
+export const DecrementProductoDirecto = async (queryRunner: QueryRunner, idProducto: string, SucursalId: string, Cantidad: number, id: string, tipo: string = "SALIDA_BAJA") => {
+  let cantidadRestante = Number(Cantidad);
+  const cantidadTotalADescontar = cantidadRestante;
+  let costoTotalAcumulado = 0;
+
+  const lotes = await queryRunner.manager.find(Inventario,{
+    where: {
+      Sucursal: { IdSucursal: SucursalId },
+      Producto: { IdProducto: idProducto },
+      Estado: 1,
+      Stock: MoreThan(0)
+    },relations:['Producto','Sucursal'],
+    order: { FechaIngreso: "ASC" }
+  });
+  if (lotes.length === 0) {
+    throw new HttpError(404, `No hay stock disponible para el producto ${idProducto} en la sucursal ${SucursalId}.`);
+  }
+
+  const totalStock = lotes.reduce((acc, lote) => acc + Number(lote.Stock), 0);
+  if (totalStock < cantidadRestante) {
+    throw new HttpError(400, `Stock insuficiente. Disponible: ${totalStock}, Requerido: ${Cantidad}`);
+  }
+
+  for (const lote of lotes) {
+    if (cantidadRestante <= 0) break;
+
+    const stockDisponible = Number(lote.Stock);
+    const aDescontar = Math.min(stockDisponible, cantidadRestante);
+
+    lote.Stock = stockDisponible - aDescontar;
+    await queryRunner.manager.save(lote);
+    await registrarMovimientoSalida(queryRunner, lote, tipo, aDescontar, id);
+
+    costoTotalAcumulado += aDescontar * Number(lote.CostoUnitario);
+    cantidadRestante -= aDescontar;
+  }
+
+  const costoPromedio = cantidadTotalADescontar > 0 ? costoTotalAcumulado / cantidadTotalADescontar : 0;
+  return { success: true, costoUnitarioBase: costoPromedio };
+};
+
 export const DecrementProducto = async (queryRunner: QueryRunner,presentacion: Productomedida, SucursalId: string, Cantidad: number, id: string, tipo: string = "SALIDA_VENTA") => {
   // Buscar lotes con stock en la sucursal, ordenados por fecha de ingreso (FIFO)
 
@@ -594,18 +635,16 @@ export const registrarBajaInventario = async (req: Request, res: Response) => {
 
     for (const item of items) {
       try {
-        const { IdProductoMedida, Cantidad, Motivo } = item;
+        const { IdProducto, Cantidad, Motivo } = item;
 
-        if (!IdProductoMedida || !Cantidad || Cantidad <= 0) {
-          resultados.push({ IdProductoMedida, success: false, message: 'Datos inválidos' });
+        if (!IdProducto || !Cantidad || Cantidad <= 0) {
+          resultados.push({ IdProducto: IdProducto || 'desconocido', success: false, message: 'Datos inválidos' });
           continue;
         }
 
-        const presentacion = await verifyProductoMedida({ PaqueteId: IdProductoMedida });
-        const producto = presentacion.Producto;
-        const unidadesReales = Number(Cantidad) * Number(presentacion.Cantidad);
-
-        await DecrementProducto(queryRunner, presentacion, IdSucursal, Number(Cantidad), `BAJA_${fecha}`, 'BAJA_INVENTARIO');
+        const producto = await verifyProducto({ ProductoId: IdProducto });
+        const unidadesReales = Number(Cantidad);
+        await DecrementProductoDirecto(queryRunner, IdProducto, IdSucursal, unidadesReales, `BAJA_${fecha}`);
 
         const baja = new BajaProducto();
         baja.IdBaja = await generarIdSecuencial('BAJA', queryRunner);
@@ -619,17 +658,16 @@ export const registrarBajaInventario = async (req: Request, res: Response) => {
         await queryRunner.manager.save(baja);
 
         resultados.push({
-          IdProductoMedida,
+          IdProducto,
           Nombre: producto.Nombre,
-          Presentacion: presentacion.IdProductoMedida,
           success: true,
           cantidad: Number(Cantidad),
           unidades: unidadesReales
         });
       } catch (err) {
-        const id = item.IdProductoMedida || 'desconocido';
+        const id = item.IdProducto || 'desconocido';
         resultados.push({
-          IdProductoMedida: id, success: false,
+          IdProducto: id, success: false,
           message: err instanceof Error ? err.message : 'Error al procesar ítem'
         });
       }

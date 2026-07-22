@@ -622,18 +622,13 @@ const cargarProductosBaja = async () => {
     const lista = res.result || [];
     productosBaja.value = lista
       .filter(p => obtenerStockProducto(p) > 0)
-      .map(p => {
-        const medida = (p.medidas && p.medidas[0]) ? p.medidas[0] : null;
-        return {
-          id: p.idproducto || p.IdProducto,
-          nombre: p.nombre || p.Nombre,
-          stock: obtenerStockProducto(p),
-          cantidad: 0,
-          motivo: '',
-          presentacion: medida,
-          idProductoMedida: medida?.idproductomedida || null
-        };
-      });
+      .map(p => ({
+        id: p.idproducto || p.IdProducto,
+        nombre: p.nombre || p.Nombre,
+        stock: obtenerStockProducto(p),
+        cantidad: 0,
+        motivo: ''
+      }));
   } catch (e) {
     console.error('Error cargarProductosBaja:', e);
     const msg = e.code === 'ECONNABORTED' ? 'La consulta tardó demasiado. Intente de nuevo.' : 'Error al cargar productos';
@@ -652,9 +647,9 @@ const abrirModalBaja = () => {
 
 const confirmarBaja = async () => {
   const items = productosBaja.value
-    .filter(i => i.cantidad > 0 && i.idProductoMedida)
+    .filter(i => i.cantidad > 0)
     .map(i => ({
-      IdProductoMedida: i.idProductoMedida,
+      IdProducto: i.id,
       Cantidad: i.cantidad,
       Motivo: i.motivo || 'Sin venta'
     }));

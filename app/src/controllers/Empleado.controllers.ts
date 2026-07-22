@@ -55,7 +55,7 @@ export const updateEmpleadoSucursal = async ({
 
   // si hay registro activo con la misma sucursal, no hay cambios
   if (existPersona) {
-    const sucursalActual = existPersona.Sucursal?.IdSucursal ?? null;
+    const sucursalActual = existPersona.Sucursal ? existPersona.Sucursal.IdSucursal : null;
     if (sucursalActual === idSucursal) {
       return existPersona;
     }
