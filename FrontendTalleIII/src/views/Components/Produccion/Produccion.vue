@@ -363,7 +363,7 @@
 
     <!-- Modal: Dar de Baja Productos -->
     <div v-if="showBajaModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[120] flex items-center justify-center p-4" @click.self="showBajaModal = false">
-      <div class="bg-white rounded-[2.5rem] w-full max-w-3xl max-h-[90vh] overflow-hidden shadow-2xl animate-scale-in flex flex-col">
+      <div class="bg-white rounded-[2.5rem] w-full max-w-3xl max-h-[90vh] shadow-2xl animate-scale-in flex flex-col">
         <div class="p-6 pb-4 border-b border-gray-100 flex items-center justify-between shrink-0">
           <div class="flex items-center gap-3">
             <div class="p-3 bg-gray-700 rounded-2xl">
@@ -448,7 +448,7 @@
 
     <!-- Modal: Ver Descarte -->
     <div v-if="showDescarteModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[120] flex items-center justify-center p-4" @click.self="showDescarteModal = false">
-      <div class="bg-white rounded-[2.5rem] w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-2xl animate-scale-in flex flex-col">
+      <div class="bg-white rounded-[2.5rem] w-full max-w-4xl max-h-[90vh] shadow-2xl animate-scale-in flex flex-col">
         <div class="p-6 pb-4 border-b border-gray-100 flex items-center justify-between shrink-0">
           <div class="flex items-center gap-3">
             <div class="p-3 bg-blue-600 rounded-2xl">
@@ -465,13 +465,28 @@
         </div>
 
         <div class="p-6 border-b border-gray-100 bg-gray-50/30 flex flex-col md:flex-row gap-4 items-end shrink-0">
-          <div class="flex-1">
+          <div class="flex-1 relative">
             <label class="text-xs font-bold text-gray-600 mb-1 block">Sucursal</label>
-            <select v-model="descarteFiltroSucursal" @change="cargarDescartes"
-              class="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 font-medium">
-              <option value="TODOS">Todas las sucursales</option>
-              <option v-for="s in sucursalesBaja" :key="s.idsucursal" :value="s.idsucursal">{{ s.nombre }}</option>
-            </select>
+            <button ref="descarteSucursalBtn" @click="toggleDescarteDropdown"
+              class="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 font-medium text-left flex items-center justify-between">
+              <span :class="descarteFiltroSucursal === 'TODOS' ? 'text-gray-400' : 'text-gray-800'">{{ descarteLabel }}</span>
+              <ChevronDown class="h-4 w-4 text-gray-400" :class="{ 'rotate-180': descarteDropdownOpen }" />
+            </button>
+            <Teleport to="body">
+              <div v-if="descarteDropdownOpen" @click="cerrarDescarteDropdown" class="fixed inset-0 z-[9999]" style="background: transparent;"></div>
+              <div v-if="descarteDropdownOpen"
+                :style="{ position: 'fixed', top: descarteDropdownTop + 'px', left: descarteDropdownLeft + 'px', width: descarteDropdownWidth + 'px' }"
+                class="z-[10000] bg-white border border-gray-200 rounded-2xl shadow-2xl overflow-hidden">
+                <div class="max-h-60 overflow-y-auto">
+                  <div @click="seleccionarDescarteSucursal('TODOS')" class="px-4 py-3 text-sm cursor-pointer hover:bg-blue-50 transition-colors font-medium" :class="descarteFiltroSucursal === 'TODOS' ? 'text-blue-600 font-black' : 'text-gray-700'">
+                    Todas las sucursales
+                  </div>
+                  <div v-for="s in sucursalesBaja" :key="s.idsucursal" @click="seleccionarDescarteSucursal(s.idsucursal)" class="px-4 py-3 text-sm cursor-pointer hover:bg-blue-50 transition-colors font-medium" :class="descarteFiltroSucursal === s.idsucursal ? 'text-blue-600 font-black' : 'text-gray-700'">
+                    {{ s.nombre }}
+                  </div>
+                </div>
+              </div>
+            </Teleport>
           </div>
           <div class="w-full md:w-48">
             <label class="text-xs font-bold text-gray-600 mb-1 block">Fecha</label>
@@ -681,6 +696,41 @@ const descartePaginaActual = ref(1);
 const descarteTotalPaginas = ref(0);
 const descarteTotalItems = ref(0);
 const descarteLimite = ref(20);
+const descarteDropdownOpen = ref(false);
+const descarteSucursalBtn = ref(null);
+const descarteDropdownTop = ref(0);
+const descarteDropdownLeft = ref(0);
+const descarteDropdownWidth = ref(0);
+
+const descarteLabel = computed(() => {
+  if (descarteFiltroSucursal.value === 'TODOS') return 'Todas las sucursales';
+  const s = sucursalesBaja.value.find(s => s.idsucursal === descarteFiltroSucursal.value);
+  return s ? s.nombre : 'Todas las sucursales';
+});
+
+const toggleDescarteDropdown = () => {
+  if (descarteDropdownOpen.value) {
+    descarteDropdownOpen.value = false;
+    return;
+  }
+  const el = descarteSucursalBtn.value;
+  if (!el) return;
+  const rect = el.getBoundingClientRect();
+  descarteDropdownTop.value = rect.bottom + 4;
+  descarteDropdownLeft.value = rect.left;
+  descarteDropdownWidth.value = rect.width;
+  descarteDropdownOpen.value = true;
+};
+
+const cerrarDescarteDropdown = () => {
+  descarteDropdownOpen.value = false;
+};
+
+const seleccionarDescarteSucursal = (val) => {
+  descarteFiltroSucursal.value = val;
+  descarteDropdownOpen.value = false;
+  cargarDescartes();
+};
 
 const abrirModalVerDescarte = () => {
   descarteFiltroSucursal.value = currentFilters.value.idsucursal !== '-1' ? currentFilters.value.idsucursal : 'TODOS';

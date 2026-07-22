@@ -17,7 +17,7 @@
     <div class="hidden sm:block w-px h-9 bg-gray-200 self-end mb-0.5"></div>
 
     <!-- Sucursal -->
-    <div class="min-w-[150px]">
+    <div v-if="sucursales.length > 0" class="min-w-[150px]">
       <label class="text-xs font-semibold text-gray-500 mb-1 block">Sucursal</label>
       <select
         :value="sucursal"

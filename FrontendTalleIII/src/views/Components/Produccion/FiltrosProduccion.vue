@@ -20,58 +20,64 @@
       <!-- Sucursal Searchable -->
       <div class="space-y-2 min-w-[250px] relative">
         <label class="text-xs font-semibold text-gray-500 mb-1 block">Sucursal</label>
-        <div class="relative group" v-click-outside="() => showSucursalDropdown = false">
-          <Building2 class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 h-5 w-5 group-hover:text-orange-500 transition-colors pointer-events-none z-10" />
+        <div class="relative">
+          <Building2 class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 h-5 w-5 pointer-events-none z-10" />
           
-          <div 
-            @click="!tieneSucursal && (showSucursalDropdown = !showSucursalDropdown)"
-            class="w-full pl-12 pr-10 py-3 bg-gray-50/80 border-0 rounded-2xl focus-within:bg-white focus-within:ring-2 focus-within:ring-orange-500/20 transition-all duration-300 text-gray-700 outline-none shadow-sm text-sm cursor-pointer flex items-center justify-between"
+          <button 
+            ref="sucursalBtnRef"
+            @click="!tieneSucursal && toggleSucursalDropdown()"
+            class="w-full pl-12 pr-10 py-3 bg-gray-50/80 border-0 rounded-2xl transition-all duration-300 text-gray-700 outline-none shadow-sm text-sm cursor-pointer flex items-center justify-between"
             :class="{'opacity-70 cursor-not-allowed bg-gray-100': tieneSucursal}"
+            type="button"
           >
             <span class="truncate font-medium">{{ selectedSucursalName }}</span>
             <ChevronDown v-if="!tieneSucursal" class="h-4 w-4 text-gray-400 transition-transform duration-300" :class="{'rotate-180': showSucursalDropdown}" />
-          </div>
+          </button>
 
-          <!-- Dropdown -->
-          <Transition name="fade">
-            <div v-if="showSucursalDropdown && !tieneSucursal" class="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-gray-100 z-[100] overflow-hidden">
-              <div class="p-3 border-b border-gray-50 bg-gray-50/50">
-                <div class="relative">
-                  <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <input 
-                    v-model="sucursalSearch" 
-                    type="text" 
-                    placeholder="Buscar sucursal..."
-                    class="w-full pl-10 pr-4 py-2 bg-white border-0 rounded-xl text-sm focus:ring-2 focus:ring-orange-500/20 outline-none font-medium"
-                    @click.stop
-                  />
+          <Teleport to="body">
+            <div v-if="showSucursalDropdown && !tieneSucursal" @click="showSucursalDropdown = false" class="fixed inset-0 z-[9999]" style="background: transparent;"></div>
+            <Transition name="fade">
+              <div v-if="showSucursalDropdown && !tieneSucursal"
+                :style="{ position: 'fixed', top: sucursalDropdownTop + 'px', left: sucursalDropdownLeft + 'px', width: sucursalDropdownWidth + 'px' }"
+                class="z-[10000] bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden">
+                <div class="p-3 border-b border-gray-50 bg-gray-50/50">
+                  <div class="relative">
+                    <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <input 
+                      v-model="sucursalSearch" 
+                      type="text" 
+                      placeholder="Buscar sucursal..."
+                      class="w-full pl-10 pr-4 py-2 bg-white border-0 rounded-xl text-sm focus:ring-2 focus:ring-orange-500/20 outline-none font-medium"
+                      @click.stop
+                    />
+                  </div>
+                </div>
+                <div class="max-h-60 overflow-y-auto custom-scrollbar">
+                  <div 
+                    @click="selectSucursal('-1')"
+                    class="px-4 py-3 hover:bg-orange-50 cursor-pointer text-sm font-medium transition-colors border-b border-gray-50 flex items-center justify-between"
+                    :class="{'text-orange-600 bg-orange-50/50': filters.idsucursal === '-1'}"
+                  >
+                    <span>Todas las sucursales</span>
+                    <Check v-if="filters.idsucursal === '-1'" class="h-4 w-4" />
+                  </div>
+                  <div 
+                    v-for="s in sucursales" 
+                    :key="s.idsucursal"
+                    @click="selectSucursal(s.idsucursal)"
+                    class="px-4 py-3 hover:bg-orange-50 cursor-pointer text-sm font-medium transition-colors border-b border-gray-50 flex items-center justify-between"
+                    :class="{'text-orange-600 bg-orange-50/50': filters.idsucursal === s.idsucursal}"
+                  > 
+                    <span>{{ s.nombre }}</span> 
+                    <Check v-if="filters.idsucursal === s.idsucursal" class="h-4 w-4" />
+                  </div>
+                  <div v-if="filteredSucursales.length === 0 && sucursalSearch" class="p-6 text-center">
+                    <p class="text-xs text-gray-400 font-bold uppercase tracking-wider">No hay resultados</p>
+                  </div>
                 </div>
               </div>
-              <div class="max-h-60 overflow-y-auto custom-scrollbar">
-                <div 
-                  @click="selectSucursal('-1')"
-                  class="px-4 py-3 hover:bg-orange-50 cursor-pointer text-sm font-medium transition-colors border-b border-gray-50 flex items-center justify-between"
-                  :class="{'text-orange-600 bg-orange-50/50': filters.idsucursal === '-1'}"
-                >
-                  <span>Todas las sucursales</span>
-                  <Check v-if="filters.idsucursal === '-1'" class="h-4 w-4" />
-                </div>
-                <div 
-                  v-for="s in sucursales" 
-                  :key="s.idsucursal"
-                  @click="selectSucursal(s.idsucursal)"
-                  class="px-4 py-3 hover:bg-orange-50 cursor-pointer text-sm font-medium transition-colors border-b border-gray-50 flex items-center justify-between"
-                  :class="{'text-orange-600 bg-orange-50/50': filters.idsucursal === s.idsucursal}"
-                > 
-                  <span>{{ s.nombre }}</span> 
-                  <Check v-if="filters.idsucursal === s.idsucursal" class="h-4 w-4" />
-                </div>
-                <div v-if="filteredSucursales.length === 0 && sucursalSearch" class="p-6 text-center">
-                  <p class="text-xs text-gray-400 font-bold uppercase tracking-wider">No hay resultados</p>
-                </div>
-              </div>
-            </div>
-          </Transition>
+            </Transition>
+          </Teleport>
         </div>
       </div>
 
@@ -173,20 +179,23 @@ const datePicker = ref(null);
 const sucursales = ref([]);
 const showSucursalDropdown = ref(false);
 const sucursalSearch = ref('');
+const sucursalBtnRef = ref(null);
+const sucursalDropdownTop = ref(0);
+const sucursalDropdownLeft = ref(0);
+const sucursalDropdownWidth = ref(0);
 
-// Custom Directive for clicking outside
-const vClickOutside = {
-  mounted(el, binding) {
-    el.clickOutsideEvent = (event) => {
-      if (!(el === event.target || el.contains(event.target))) {
-        binding.value(event);
-      }
-    };
-    document.addEventListener('click', el.clickOutsideEvent);
-  },
-  unmounted(el) {
-    document.removeEventListener('click', el.clickOutsideEvent);
-  },
+const toggleSucursalDropdown = () => {
+  if (showSucursalDropdown.value) {
+    showSucursalDropdown.value = false;
+    return;
+  }
+  const el = sucursalBtnRef.value;
+  if (!el) return;
+  const rect = el.getBoundingClientRect();
+  sucursalDropdownTop.value = rect.bottom + 4;
+  sucursalDropdownLeft.value = rect.left;
+  sucursalDropdownWidth.value = rect.width;
+  showSucursalDropdown.value = true;
 };
 
 const today = getLocalDate();
