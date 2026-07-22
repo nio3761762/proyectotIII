@@ -11,7 +11,7 @@ export const listProductoVista = async (search,page,limit) => {
     const response = await API.get('productos-vista',{ params });
     return response.data;
   } catch (error) {
-    console.error('Error al obtener los roles:', error);
+    console.error('Error al listar productos vista:', error);
     throw error;
   }
 };
@@ -32,7 +32,7 @@ export const ListarProductosOnSucursal = async (idsucursal,search,limit, page,ca
     const response = await API.get('getInventario', { params });
     return response.data;
   } catch (error) {
-    console.error('Error al obtener los roles:', error);
+    console.error('Error al listar productos por sucursal:', error);
     throw error;
   }
 }
@@ -43,7 +43,7 @@ export const listProduct = async () => {
     const response = await API.get('getproducto');
     return response.data;
   } catch (error) {
-    console.error('Error al obtener los roles:', error);
+    console.error('Error al listar productos:', error);
     throw error;
   }
 };
@@ -53,7 +53,7 @@ export const listMedidasdeProducto = async (id) => {
     const response = await API.get(`getmedidasdelProducto/${id}`);
     return response.data;
   } catch (error) {
-    console.error('Error al obtener los roles:', error);
+    console.error('Error al listar medidas de producto:', error);
     throw error;
   }
 };
@@ -64,7 +64,7 @@ export const listProductMedida = async () => {
     const response = await API.get('getProductomedidas');
     return response.data;
   } catch (error) {
-    console.error('Error al obtener los roles:', error);
+    console.error('Error al listar productos medida:', error);
     throw error;
   }
 };

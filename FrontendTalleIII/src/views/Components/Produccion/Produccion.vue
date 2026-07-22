@@ -478,10 +478,6 @@
             <input type="date" v-model="descarteFiltroFecha" @change="cargarDescartes"
               class="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 font-medium" />
           </div>
-          <button @click="cargarDescartes" class="px-6 py-3 bg-blue-600 text-white rounded-2xl font-bold text-xs uppercase tracking-widest hover:bg-blue-700 transition-all flex items-center gap-2">
-            <Search class="h-4 w-4" />
-            Buscar
-          </button>
         </div>
 
         <div class="flex-1 overflow-y-auto p-6">
@@ -622,21 +618,26 @@ const cargarProductosBaja = async () => {
   if (!bajaSucursalId.value) return;
   loadingBajaProductos.value = true;
   try {
-    const res = await ListarProductosOnSucursal(bajaSucursalId.value, '', 999, 1);
+    const res = await ListarProductosOnSucursal(bajaSucursalId.value, '', 9999, 1);
     const lista = res.result || [];
     productosBaja.value = lista
       .filter(p => obtenerStockProducto(p) > 0)
-      .map(p => ({
-        id: p.idproducto || p.IdProducto,
-        nombre: p.nombre || p.Nombre,
-        stock: obtenerStockProducto(p),
-        cantidad: 0,
-        motivo: '',
-        presentacion: (p.medidas && p.medidas[0]) ? p.medidas[0] : null
-      }));
+      .map(p => {
+        const medida = (p.medidas && p.medidas[0]) ? p.medidas[0] : null;
+        return {
+          id: p.idproducto || p.IdProducto,
+          nombre: p.nombre || p.Nombre,
+          stock: obtenerStockProducto(p),
+          cantidad: 0,
+          motivo: '',
+          presentacion: medida,
+          idProductoMedida: medida?.idproductomedida || null
+        };
+      });
   } catch (e) {
     console.error('Error cargarProductosBaja:', e);
-    mostrarNotificacion('Error al cargar productos', true);
+    const msg = e.code === 'ECONNABORTED' ? 'La consulta tardó demasiado. Intente de nuevo.' : 'Error al cargar productos';
+    mostrarNotificacion(msg, true);
   } finally {
     loadingBajaProductos.value = false;
   }
@@ -651,14 +652,17 @@ const abrirModalBaja = () => {
 
 const confirmarBaja = async () => {
   const items = productosBaja.value
-    .filter(i => i.cantidad > 0)
+    .filter(i => i.cantidad > 0 && i.idProductoMedida)
     .map(i => ({
-      IdProductoMedida: i.presentacion?.idproductomedida || i.id,
+      IdProductoMedida: i.idProductoMedida,
       Cantidad: i.cantidad,
       Motivo: i.motivo || 'Sin venta'
     }));
 
-  if (items.length === 0) return;
+  if (items.length === 0) {
+    mostrarNotificacion('Seleccione al menos un producto con cantidad mayor a 0', true);
+    return;
+  }
 
   enviandoBaja.value = true;
   try {
@@ -685,7 +689,7 @@ const descarteLimite = ref(20);
 
 const abrirModalVerDescarte = () => {
   descarteFiltroSucursal.value = currentFilters.value.idsucursal !== '-1' ? currentFilters.value.idsucursal : 'TODOS';
-  descarteFiltroFecha.value = '';
+  descarteFiltroFecha.value = new Date().toLocaleDateString('en-CA');
   descartePaginaActual.value = 1;
   showDescarteModal.value = true;
   cargarDescartes();

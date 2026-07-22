@@ -89,7 +89,7 @@ export const listarInsumoConMedidas = async (id) => {
     
     return response.data;
   } catch (error) {
-    console.error('Error al obtener los roles:', error);
+    console.error('Error al obtener insumos en medida:', error);
     throw error;
   }
 };

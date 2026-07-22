@@ -13,7 +13,7 @@ export const getTransferencias = async (idsucursalorigen, idsucursaldestino, ide
     const response = await API.get('gettransferencia', { params });
     return response.data;
   } catch (error) {
-    console.error('Error al obtener los roles:', error);
+    console.error('Error al listar transferencias:', error);
     throw error;
   }
 }

@@ -600,13 +600,20 @@ export const registrarBajaInventario = async (req: Request, res: Response) => {
         continue;
       }
 
-      // Obtener presentación (ProductoMedida) con su producto
-      const presentacion = await verifyProductoMedida({ PaqueteId: IdProductoMedida });
+      let presentacion;
+      try {
+        presentacion = await verifyProductoMedida({ PaqueteId: IdProductoMedida });
+      } catch (err) {
+        resultados.push({
+          IdProductoMedida, success: false,
+          message: err instanceof Error ? err.message : 'ProductoMedida no encontrado'
+        });
+        continue;
+      }
+
       const producto = presentacion.Producto;
-      // Calcular unidades reales: cantidad * unidades por presentación
       const unidadesReales = Number(Cantidad) * Number(presentacion.Cantidad);
 
-      // Usar DecrementProducto (FIFO) para descontar del inventario
       try {
         await DecrementProducto(queryRunner, presentacion, IdSucursal, Number(Cantidad), `BAJA_${fecha}`, 'BAJA_INVENTARIO');
       } catch (err) {
@@ -617,7 +624,6 @@ export const registrarBajaInventario = async (req: Request, res: Response) => {
         continue;
       }
 
-      // Registrar en BajaProducto
       const baja = new BajaProducto();
       baja.IdBaja = await generarIdSecuencial('BAJA', queryRunner);
       baja.Produccion = null;

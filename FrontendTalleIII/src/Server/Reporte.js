@@ -97,7 +97,7 @@ export const ReporteProduccionConsolidado = async (fechadesde, fechahasta, idsuc
     return response.data;
 
   } catch (error) {
-    console.error('Error al obtener los roles:', error);
+    console.error('Error al obtener reporte producción:', error);
     throw error;
   }
 }
