@@ -252,7 +252,7 @@ export const UpdateEmpleado = async (req: Request, res: Response) => {
 
     await updateEmpleadoSucursal({
       Idempleado: id,
-      idSucursal: Personas.IdSucursal,
+      idSucursal: Personas?.IdSucursal,
     });
 
     return res.status(200).json({

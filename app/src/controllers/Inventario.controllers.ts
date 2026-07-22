@@ -593,56 +593,46 @@ export const registrarBajaInventario = async (req: Request, res: Response) => {
     const resultados: any[] = [];
 
     for (const item of items) {
-      const { IdProductoMedida, Cantidad, Motivo } = item;
-
-      if (!IdProductoMedida || !Cantidad || Cantidad <= 0) {
-        resultados.push({ IdProductoMedida, success: false, message: 'Datos inválidos' });
-        continue;
-      }
-
-      let presentacion;
       try {
-        presentacion = await verifyProductoMedida({ PaqueteId: IdProductoMedida });
-      } catch (err) {
-        resultados.push({
-          IdProductoMedida, success: false,
-          message: err instanceof Error ? err.message : 'ProductoMedida no encontrado'
-        });
-        continue;
-      }
+        const { IdProductoMedida, Cantidad, Motivo } = item;
 
-      const producto = presentacion.Producto;
-      const unidadesReales = Number(Cantidad) * Number(presentacion.Cantidad);
+        if (!IdProductoMedida || !Cantidad || Cantidad <= 0) {
+          resultados.push({ IdProductoMedida, success: false, message: 'Datos inválidos' });
+          continue;
+        }
 
-      try {
+        const presentacion = await verifyProductoMedida({ PaqueteId: IdProductoMedida });
+        const producto = presentacion.Producto;
+        const unidadesReales = Number(Cantidad) * Number(presentacion.Cantidad);
+
         await DecrementProducto(queryRunner, presentacion, IdSucursal, Number(Cantidad), `BAJA_${fecha}`, 'BAJA_INVENTARIO');
-      } catch (err) {
+
+        const baja = new BajaProducto();
+        baja.IdBaja = await generarIdSecuencial('BAJA', queryRunner);
+        baja.Produccion = null;
+        baja.Sucursal = sucursal;
+        baja.Producto = producto;
+        baja.Cantidad = unidadesReales;
+        baja.Motivo = Motivo || 'Sin venta';
+        baja.Fecha = fecha;
+        baja.Hora = hora;
+        await queryRunner.manager.save(baja);
+
         resultados.push({
-          IdProductoMedida, success: false,
-          message: err instanceof Error ? err.message : 'Error al descontar stock'
+          IdProductoMedida,
+          Nombre: producto.Nombre,
+          Presentacion: presentacion.IdProductoMedida,
+          success: true,
+          cantidad: Number(Cantidad),
+          unidades: unidadesReales
         });
-        continue;
+      } catch (err) {
+        const id = item.IdProductoMedida || 'desconocido';
+        resultados.push({
+          IdProductoMedida: id, success: false,
+          message: err instanceof Error ? err.message : 'Error al procesar ítem'
+        });
       }
-
-      const baja = new BajaProducto();
-      baja.IdBaja = await generarIdSecuencial('BAJA', queryRunner);
-      baja.Produccion = null;
-      baja.Sucursal = sucursal;
-      baja.Producto = producto;
-      baja.Cantidad = unidadesReales;
-      baja.Motivo = Motivo || 'Sin venta';
-      baja.Fecha = fecha;
-      baja.Hora = hora;
-      await queryRunner.manager.save(baja);
-
-      resultados.push({
-        IdProductoMedida,
-        Nombre: producto.Nombre,
-        Presentacion: presentacion.IdProductoMedida,
-        success: true,
-        cantidad: Number(Cantidad),
-        unidades: unidadesReales
-      });
     }
 
     await queryRunner.commitTransaction();
