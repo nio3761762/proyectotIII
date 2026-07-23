@@ -203,7 +203,13 @@ const expandido = ref(false);
 
 const formatDate = (date) => {
   if (!date) return 'N/A';
+  const match = String(date).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (match) {
+    const [, year, month, day] = match;
+    return `${day}/${month}/${year}`;
+  }
   const d = new Date(date);
+  if (isNaN(d.getTime())) return date;
   return d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
 

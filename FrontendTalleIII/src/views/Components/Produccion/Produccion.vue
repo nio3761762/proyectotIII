@@ -633,7 +633,7 @@ const cargarProductosBaja = async () => {
   if (!bajaSucursalId.value) return;
   loadingBajaProductos.value = true;
   try {
-    const res = await ListarProductosOnSucursal(bajaSucursalId.value, '', 9999, 1);
+    const res = await ListarProductosOnSucursal(bajaSucursalId.value, '', 12, 1);
     const lista = res.result || [];
     productosBaja.value = lista
       .filter(p => obtenerStockProducto(p) > 0)
@@ -833,9 +833,14 @@ const getSalidasPorEmpleado = (salidas) => {
 
 const formatDate = (date) => {
   if (!date) return 'N/A';
+  const match = String(date).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (match) {
+    const [, year, month, day] = match;
+    return `${day}/${month}/${year}`;
+  }
   try {
     const d = new Date(date);
-    if (isNaN(d.getTime())) return date; // Return raw if invalid
+    if (isNaN(d.getTime())) return date;
     return d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
   } catch (e) { return date; }
 };

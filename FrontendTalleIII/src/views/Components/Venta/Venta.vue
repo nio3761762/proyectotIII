@@ -281,8 +281,11 @@
                           <div class="flex flex-col">
                             <span class="font-black text-gray-800">#{{ venta.idventa }}</span>
                             <span class="text-xs text-gray-500 flex items-center gap-1">
-                              <Calendar class="h-3 w-3" /> {{ venta.fechaventa }}
+                              <Calendar class="h-3 w-3" /> {{ formatearFecha(venta.fechaventa) }}
                               <Clock class="h-3 w-3 ml-1" /> {{ venta.horaventa }}
+                            </span>
+                            <span class="text-[10px] text-gray-400 flex items-center gap-1 mt-0.5">
+                              <User class="h-3 w-3" /> {{ usuarioNombre(venta) }}
                             </span>
                           </div>
                         </td>
@@ -854,6 +857,31 @@ const onGuardarPersona = async (data) => {
   } finally {
     guardandoPersona.value = false;
   }
+};
+
+const formatearFecha = (fechaStr) => {
+  if (!fechaStr) return 'N/A';
+  const clean = String(fechaStr).split('T')[0];
+  const parts = clean.split('-');
+  if (parts.length === 3) {
+    const [year, month, day] = parts.map(Number);
+    return `${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}/${year}`;
+  }
+  return fechaStr;
+};
+
+const usuarioNombre = (venta) => {
+  const u = venta.Usuario || venta.usuario;
+  if (!u) return 'Desconocido';
+  const p = u.Persona || u.persona;
+  if (p) {
+    const nom = p.Nombre || p.nombre || '';
+    const pat = p.ApellidoPaterno || p.apellidopaterno || '';
+    return `${nom} ${pat}`.trim() || 'Desconocido';
+  }
+  const nom = u.Nombre || u.nombre || '';
+  const pat = u.ApellidoPaterno || u.apellidopaterno || '';
+  return `${nom} ${pat}`.trim() || 'Desconocido';
 };
 
 const obtenerSucursalUsuario = async (id) => {

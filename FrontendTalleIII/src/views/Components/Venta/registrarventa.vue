@@ -1612,7 +1612,17 @@ onMounted(async () => {
         montoRecibido.value = parseFloat(v.Pago[0].Monto) + parseFloat(v.Pago[0].Cambio);
       }
 
-      if (v.fechaventa) fechaVenta.value = v.fechaventa.split('T')[0];
+      if (v.fechaventa) {
+        const d = new Date(v.fechaventa);
+        if (!isNaN(d.getTime())) {
+          const year = d.getFullYear();
+          const month = String(d.getMonth() + 1).padStart(2, '0');
+          const day = String(d.getDate()).padStart(2, '0');
+          fechaVenta.value = `${year}-${month}-${day}`;
+        } else {
+          fechaVenta.value = v.fechaventa.split('T')[0].split(' ')[0];
+        }
+      }
       if (v.horaventa) horaVenta.value = v.horaventa.substring(0, 5);
     }
 

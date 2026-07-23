@@ -186,7 +186,7 @@ export const updateTransferencia = async (req: Request, res: Response) => {
         
     }
     if (transferencias.Tipo) transferencia.Tipo = transferencias.Tipo;
-    if (transferencias.Fecha) transferencia.Fecha = transferencias.Fecha;
+    if (transferencias.Fecha) transferencia.Fecha = new Date(transferencias.Fecha + 'T00:00:00');
 
     await queryRunner.manager.save(transferencia);
 

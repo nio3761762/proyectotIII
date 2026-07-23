@@ -82,6 +82,10 @@
               Sin Comprobante
             </span>
           </div>
+          <div class="flex items-center gap-2 text-sm text-gray-600">
+            <User class="h-4 w-4 text-gray-400" />
+            <span>{{ nombreUsuario || 'Desconocido' }}</span>
+          </div>
         </div> 
       </div>
 
@@ -281,7 +285,7 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { 
-  ShoppingCart, ChevronDown, ChevronUp, Calendar, DollarSign, Receipt, CreditCard, Coins, X, Info, Package, Tag, FileText, Pencil
+  ShoppingCart, ChevronDown, ChevronUp, Calendar, DollarSign, Receipt, CreditCard, Coins, X, Info, Package, Tag, FileText, Pencil, User
 } from 'lucide-vue-next';
 // Tag already imported
 
@@ -437,24 +441,33 @@ const gastoExtraVal = computed(() => Number(props.venta.gastoextra || props.vent
 
 const ventaNeta = computed(() => totalGeneral.value - gastoExtraVal.value);
 
+const nombreUsuario = computed(() => {
+  const u = props.venta.Usuario || props.venta.usuario;
+  if (!u) return 'Desconocido';
+  const p = u.Persona || u.persona;
+  if (p) {
+    const nom = p.Nombre || p.nombre || '';
+    const pat = p.ApellidoPaterno || p.apellidopaterno || '';
+    return `${nom} ${pat}`.trim() || 'Desconocido';
+  }
+  const nom = u.Nombre || u.nombre || '';
+  const pat = u.ApellidoPaterno || u.apellidopaterno || '';
+  return `${nom} ${pat}`.trim() || 'Desconocido';
+});
+
 const formatearFecha = (fechaStr) => {
   if (!fechaStr) return 'N/A';
   try {
-    // Parsear la fecha asegurando que sea local si es YYYY-MM-DD
-    let date;
-    if (typeof fechaStr === 'string' && fechaStr.includes('-') && !fechaStr.includes('T')) {
-      const [year, month, day] = fechaStr.split('-').map(Number);
-      date = new Date(year, month - 1, day);
-    } else {
-      date = new Date(fechaStr);
+    const clean = String(fechaStr).split('T')[0];
+    const parts = clean.split('-');
+    if (parts.length === 3) {
+      const [year, month, day] = parts.map(Number);
+      return `${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}/${year}`;
     }
-
+    const date = new Date(fechaStr);
     if (isNaN(date.getTime())) return fechaStr;
-    // Formato latinoamericano (día/mes/año)
     return date.toLocaleDateString('es-BO', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
+      day: '2-digit', month: '2-digit', year: 'numeric'
     });
   } catch (e) {
     return fechaStr;

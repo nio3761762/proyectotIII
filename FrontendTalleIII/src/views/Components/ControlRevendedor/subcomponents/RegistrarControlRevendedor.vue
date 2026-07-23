@@ -1027,10 +1027,11 @@ const openProductSelector = (regIdx) => {
   productQuery.value = '';
   showProductSelector.value = true;
   if (!idSucursalGeneral.value) return;
-  // Asegurar que el catálogo cargue suficientes productos
-  if (paginacionProd.limite < 50) {
-    paginacionProd.limite = 50;
-  }
+  filtroNombre.value = '';
+  filtroCategoria.value = 'TODOS';
+  filtroSubcategoria.value = 'TODOS';
+  paginacionProd.paginaActual = 1;
+  paginacionProd.limite = 50;
   fetchItems();
 };
 

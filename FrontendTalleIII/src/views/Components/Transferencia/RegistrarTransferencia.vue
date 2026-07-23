@@ -273,7 +273,7 @@
                     <input 
                       type="number" 
                       :value="item.cantidad"
-                      @change="onDirectQtyChange(index, $event.target.value)"
+                      @input="onDirectQtyChange(index, $event.target.value)"
                       class="w-12 text-center font-bold text-sm text-orange-700 bg-transparent border-none focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     />
                     <button @click="actualizarCantidad(index, 1)" class="p-1 hover:text-orange-600 transition-colors">
@@ -772,7 +772,10 @@ const cargarDatosEdicion = () => {
   if (trans.fecha) {
     const d = new Date(trans.fecha);
     if (!isNaN(d.getTime())) {
-      fechaTransferencia.value = d.toLocaleDateString('en-CA');
+      const anio = d.getUTCFullYear();
+      const mes = String(d.getUTCMonth() + 1).padStart(2, '0');
+      const dia = String(d.getUTCDate()).padStart(2, '0');
+      fechaTransferencia.value = `${anio}-${mes}-${dia}`;
     } else {
       fechaTransferencia.value = trans.fecha;
     }

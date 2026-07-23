@@ -56,11 +56,16 @@
             <span class="text-gray-700 font-medium truncate">
               {{ (typeof medida.presentacion === 'object' ? medida.presentacion.nombre : medida.presentacion) || medida.Nombre || 'Estándar' }} x {{ medida.cantidad }}
             </span>
+            <span class="text-[10px] text-gray-400 font-semibold">
+              Stock: {{ stockPorMedida(medida) }} uni.
+            </span>
             <span v-if="medida.preciomayor || medida.PrecioMayor" class="text-[9px] text-orange-500 font-semibold">
               Por Mayor: Bs. {{ medida.preciomayor || medida.PrecioMayor }}
             </span>
           </div>
-          <span :class="['font-bold whitespace-nowrap ml-2', disabled ? 'text-gray-400' : 'text-green-600']">Bs. {{ medida.precioventa || medida.Precio }}</span>
+          <div class="flex flex-col items-end gap-0.5">
+            <span :class="['font-bold whitespace-nowrap', disabled ? 'text-gray-400' : 'text-green-600']">Bs. {{ medida.precioventa || medida.Precio }}</span>
+          </div>
         </div>
       </div>
     </div>
@@ -128,6 +133,12 @@ const stock = computed(() => {
   }
   return props.producto.Productosucursal?.[0]?.Cantidad || 0;
 });
+
+const stockPorMedida = (medida) => {
+  const factor = parseFloat(medida.cantidad || medida.Cantidad || 1);
+  if (factor <= 0) return 0;
+  return Math.floor(stock.value / factor);
+};
 
 const startRotation = () => {
   if (allImages.value.length <= 1) return;

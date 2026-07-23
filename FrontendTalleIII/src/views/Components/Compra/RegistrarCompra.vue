@@ -148,7 +148,8 @@
                 <input 
                   v-model.number="itemForm.Cantidad" 
                   type="number" 
-                  min="1"
+                  step="0.01"
+                  min="0"
                   class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-orange-500 outline-none transition-all font-black text-center"
                 />
               </div>
@@ -281,7 +282,8 @@
                       <input 
                         v-model.number="distForms[idx].cantidad"
                         type="number"
-                        min="1"
+                        step="0.01"
+                        min="0"
                         :max="getRemainingQty(idx)"
                         placeholder="Cant."
                         class="w-24 px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-2xl text-sm font-black outline-none text-center focus:border-orange-500/50"
