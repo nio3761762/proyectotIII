@@ -267,21 +267,21 @@
 
                 <div class="flex items-center gap-3">
                   <div class="flex items-center bg-gray-50 rounded-xl px-2 py-1">
-                    <button @click="actualizarCantidad(index, -1)" class="p-1 hover:text-orange-600 transition-colors">
+                    <button @click="actualizarCantidad(item.idUnico, -1)" class="p-1 hover:text-orange-600 transition-colors">
                       <Minus class="h-3 w-3" />
                     </button>
                     <input 
                       type="number" 
                       :value="item.cantidad"
-                      @input="onDirectQtyChange(index, $event.target.value)"
+                      @input="onDirectQtyChange(item.idUnico, $event.target.value)"
                       class="w-12 text-center font-bold text-sm text-orange-700 bg-transparent border-none focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     />
-                    <button @click="actualizarCantidad(index, 1)" class="p-1 hover:text-orange-600 transition-colors">
+                    <button @click="actualizarCantidad(item.idUnico, 1)" class="p-1 hover:text-orange-600 transition-colors">
                       <Plus class="h-3 w-3" />
                     </button>
                   </div>
                   
-                  <button @click="eliminarDelCarrito(index)" class="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all">
+                  <button @click="eliminarDelCarrito(item.idUnico)" class="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all">
                     <Trash2 class="h-4 w-4" />
                   </button>
                 </div>
@@ -596,25 +596,27 @@ const insumosConStockReal = computed(() => {
   });
 });
 
-const onDirectQtyChange = (index, val) => {
-  const item = carrito.value[index];
-  const newQty = parseInt(val) || 1;
+const onDirectQtyChange = (idUnico, val) => {
+  const idx = getItemIndex(idUnico);
+  if (idx === -1) return;
+  const item = carrito.value[idx];
+  const raw = parseInt(val);
+  const newQty = isNaN(raw) || raw < 1 ? 1 : raw;
   const delta = newQty - item.cantidad;
 
   if (delta === 0) return;
-  if (newQty <= 0) { eliminarDelCarrito(index); return; }
+  if (newQty <= 0) { eliminarDelCarrito(idUnico); return; }
 
   if (delta > 0) {
     if (!item.esInsumo) {
       const productInStock = productosConStockReal.value.find(p => getProdId(p) === item.idBase);
-      if (delta * (parseFloat(item.multiplicador) || 1) > productInStock.cantidad) {
+      if (!productInStock || delta * (parseFloat(item.multiplicador) || 1) > productInStock.cantidad) {
         showNotification('Stock insuficiente', 'error');
         return;
       }
     } else {
       const insumoInStock = insumosConStockReal.value.find(i => (i.IdInsumo || i.idinsumo) === item.idInsumoBase);
-      // Validar si el incremento cabe en el stock de gramos restante
-      if (delta * (parseFloat(item.multiplicador) || 1) > insumoInStock.StockGramos) {
+      if (!insumoInStock || delta * (parseFloat(item.multiplicador) || 1) > insumoInStock.StockGramos) {
         showNotification('Stock insuficiente', 'error');
         return;
       }
@@ -692,13 +694,19 @@ const agregarInsumo = (item) => {
   showNotification('Insumo agregado', 'success');
 };
 
-const actualizarCantidad = (index, delta) => {
-  const item = carrito.value[index];
-  onDirectQtyChange(index, item.cantidad + delta);
+const getItemIndex = (idUnico) => carrito.value.findIndex(i => i.idUnico === idUnico);
+
+const actualizarCantidad = (idUnico, delta) => {
+  const idx = getItemIndex(idUnico);
+  if (idx === -1) return;
+  const item = carrito.value[idx];
+  onDirectQtyChange(idUnico, item.cantidad + delta);
 };
 
-const eliminarDelCarrito = (index) => {
-  carrito.value.splice(index, 1);
+const eliminarDelCarrito = (idUnico) => {
+  const idx = getItemIndex(idUnico);
+  if (idx === -1) return;
+  carrito.value.splice(idx, 1);
 };
 
 const procesarTransferencia = async () => {
