@@ -112,7 +112,15 @@
         />
       </div>
 
-      
+      <div v-if="activeTab === 'produccion-vs-venta'">
+        <ProduccionVsVentaTable ref="produccionVsVentaTableRef"
+          :detalle="reporteProduccionVsVenta?.detalle || []"
+          :detalle-diario="reporteProduccionVsVenta?.detalleDiario || []"
+          :resumen="reporteProduccionVsVenta?.resumen || {}"
+          :format-fecha="formatFecha"
+          :agrupar-por-semana="agruparPorSemana"
+        />
+      </div>
 
     </div>
   </div>  
@@ -125,7 +133,7 @@ import autoTable from 'jspdf-autotable'
 import * as XLSX from 'xlsx'
 import { listarPago } from "@/Server/Pago"
 import { listarTipopedido } from "@/Server/Pedido"
-import { ReporteComisionDetallado,ReporteComisionConsolidado , ReproteFinanciero, ReporteProduccion, ReporteProduccionConsolidado, ReporteKardex, ReporteInventario, ReportePresioHistorico, ReporteCompraConsolidada, ReporteVenta, ReporteVentaConsolidada, ReporteTransferencia, ReporteTransferenciaConsolidada, ReportePedido, ReportePedidoConsolidado, ReporteGastosGenerales, ReporteSemanalGeneral } from "@/Server/Reporte"
+import { ReporteComisionDetallado,ReporteComisionConsolidado , ReproteFinanciero, ReporteProduccion, ReporteProduccionConsolidado, ReporteKardex, ReporteInventario, ReportePresioHistorico, ReporteCompraConsolidada, ReporteVenta, ReporteVentaConsolidada, ReporteTransferencia, ReporteTransferenciaConsolidada, ReportePedido, ReportePedidoConsolidado, ReporteGastosGenerales, ReporteSemanalGeneral, ReporteProduccionVsVenta } from "@/Server/Reporte"
 import { getRevendedores } from "@/Server/ControlRevendedor"
 import { listarCategorias, ObtenerSubCategorias } from '@/Server/Categoria'
 import { getEmpleadosVendedores } from "@/Server/Empleado.js"
@@ -151,6 +159,7 @@ import KardexTable from './KardexTable.vue'
 import FinancieroTable from './FinancieroTable.vue'
 import ComisionTable from './ComisionTable.vue'
 import GastosGeneralesTable from './GastosGeneralesTable.vue'
+import ProduccionVsVentaTable from './ProduccionVsVentaTable.vue'
 
 import logoMasasCori from '@/views/assets/LogoMasasCorir.png';
 
@@ -167,6 +176,7 @@ const produccionTableRef = ref(null);
 const inventarioTableRef = ref(null);
 const comisionTableRef = ref(null);
 const gastosGeneralesTableRef = ref(null);
+const produccionVsVentaTableRef = ref(null);
 
 // --- Agrupación por Semana ---
 const agruparPorSemana = ref(false)
@@ -431,6 +441,7 @@ const reporteKardex = ref({});
 const comisionDetallada = ref({});
 const comisionConsolidada = ref({});
 const reporteGastosGenerales = ref({});
+const reporteProduccionVsVenta = ref({});
 
 const processedTransferencias = computed(() => {
   const data = transferencias.value?.data || transferencias.value?.transferencias || (Array.isArray(transferencias.value) ? transferencias.value : []);
@@ -665,6 +676,18 @@ const cargarGastosGenerales = async () => {
     console.error('Error al cargar gastos generales:', error);
   }
 };
+const cargarProduccionVsVenta = async () => {
+  try {
+    const resp = await ReporteProduccionVsVenta(
+      filtros.value.desde,
+      filtros.value.hasta,
+      filtros.value.tienda || null
+    );
+    reporteProduccionVsVenta.value = resp.result || resp || {};
+  } catch (error) {
+    console.error('Error al cargar producción vs venta:', error);
+  }
+};
 
 const cargarFinanciero = async () => {
   try {
@@ -883,7 +906,8 @@ const cargarReporteActivo = async () => {
     inventario: cargarInventario,
     kardex: cargarKardex,
     comision: cargarComision,
-    'gastos-generales': cargarGastosGenerales
+    'gastos-generales': cargarGastosGenerales,
+    'produccion-vs-venta': cargarProduccionVsVenta
   };
   const fn = mapa[activeTab.value];
   if (fn) await fn();
@@ -1072,6 +1096,14 @@ const generarReporte = async () => {
         };
       }
     }
+  } else if (activeTab.value === 'produccion-vs-venta') {
+    const data = reporteProduccionVsVenta.value;
+    if (data?.resumen) {
+      indicadores.value.totalVentas = data.resumen.total_vendido;
+      indicadores.value.productosVendidos = data.resumen.total_producido;
+      indicadores.value.gananciaNeta = data.resumen.diferencia_total;
+      indicadores.value.clientes = data.detalle?.length || 0;
+    }
   }
 };
 
@@ -1091,7 +1123,7 @@ const exportarPDF = async () => {
     return Object.values(weeks).sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
   }
   // Expandir semanas para capturar gráficas semanales
-  const tableRefs = { financiero: financieroTableRef, ventas: ventasTableRef, pedidos: pedidosTableRef, transferencias: transferenciasTableRef, compras: comprasTableRef, produccion: produccionTableRef, comision: comisionTableRef }
+  const tableRefs = { financiero: financieroTableRef, ventas: ventasTableRef, pedidos: pedidosTableRef, transferencias: transferenciasTableRef, compras: comprasTableRef, produccion: produccionTableRef, comision: comisionTableRef, 'produccion-vs-venta': produccionVsVentaTableRef }
   const curRef = tableRefs[activeTab.value]
   if (isSemanal && curRef?.value?.expandAllSemanas) {
     curRef.value.expandAllSemanas()
@@ -3481,6 +3513,184 @@ const exportarPDF = async () => {
       autoTable(doc, { head: [tableColumn], body: tableRows, startY });
     }
     doc.save(`reporte_gastos_generales${agruparPorSemana.value ? '_semanal' : ''}_${new Date().toISOString().slice(0, 10)}.pdf`);
+  } else if (activeTab.value === 'produccion-vs-venta') {
+    const data = reporteProduccionVsVenta.value;
+    if (!data?.detalle?.length && !data?.detalleDiario?.length) {
+      alert("No hay datos para exportar a PDF.");
+      return;
+    }
+    const doc = new jsPDF();
+    let startY = await addPDFHeader(doc, `Reporte Producción vs Venta${agruparPorSemana.value ? ' Semanal' : ''}`);
+    const pageW = doc.internal.pageSize.getWidth();
+    const res = data.resumen;
+
+    const cards = [
+      { fill: [240,253,244], tc: [22,163,74], vc: [21,128,61], label: 'Total Producido', val: `${res.total_producido} uds.` },
+      { fill: [239,246,255], tc: [37,99,235], vc: [29,78,216], label: 'Total Vendido', val: `${res.total_vendido} uds.` },
+      { fill: res.diferencia_total >= 0 ? [239,246,255] : [254,242,242], tc: res.diferencia_total >= 0 ? [37,99,235] : [220,38,38], vc: res.diferencia_total >= 0 ? [29,78,216] : [185,28,28], label: 'Diferencia', val: `${res.diferencia_total >= 0 ? '+' : ''}${res.diferencia_total}` },
+    ]
+    const cw = Math.floor((pageW - 28) / 3)
+    cards.forEach((c, i) => {
+      const x = 14 + i * cw
+      doc.setFillColor(c.fill[0], c.fill[1], c.fill[2])
+      doc.rect(x, startY, cw - 2, 16, 'F')
+      doc.setFontSize(8)
+      doc.setTextColor(c.tc[0], c.tc[1], c.tc[2])
+      doc.setFont(undefined, 'bold')
+      doc.text(c.label, x + 2, startY + 5)
+      doc.setFontSize(12)
+      doc.setTextColor(c.vc[0], c.vc[1], c.vc[2])
+      doc.text(c.val, x + 2, startY + 14)
+    })
+    startY += 22
+
+    if (isSemanal && produccionVsVentaTableRef.value?.expandAllSemanas) {
+      produccionVsVentaTableRef.value.expandAllSemanas()
+      await new Promise(r => setTimeout(r, 600))
+    }
+
+    const chartW = pageW - 28
+    const chPv = addChartToPDF(doc, 0, 14, startY + 5, chartW)
+    if (chPv !== null) {
+      startY += chPv + 15
+    }
+
+    const diario = data.detalleDiario || []
+    if (diario.length > 0) {
+      const fmtPdfFecha = (f) => {
+        const clean = String(f).split('T')[0]
+        if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) {
+          const [y, m, d] = clean.split('-')
+          return `${d}/${m}/${y}`
+        }
+        return clean
+      }
+
+      if (startY > 240) { doc.addPage(); startY = 50 }
+      doc.setFontSize(12)
+      doc.setTextColor(0)
+      doc.setFont(undefined, 'bold')
+      doc.text('Total por Producto', 14, startY)
+      startY += 8
+
+      const pct = (p, v) => !p || p === 0 ? '—' : ((v / p) * 100).toFixed(1) + '%'
+      const detRows = (data.detalle || []).map(item => [
+        item.producto, String(item.cantidad_producida), String(item.cantidad_vendida_tienda),
+        String(item.cantidad_vendida_revendedor), String(item.cantidad_vendida_total),
+        `${item.diferencia >= 0 ? '+' : ''}${item.diferencia}`,
+        pct(item.cantidad_producida, item.cantidad_vendida_total)
+      ])
+      const totP = data.resumen?.total_producido || 0
+      const totV = data.resumen?.total_vendido || 0
+      detRows.push([{ content: 'TOTALES', styles: { fontStyle: 'bold', fillColor: [255,247,237] } },
+        { content: String(totP), styles: { fontStyle: 'bold', fillColor: [255,247,237] } },
+        { content: String(data.resumen?.total_vendido_tienda || 0), styles: { fontStyle: 'bold', fillColor: [255,247,237] } },
+        { content: String(data.resumen?.total_vendido_revendedor || 0), styles: { fontStyle: 'bold', fillColor: [255,247,237] } },
+        { content: String(totV), styles: { fontStyle: 'bold', fillColor: [255,247,237] } },
+        { content: String(data.resumen?.diferencia_total || 0), styles: { fontStyle: 'bold', fillColor: [255,247,237] } },
+        { content: pct(totP, totV), styles: { fontStyle: 'bold', fillColor: [255,247,237] } }])
+      autoTable(doc, {
+        head: [['Producto', 'Producido', 'Vend. Tienda', 'Vend. Rev.', 'Total Vendido', 'Diferencia', '% Vendido']],
+        body: detRows, startY, styles: { fontSize: 8 }
+      })
+      startY = doc.lastAutoTable.finalY + 10
+
+      if (isSemanal) {
+        const weeks = {}
+        diario.forEach(d => {
+          const m = getWeekMonday(d.fecha)
+          if (!weeks[m]) weeks[m] = { fecha: m, semanaLabel: getWeekLabel(m), days: [], totalProd: 0, totalVend: 0 }
+          weeks[m].days.push(d)
+          weeks[m].totalProd += d.total_producido || 0
+          weeks[m].totalVend += d.total_vendido || 0
+        })
+        const sortedWeeks = Object.values(weeks).sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
+        sortedWeeks.forEach((sem, si) => {
+          if (startY > 250) { doc.addPage(); startY = 50 }
+          doc.setFillColor(255, 247, 237)
+          doc.rect(14, startY - 5, pageW - 28, 10, 'F')
+          doc.setFontSize(11)
+          doc.setTextColor(0)
+          doc.setFont(undefined, 'bold')
+          doc.text(`Semana ${si + 1}: ${sem.semanaLabel}`, 18, startY)
+          doc.setFontSize(9)
+          doc.setTextColor(22, 163, 74)
+          doc.text(`Prod: ${sem.totalProd} uds.`, pageW - 110, startY)
+          doc.setTextColor(37, 99, 235)
+          doc.text(`Vend: ${sem.totalVend} uds.`, pageW - 55, startY)
+          startY += 12
+
+          sem.days.sort((a, b) => new Date(b.fecha) - new Date(a.fecha)).forEach(dia => {
+            if (startY > 255) { doc.addPage(); startY = 50 }
+            doc.setFillColor(239, 246, 255)
+            doc.rect(14, startY - 3, pageW - 28, 7, 'F')
+            doc.setFontSize(8)
+            doc.setTextColor(0)
+            doc.setFont(undefined, 'bold')
+            doc.text(`${fmtPdfFecha(dia.fecha)}`, 18, startY)
+            doc.setTextColor(22, 163, 74)
+            doc.text(`Prod: ${dia.total_producido}`, pageW - 100, startY)
+            doc.setTextColor(37, 99, 235)
+            doc.text(`Vend: ${dia.total_vendido}`, pageW - 55, startY)
+            startY += 8
+
+            const detRows = (dia.productos || []).map(item => [
+              item.producto, String(item.cantidad_producida), String(item.cantidad_vendida_tienda),
+              String(item.cantidad_vendida_revendedor), String(item.cantidad_vendida_total),
+              `${item.diferencia >= 0 ? '+' : ''}${item.diferencia}`
+            ])
+            if (detRows.length) {
+              autoTable(doc, {
+                head: [['Producto', 'Prod.', 'V.Tienda', 'V.Rev.', 'Total', 'Dif.']],
+                body: detRows, startY, styles: { fontSize: 6 }
+              })
+              startY = doc.lastAutoTable.finalY + 2
+            }
+          })
+          startY += 3
+        })
+      } else {
+        [...diario].sort((a, b) => new Date(b.fecha) - new Date(a.fecha)).forEach(dia => {
+          if (startY > 255) { doc.addPage(); startY = 50 }
+          doc.setFillColor(239, 246, 255)
+          doc.rect(14, startY - 3, pageW - 28, 7, 'F')
+          doc.setFontSize(8)
+          doc.setTextColor(0)
+          doc.setFont(undefined, 'bold')
+          doc.text(`${fmtPdfFecha(dia.fecha)}`, 18, startY)
+          doc.setTextColor(22, 163, 74)
+          doc.text(`Prod: ${dia.total_producido}`, pageW - 100, startY)
+          doc.setTextColor(37, 99, 235)
+          doc.text(`Vend: ${dia.total_vendido}`, pageW - 55, startY)
+          startY += 8
+
+          const detRows = (dia.productos || []).map(item => [
+            item.producto, String(item.cantidad_producida), String(item.cantidad_vendida_tienda),
+            String(item.cantidad_vendida_revendedor), String(item.cantidad_vendida_total),
+            `${item.diferencia >= 0 ? '+' : ''}${item.diferencia}`
+          ])
+          if (detRows.length) {
+            autoTable(doc, {
+              head: [['Producto', 'Prod.', 'V.Tienda', 'V.Rev.', 'Total', 'Dif.']],
+              body: detRows, startY, styles: { fontSize: 6 }
+            })
+            startY = doc.lastAutoTable.finalY + 2
+          }
+        })
+      }
+    } else {
+      const detRows = data.detalle.map(item => [
+        item.producto, String(item.cantidad_producida), String(item.cantidad_vendida_tienda),
+        String(item.cantidad_vendida_revendedor), String(item.cantidad_vendida_total),
+        `${item.diferencia >= 0 ? '+' : ''}${item.diferencia}`
+      ])
+      autoTable(doc, {
+        head: [['Producto', 'Producido', 'Vend. Tienda', 'Vend. Revendedor', 'Total Vendido', 'Diferencia']],
+        body: detRows, startY, styles: { fontSize: 8 }
+      })
+    }
+
+    doc.save(`reporte_produccion_vs_venta${agruparPorSemana.value ? '_semanal' : ''}_${new Date().toISOString().slice(0, 10)}.pdf`);
   } else if (activeTab.value === 'resumen-semanal') {
     await generarResumenSemanalPDF(filtros.value.fechadesde, filtros.value.fechahasta, filtros.value.idsucursal);
   }
@@ -4737,6 +4947,88 @@ const exportarExcel = () => {
     }
 
     XLSX.writeFile(workbook, `reporte_gastos_generales${agruparPorSemana.value ? '_semanal' : ''}_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  } else if (activeTab.value === 'produccion-vs-venta') {
+    const data = reporteProduccionVsVenta.value;
+    if (!data?.detalle?.length && !data?.detalleDiario?.length) {
+      alert("No hay datos para exportar a Excel.");
+      return;
+    }
+    const res = data.resumen;
+    const workbook = XLSX.utils.book_new();
+
+    const wsRes = {}; let rIdx = 0;
+    wsRes[XLSX.utils.encode_cell({ r: rIdx, c: 0 })] = { t: 's', v: 'RESUMEN PRODUCCIÓN VS VENTA', s: { font: { bold: true, sz: 14 } } };
+    rIdx++;
+    [
+      ['Total Producido', res.total_producido],
+      ['Vendido Tienda', res.total_vendido_tienda],
+      ['Vendido Revendedor', res.total_vendido_revendedor],
+      ['Total Vendido', res.total_vendido],
+      ['Diferencia', res.diferencia_total],
+    ].forEach(row => {
+      wsRes[XLSX.utils.encode_cell({ r: rIdx, c: 0 })] = { t: 's', v: String(row[0]), s: { font: { bold: true } } };
+      const cell = { v: row[1] }; if (typeof row[1] === 'number') cell.t = 'n'; else cell.t = 's';
+      wsRes[XLSX.utils.encode_cell({ r: rIdx, c: 1 })] = cell;
+      rIdx++;
+    });
+    wsRes['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rIdx - 1, c: 1 } });
+    wsRes['!cols'] = [{ wch: 25 }, { wch: 20 }];
+    XLSX.utils.book_append_sheet(workbook, wsRes, "Resumen");
+
+    if (data.detalleDiario?.length > 0) {
+      const getWM = (ds) => {
+        const c = String(ds).split('T')[0]; const d = new Date(c + 'T12:00:00');
+        if (isNaN(d.getTime())) return c; const dy = d.getDay(); const df = d.getDate() - dy + (dy === 0 ? -6 : 1);
+        d.setDate(df); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+      }
+      const getWL = (ms) => {
+        if (!ms) return ms; const d = new Date(ms + 'T12:00:00'); if (isNaN(d.getTime())) return ms;
+        const e = new Date(d); e.setDate(d.getDate()+6);
+        const f = (dd) => `${String(dd.getDate()).padStart(2,'0')}/${String(dd.getMonth()+1).padStart(2,'0')}/${dd.getFullYear()}`
+        return `${f(d)} - ${f(e)}`
+      }
+
+      const pct = (p, v) => !p || p === 0 ? '—' : ((v / p) * 100).toFixed(1) + '%'
+      const wsProd = XLSX.utils.json_to_sheet(data.detalle.map(item => ({
+        Producto: item.producto,
+        Producido: item.cantidad_producida,
+        'Vendido Tienda': item.cantidad_vendida_tienda,
+        'Vendido Revendedor': item.cantidad_vendida_revendedor,
+        'Total Vendido': item.cantidad_vendida_total,
+        Diferencia: item.diferencia,
+        '% Vendido': pct(item.cantidad_producida, item.cantidad_vendida_total)
+      })))
+      XLSX.utils.book_append_sheet(workbook, wsProd, "Total por Producto")
+
+      const diarioFlat = []
+      data.detalleDiario.forEach(dia => {
+        ;(dia.productos || []).forEach(item => {
+          diarioFlat.push({
+            Fecha: dia.fecha,
+            Producto: item.producto,
+            Producido: item.cantidad_producida,
+            'Vendido Tienda': item.cantidad_vendida_tienda,
+            'Vendido Revendedor': item.cantidad_vendida_revendedor,
+            'Total Vendido': item.cantidad_vendida_total,
+            Diferencia: item.diferencia
+          })
+        })
+      })
+      const wsDiario = XLSX.utils.json_to_sheet(diarioFlat)
+      XLSX.utils.book_append_sheet(workbook, wsDiario, "Detalle Diario")
+    } else {
+      const wsDet = XLSX.utils.json_to_sheet(data.detalle.map(item => ({
+        Producto: item.producto,
+        Producido: item.cantidad_producida,
+        'Vendido Tienda': item.cantidad_vendida_tienda,
+        'Vendido Revendedor': item.cantidad_vendida_revendedor,
+        'Total Vendido': item.cantidad_vendida_total,
+        Diferencia: item.diferencia
+      })));
+      XLSX.utils.book_append_sheet(workbook, wsDet, "Detalle");
+    }
+
+    XLSX.writeFile(workbook, `reporte_produccion_vs_venta_${new Date().toISOString().slice(0, 10)}.xlsx`);
   }
   } catch (error) {
     console.error('Error en exportarExcel:', error);

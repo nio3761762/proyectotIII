@@ -35,6 +35,9 @@ import {
     getReporteRevendedorConsolidado,
     getReporteRevendedorDetallado
 } from "../controllers/reportes/RevendedorReporte.controllers";
+import { 
+    getReporteProduccionVsVenta 
+} from "../controllers/reportes/ProduccionVsVentaReporte.controllers";
 import { authMiddleware } from "../middleware/verifyToken";
 
 const router = Router();
@@ -60,6 +63,7 @@ router.get("/reporte/vendedores-liquidacion", getReporteVendedoresLiquidacion);
 router.get("/reporte/financiero-consolidado", getReporteFinancieroConsolidado);
 router.get("/reporte/revendedor-consolidado", getReporteRevendedorConsolidado);
 router.get("/reporte/gastos-generales", getReporteGastosGenerales);
+router.get("/reporte/produccion-vs-venta", getReporteProduccionVsVenta);
 
 export default router;
 

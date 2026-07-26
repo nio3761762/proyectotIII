@@ -430,6 +430,18 @@ export const ReporteSemanalKardex = async (fechadesde, fechahasta, idsucursal) =
   }
 };
 
+export const ReporteProduccionVsVenta = async (fechadesde, fechahasta, idsucursal) => {
+  try {
+    const params = { fechadesde, fechahasta };
+    if (idsucursal) params.idsucursal = idsucursal;
+    const response = await API.get('reporte/produccion-vs-venta', { params });
+    return response.data;
+  } catch (error) {
+    console.error('Error al obtener reporte producción vs venta:', error);
+    throw error;
+  }
+};
+
 export const ReporteSemanalGeneral = async (fechadesde, fechahasta, idsucursal) => {
   try {
     const params = { fechadesde, fechahasta, idsucursal };
