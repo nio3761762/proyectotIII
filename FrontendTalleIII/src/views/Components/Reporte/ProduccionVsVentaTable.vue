@@ -72,6 +72,48 @@
         </table>
       </div>
 
+      <div v-if="agruparPorSemana" class="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+        <div class="p-4 border-b border-gray-100">
+          <h3 class="text-lg font-bold text-gray-800">Resumen por Semana</h3>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-gray-50/50">
+                <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b">Semana</th>
+                <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-center">Producido</th>
+                <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-center">Vendido</th>
+                <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-center">Diferencia</th>
+                <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-center">% Vendido</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="row in weeklySummaryRows" :key="row.key"
+                  class="hover:bg-orange-50/30 transition-colors border-b border-gray-100">
+                <td class="p-3 font-bold text-gray-700">{{ row.label }}</td>
+                <td class="p-3 text-center font-black text-emerald-600">{{ row.producido }}</td>
+                <td class="p-3 text-center font-black text-blue-600">{{ row.vendido }}</td>
+                <td class="p-3 text-center font-black" :class="row.diferencia >= 0 ? 'text-green-600' : 'text-red-600'">
+                  {{ row.diferencia >= 0 ? '+' : '' }}{{ row.diferencia }}
+                </td>
+                <td class="p-3 text-center font-black text-gray-700">{{ row.porcentaje }}</td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr class="bg-orange-50/50">
+                <td class="p-3 font-black text-gray-600 text-xs uppercase border-t-2 border-orange-200">Totales</td>
+                <td class="p-3 text-center font-black text-emerald-700 border-t-2 border-orange-200">{{ weeklySummaryTotals.producido }}</td>
+                <td class="p-3 text-center font-black text-blue-700 border-t-2 border-orange-200">{{ weeklySummaryTotals.vendido }}</td>
+                <td class="p-3 text-center font-black border-t-2 border-orange-200" :class="weeklySummaryTotals.diferencia >= 0 ? 'text-green-700' : 'text-red-700'">
+                  {{ weeklySummaryTotals.diferencia >= 0 ? '+' : '' }}{{ weeklySummaryTotals.diferencia }}
+                </td>
+                <td class="p-3 text-center font-black text-gray-700 border-t-2 border-orange-200">{{ weeklySummaryTotals.porcentaje }}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
       <div v-if="agruparPorSemana" class="space-y-4">
         <div v-for="sem in weeklyGroups" :key="sem.semana" class="bg-white rounded-3xl border border-gray-200 shadow-sm overflow-hidden">
           <div class="px-6 py-4 bg-gradient-to-r from-orange-50 to-amber-50 border-b border-gray-100 flex items-center justify-between cursor-pointer" @click="toggleSemana(sem.semana)">
@@ -92,7 +134,38 @@
               </div>
             </div>
           </div>
-          <div v-if="expandedSemanas[sem.semana]" class="p-4 space-y-4">
+          <div v-if="expandedSemanas[sem.semana]" class="p-4 space-y-6">
+            <div class="bg-gradient-to-r from-orange-50/50 to-amber-50/30 rounded-2xl border border-gray-200 overflow-hidden">
+              <div class="p-3 border-b border-gray-100">
+                <h4 class="font-bold text-gray-700 text-sm">Total por Producto (Semana)</h4>
+              </div>
+              <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                  <thead>
+                    <tr class="bg-gray-50/30">
+                      <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b min-w-[180px]">Producto</th>
+                      <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-center">Producido</th>
+                      <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-center">Vendido Tienda</th>
+                      <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-center">Vendido Rev.</th>
+                      <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-center">Total Vendido</th>
+                      <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-center">Diferencia</th>
+                      <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-center">% Vendido</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="item in getWeeklyProductRows(sem.dias)" :key="item.idproducto" class="hover:bg-orange-50/30 transition-colors border-b border-gray-100">
+                      <td class="p-3 font-medium text-gray-800">{{ item.producto }}</td>
+                      <td class="p-3 text-center font-black text-emerald-600">{{ item.cantidad_producida }}</td>
+                      <td class="p-3 text-center font-medium text-blue-600">{{ item.cantidad_vendida_tienda }}</td>
+                      <td class="p-3 text-center font-medium text-purple-600">{{ item.cantidad_vendida_revendedor }}</td>
+                      <td class="p-3 text-center font-black text-gray-700">{{ item.cantidad_vendida_total }}</td>
+                      <td class="p-3 text-center font-black" :class="item.diferencia >= 0 ? 'text-green-600' : 'text-red-600'">{{ item.diferencia >= 0 ? '+' : '' }}{{ item.diferencia }}</td>
+                      <td class="p-3 text-center font-black text-gray-700">{{ item.porcentaje }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
             <div v-for="dia in sem.dias" :key="dia.fecha" class="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
               <div class="px-4 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-100 flex items-center gap-3">
                 <h4 class="font-bold text-gray-700 text-sm">{{ formatFecha(dia.fecha) }}</h4>
@@ -322,6 +395,23 @@ const summaryTotals = computed(() => {
   return { producido: prod, vendido: vend, diferencia: prod - vend, porcentaje: calcPct(prod, vend) }
 })
 
+const weeklySummaryRows = computed(() => {
+  return weeklyGroups.value.map(w => ({
+    key: w.semana,
+    label: w.semanaLabel,
+    producido: w.totalProducido,
+    vendido: w.totalVendido,
+    diferencia: w.totalProducido - w.totalVendido,
+    porcentaje: calcPct(w.totalProducido, w.totalVendido)
+  }))
+})
+
+const weeklySummaryTotals = computed(() => {
+  const prod = weeklySummaryRows.value.reduce((s, r) => s + (r.producido || 0), 0)
+  const vend = weeklySummaryRows.value.reduce((s, r) => s + (r.vendido || 0), 0)
+  return { producido: prod, vendido: vend, diferencia: prod - vend, porcentaje: calcPct(prod, vend) }
+})
+
 const productRows = computed(() => {
   return props.detalle.map(item => ({
     ...item,
@@ -391,6 +481,27 @@ const expandedDias = ref({})
 const toggleDia = (fecha) => { expandedDias.value[fecha] = !expandedDias.value[fecha] }
 const expandAllDias = () => { props.detalleDiario.forEach(d => { expandedDias.value[d.fecha] = true }) }
 const collapseAllDias = () => { Object.keys(expandedDias.value).forEach(k => { expandedDias.value[k] = false }) }
+
+const getWeeklyProductRows = (dias) => {
+  const map = {}
+  dias.forEach(dia => {
+    ;(dia.productos || []).forEach(p => {
+      const id = p.idproducto
+      if (!map[id]) {
+        map[id] = { ...p, cantidad_producida: 0, cantidad_vendida_tienda: 0, cantidad_vendida_revendedor: 0, cantidad_vendida_total: 0, diferencia: 0 }
+      }
+      map[id].cantidad_producida += p.cantidad_producida || 0
+      map[id].cantidad_vendida_tienda += p.cantidad_vendida_tienda || 0
+      map[id].cantidad_vendida_revendedor += p.cantidad_vendida_revendedor || 0
+      map[id].cantidad_vendida_total += p.cantidad_vendida_total || 0
+      map[id].diferencia = map[id].cantidad_producida - map[id].cantidad_vendida_total
+    })
+  })
+  return Object.values(map).map(item => ({
+    ...item,
+    porcentaje: calcPct(item.cantidad_producida, item.cantidad_vendida_total)
+  }))
+}
 
 const expandedSemanas = ref({})
 const toggleSemana = (key) => { expandedSemanas.value[key] = !expandedSemanas.value[key] }

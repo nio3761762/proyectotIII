@@ -3604,6 +3604,21 @@ const exportarPDF = async () => {
           weeks[m].totalProd += d.total_producido || 0
           weeks[m].totalVend += d.total_vendido || 0
         })
+
+        if (startY > 240) { doc.addPage(); startY = 50 }
+        doc.setFontSize(12)
+        doc.setTextColor(0)
+        doc.setFont(undefined, 'bold')
+        doc.text('Resumen por Semana', 14, startY)
+        startY += 8
+        const sortedWeekList = Object.values(weeks).sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
+        const wsRows = sortedWeekList.map(w => [w.semanaLabel, String(w.totalProd), String(w.totalVend), `${w.totalProd - w.totalVend}`, pct(w.totalProd, w.totalVend)])
+        const wTotalP = sortedWeekList.reduce((s, w) => s + w.totalProd, 0)
+        const wTotalV = sortedWeekList.reduce((s, w) => s + w.totalVend, 0)
+        wsRows.push([{ content: 'TOTALES', styles: { fontStyle: 'bold', fillColor: [255,247,237] } }, { content: String(wTotalP), styles: { fontStyle: 'bold', fillColor: [255,247,237] } }, { content: String(wTotalV), styles: { fontStyle: 'bold', fillColor: [255,247,237] } }, { content: String(wTotalP - wTotalV), styles: { fontStyle: 'bold', fillColor: [255,247,237] } }, { content: pct(wTotalP, wTotalV), styles: { fontStyle: 'bold', fillColor: [255,247,237] } }])
+        autoTable(doc, { head: [['Semana', 'Producido', 'Vendido', 'Diferencia', '% Vendido']], body: wsRows, startY, styles: { fontSize: 8 } })
+        startY = doc.lastAutoTable.finalY + 10
+
         const sortedWeeks = Object.values(weeks).sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
         sortedWeeks.forEach((sem, si) => {
           if (startY > 250) { doc.addPage(); startY = 50 }
@@ -3619,6 +3634,36 @@ const exportarPDF = async () => {
           doc.setTextColor(37, 99, 235)
           doc.text(`Vend: ${sem.totalVend} uds.`, pageW - 55, startY)
           startY += 12
+
+          if (startY > 245) { doc.addPage(); startY = 50 }
+          doc.setFontSize(9)
+          doc.setTextColor(0)
+          doc.setFont(undefined, 'bold')
+          doc.text('Total por Producto (Semana)', 14, startY)
+          startY += 6
+
+          const weekProdMap = {}
+          sem.days.forEach(dia => {
+            ;(dia.productos || []).forEach(p => {
+              if (!weekProdMap[p.idproducto]) weekProdMap[p.idproducto] = { producto: p.producto, prod: 0, vTienda: 0, vRev: 0, vTotal: 0 }
+              weekProdMap[p.idproducto].prod += p.cantidad_producida || 0
+              weekProdMap[p.idproducto].vTienda += p.cantidad_vendida_tienda || 0
+              weekProdMap[p.idproducto].vRev += p.cantidad_vendida_revendedor || 0
+              weekProdMap[p.idproducto].vTotal += p.cantidad_vendida_total || 0
+            })
+          })
+          const wpRows = Object.values(weekProdMap).map(item => [
+            item.producto, String(item.prod), String(item.vTienda), String(item.vRev), String(item.vTotal),
+            `${item.prod - item.vTotal >= 0 ? '+' : ''}${item.prod - item.vTotal}`,
+            pct(item.prod, item.vTotal)
+          ])
+          if (wpRows.length) {
+            autoTable(doc, {
+              head: [['Producto', 'Producido', 'Vendido Tienda', 'Vendido Rev.', 'Total Vendido', 'Diferencia', '% Vendido']],
+              body: wpRows, startY, styles: { fontSize: 6 }, headStyles: { fillColor: [249, 115, 22], textColor: [255, 255, 255], fontStyle: 'bold' }
+            })
+            startY = doc.lastAutoTable.finalY + 4
+          }
 
           sem.days.sort((a, b) => new Date(b.fecha) - new Date(a.fecha)).forEach(dia => {
             if (startY > 255) { doc.addPage(); startY = 50 }
@@ -4999,6 +5044,19 @@ const exportarExcel = () => {
         '% Vendido': pct(item.cantidad_producida, item.cantidad_vendida_total)
       })))
       XLSX.utils.book_append_sheet(workbook, wsProd, "Total por Producto")
+
+      if (agruparPorSemana.value) {
+        const weeks = {}
+        data.detalleDiario.forEach(d => { const m = getWM(d.fecha); if (!weeks[m]) weeks[m] = { semana: m, label: getWL(m), prod: 0, vend: 0, dias: [] }; weeks[m].prod += d.total_producido||0; weeks[m].vend += d.total_vendido||0; weeks[m].dias.push(d) })
+        const semProdRows = []
+        Object.values(weeks).sort((a,b)=>b.semana.localeCompare(a.semana)).forEach(w => {
+          const pm = {}
+          w.dias.forEach(dia => { (dia.productos || []).forEach(p => { if (!pm[p.idproducto]) pm[p.idproducto] = { producto: p.producto, prod: 0, vT: 0, vR: 0, vTotal: 0 }; pm[p.idproducto].prod += p.cantidad_producida||0; pm[p.idproducto].vT += p.cantidad_vendida_tienda||0; pm[p.idproducto].vR += p.cantidad_vendida_revendedor||0; pm[p.idproducto].vTotal += p.cantidad_vendida_total||0 }) })
+          Object.values(pm).forEach(p => { semProdRows.push({ Semana: w.label, Producto: p.producto, Producido: p.prod, 'Vendido Tienda': p.vT, 'Vendido Revendedor': p.vR, 'Total Vendido': p.vTotal, Diferencia: p.prod - p.vTotal, '% Vendido': pct(p.prod, p.vTotal) }) })
+        })
+        const wsSem = XLSX.utils.json_to_sheet(semProdRows)
+        XLSX.utils.book_append_sheet(workbook, wsSem, "Resumen Semanal")
+      }
 
       const diarioFlat = []
       data.detalleDiario.forEach(dia => {
