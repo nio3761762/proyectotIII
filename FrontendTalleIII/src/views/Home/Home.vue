@@ -40,7 +40,7 @@ const showWelcome = ref(true)
 
 setTimeout(() => {
   showWelcome.value = false
-}, 2500)
+}, 500)
 </script>
 
 <style scoped>

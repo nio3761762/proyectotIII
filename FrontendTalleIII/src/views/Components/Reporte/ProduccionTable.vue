@@ -787,13 +787,13 @@ const props = defineProps({
   }
 })
 
-const getWeekMonday = (dateStr) => {
+const getWeekStart = (dateStr) => {
   if (!dateStr || dateStr === 'N/A' || dateStr === 'Sin fecha') return dateStr
   const clean = dateStr.split('T')[0]
   const d = new Date(clean + 'T12:00:00')
   if (isNaN(d.getTime())) return clean
   const day = d.getDay()
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1)
+  const diff = d.getDate() - day
   d.setDate(diff)
   const y = d.getFullYear()
   const m = String(d.getMonth() + 1).padStart(2, '0')
@@ -801,10 +801,10 @@ const getWeekMonday = (dateStr) => {
   return `${y}-${m}-${dd}`
 }
 
-const getWeekLabel = (mondayStr) => {
-  if (!mondayStr || mondayStr === 'N/A' || mondayStr === 'Sin fecha') return mondayStr
-  const d = new Date(mondayStr + 'T12:00:00')
-  if (isNaN(d.getTime())) return mondayStr
+const getWeekLabel = (weekStartStr) => {
+  if (!weekStartStr || weekStartStr === 'N/A' || weekStartStr === 'Sin fecha') return weekStartStr
+  const d = new Date(weekStartStr + 'T12:00:00')
+  if (isNaN(d.getTime())) return weekStartStr
   const end = new Date(d)
   end.setDate(d.getDate() + 6)
   const fmt = (date) => {
@@ -845,7 +845,7 @@ const produccionPorSemana = computed(() => {
   if (!Array.isArray(producciones)) return []
   producciones.forEach(prod => {
     const fecha = prod.fechaproduccion ? prod.fechaproduccion.split('T')[0] : 'N/A'
-    const monday = getWeekMonday(fecha)
+    const monday = getWeekStart(fecha)
     if (!weeks[monday]) {
       weeks[monday] = { semana: monday, semanaLabel: getWeekLabel(monday), cantSesiones: 0, totalProducido: 0, costoTotal: 0 }
     }
@@ -968,7 +968,7 @@ const weeklyConsolidados = computed(() => {
   prods.forEach(p => {
     const fecha = p.fechaproduccion
     if (!fecha) return
-    const monday = getWeekMonday(fecha)
+    const monday = getWeekStart(fecha)
     if (!weeks[monday]) weeks[monday] = { producciones: [] }
     weeks[monday].producciones.push(p)
   })
@@ -1013,7 +1013,7 @@ const weeklyInsumos = computed(() => {
   prods.forEach(p => {
     const fecha = p.fechaproduccion
     if (!fecha) return
-    const monday = getWeekMonday(fecha)
+    const monday = getWeekStart(fecha)
     if (!weeks[monday]) weeks[monday] = { producciones: [] }
     weeks[monday].producciones.push(p)
   })
@@ -1050,7 +1050,7 @@ const weeklyDetallado = computed(() => {
   const prods = [...props.detallado.producciones]
   prods.forEach(p => {
     const fecha = p.fechaproduccion ? p.fechaproduccion.split('T')[0] : 'N/A'
-    const monday = getWeekMonday(fecha)
+    const monday = getWeekStart(fecha)
     if (!weeks[monday]) weeks[monday] = { fecha: monday, days: [] }
     const existing = weeks[monday].days.find(d => d.fecha === fecha)
     if (existing) {
@@ -1100,7 +1100,7 @@ const produccionSemanalDetalle = computed(() => {
   if (!Array.isArray(producciones)) return []
   producciones.forEach(prod => {
     const fecha = prod.fechaproduccion ? prod.fechaproduccion.split('T')[0] : 'N/A'
-    const monday = getWeekMonday(fecha)
+    const monday = getWeekStart(fecha)
     if (!weeks[monday]) {
       weeks[monday] = { semana: monday, semanaLabel: getWeekLabel(monday), cantSesiones: 0, totalProducido: 0, costoTotal: 0, detalle: [] }
     }

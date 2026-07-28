@@ -956,18 +956,22 @@ watch(currentPage, () => {
 // Initial load
 onMounted(async () => {
   const usuarioStr = localStorage.getItem('usuario');
+  
+  const promises = [];
   if (usuarioStr) {
     const u = JSON.parse(usuarioStr);
-    await obtenerSucursalUsuario(u.IdUsuario);
+    promises.push(obtenerSucursalUsuario(u.IdUsuario));
   }
+  promises.push(
+    Listsucursal().then(sRes => {
+      sucursalesBaja.value = sRes.result || sRes || [];
+    }).catch(e => console.error('Error cargando sucursales:', e))
+  );
+  
+  await Promise.all(promises);
   
   loadingSucursal.value = false;
   fetchProducciones();
-  
-  try {
-    const sRes = await Listsucursal();
-    sucursalesBaja.value = sRes.result || sRes || [];
-  } catch (e) { console.error('Error cargando sucursales:', e); }
 });
 </script>
 

@@ -440,11 +440,11 @@ const Login = async () => {
       // Mostrar mensaje de éxito
       showSuccessToast.value = true
 
-      // Redirigir después de 2 segundos
+      // Redirigir después de 500ms
       setTimeout(() => {
         showSuccessToast.value = false
         router.push(redirectPath)
-      }, 2000)
+      }, 500)
 
       return true
     }

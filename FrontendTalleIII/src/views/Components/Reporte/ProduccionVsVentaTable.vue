@@ -316,13 +316,13 @@ const diferenciaClase = computed(() => {
   return d >= 0 ? 'text-green-300' : 'text-red-300'
 })
 
-const getWeekMonday = (dateStr) => {
+const getWeekStart = (dateStr) => {
   if (!dateStr) return dateStr
   const clean = dateStr.split('T')[0]
   const d = new Date(clean + 'T12:00:00')
   if (isNaN(d.getTime())) return clean
   const day = d.getDay()
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1)
+  const diff = d.getDate() - day
   d.setDate(diff)
   const y = d.getFullYear()
   const m = String(d.getMonth() + 1).padStart(2, '0')
@@ -330,10 +330,10 @@ const getWeekMonday = (dateStr) => {
   return `${y}-${m}-${dd}`
 }
 
-const getWeekLabel = (mondayStr) => {
-  if (!mondayStr) return mondayStr
-  const d = new Date(mondayStr + 'T12:00:00')
-  if (isNaN(d.getTime())) return mondayStr
+const getWeekLabel = (weekStartStr) => {
+  if (!weekStartStr) return weekStartStr
+  const d = new Date(weekStartStr + 'T12:00:00')
+  if (isNaN(d.getTime())) return weekStartStr
   const end = new Date(d)
   end.setDate(d.getDate() + 6)
   const fmt = (date) => {
@@ -352,13 +352,13 @@ const sortedDiario = computed(() => {
 const weeklyGroups = computed(() => {
   const weeks = {}
   props.detalleDiario.forEach(dia => {
-    const monday = getWeekMonday(dia.fecha)
-    if (!weeks[monday]) {
-      weeks[monday] = { semana: monday, semanaLabel: getWeekLabel(monday), dias: [], totalProducido: 0, totalVendido: 0 }
+    const weekStart = getWeekStart(dia.fecha)
+    if (!weeks[weekStart]) {
+      weeks[weekStart] = { semana: weekStart, semanaLabel: getWeekLabel(weekStart), dias: [], totalProducido: 0, totalVendido: 0 }
     }
-    weeks[monday].dias.push(dia)
-    weeks[monday].totalProducido += dia.total_producido || 0
-    weeks[monday].totalVendido += dia.total_vendido || 0
+    weeks[weekStart].dias.push(dia)
+    weeks[weekStart].totalProducido += dia.total_producido || 0
+    weeks[weekStart].totalVendido += dia.total_vendido || 0
   })
   return Object.values(weeks).sort((a, b) => new Date(b.semana) - new Date(a.semana))
 })

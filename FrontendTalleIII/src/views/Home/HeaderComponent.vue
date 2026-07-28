@@ -355,10 +355,10 @@ const handleClickOutside = (event) => {
 onMounted(async ()  => {
   const usuarioStr = localStorage.getItem('usuario');
    if (usuarioStr) {
-    const usuarios = JSON.parse(usuarioStr); // convertir string a objeto
-    await sessionStore.cargarUsuarioYRoles(usuarios.IdUsuario);
-  } else {
-    
+    const usuarios = JSON.parse(usuarioStr);
+    if (sessionStore.menus.length === 0) {
+      await sessionStore.cargarUsuarioYRoles(usuarios.IdUsuario);
+    }
   }
   document.addEventListener('click', handleClickOutside)
 })

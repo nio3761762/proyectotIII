@@ -181,13 +181,13 @@ const produccionVsVentaTableRef = ref(null);
 // --- Agrupación por Semana ---
 const agruparPorSemana = ref(false)
 
-const getWeekMonday = (dateStr) => {
+const getWeekStart = (dateStr) => {
   if (!dateStr || dateStr === 'N/A' || dateStr === 'Sin fecha') return dateStr
   const clean = dateStr.split('T')[0]
   const d = new Date(clean + 'T12:00:00')
   if (isNaN(d.getTime())) return clean
   const day = d.getDay()
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1)
+  const diff = d.getDate() - day
   d.setDate(diff)
   const y = d.getFullYear()
   const m = String(d.getMonth() + 1).padStart(2, '0')
@@ -195,10 +195,10 @@ const getWeekMonday = (dateStr) => {
   return `${y}-${m}-${dd}`
 }
 
-const getWeekLabel = (mondayStr) => {
-  if (!mondayStr || mondayStr === 'N/A' || mondayStr === 'Sin fecha') return mondayStr
-  const d = new Date(mondayStr + 'T12:00:00')
-  if (isNaN(d.getTime())) return mondayStr
+const getWeekLabel = (weekStartStr) => {
+  if (!weekStartStr || weekStartStr === 'N/A' || weekStartStr === 'Sin fecha') return weekStartStr
+  const d = new Date(weekStartStr + 'T12:00:00')
+  if (isNaN(d.getTime())) return weekStartStr
   const end = new Date(d)
   end.setDate(d.getDate() + 6)
   const fmt = (date) => {
@@ -213,7 +213,7 @@ const getWeekLabel = (mondayStr) => {
 const groupByWeek = (dayGroups, itemsKey, totalKey) => {
   const weeks = {}
   dayGroups.forEach(group => {
-    const monday = getWeekMonday(group.fecha)
+    const monday = getWeekStart(group.fecha)
     if (!weeks[monday]) {
       const weekGroup = { fecha: monday, semanaLabel: getWeekLabel(monday) }
       weekGroup[itemsKey] = []
@@ -1116,7 +1116,7 @@ const exportarPDF = async () => {
     const weeks = {}
     items.forEach(item => {
       const fecha = getDate(item).split('T')[0]
-      const monday = getWeekMonday(fecha)
+      const monday = getWeekStart(fecha)
       if (!weeks[monday]) weeks[monday] = { fecha: monday, semanaLabel: getWeekLabel(monday), items: [] }
       weeks[monday].items.push(item)
     })
@@ -1386,7 +1386,7 @@ const exportarPDF = async () => {
 
       const weeks = {}
       ;(data.evolucionDiaria || []).forEach(d => {
-        const m = getWeekMonday(d.fecha)
+        const m = getWeekStart(d.fecha)
         if (!weeks[m]) weeks[m] = { fecha: m, semanaLabel: getWeekLabel(m), days: [] }
         weeks[m].days.push(d)
       })
@@ -1743,7 +1743,7 @@ const exportarPDF = async () => {
       // Agrupar ventas por semana
       const weeks = {}
       sortedVentas.value.forEach(g => {
-        const m = getWeekMonday(g.fecha)
+        const m = getWeekStart(g.fecha)
         if (!weeks[m]) weeks[m] = { fecha: m, semanaLabel: getWeekLabel(m), groups: [], totalIngreso: 0 }
         weeks[m].groups.push(g)
         weeks[m].totalIngreso += g.totalIngreso
@@ -2041,7 +2041,7 @@ const exportarPDF = async () => {
 
       const weeks = {}
       processedPedidosGrouped.value.forEach(g => {
-        const m = getWeekMonday(g.fecha)
+        const m = getWeekStart(g.fecha)
         if (!weeks[m]) weeks[m] = { fecha: m, semanaLabel: getWeekLabel(m), groups: [], totalPedidos: 0 }
         weeks[m].groups.push(g)
         weeks[m].totalPedidos += g.totalPedidos
@@ -2373,7 +2373,7 @@ const exportarPDF = async () => {
 
       const weeks = {}
       processedTransferencias.value.forEach(g => {
-        const m = getWeekMonday(g.fecha)
+        const m = getWeekStart(g.fecha)
         if (!weeks[m]) weeks[m] = { fecha: m, semanaLabel: getWeekLabel(m), groups: [] }
         weeks[m].groups.push(g)
       })
@@ -2620,7 +2620,7 @@ const exportarPDF = async () => {
       comprasDetallada.value.forEach(c => {
         const fecha = c.fecha ? c.fecha.split('T')[0] : null
         if (!fecha) return
-        const monday = getWeekMonday(fecha)
+        const monday = getWeekStart(fecha)
         if (!weeks[monday]) weeks[monday] = { fecha: monday, semanaLabel: getWeekLabel(monday), compras: [], totalInvertido: 0 }
         weeks[monday].compras.push(c)
         weeks[monday].totalInvertido += Number(c.total_compra || 0)
@@ -2881,7 +2881,7 @@ const exportarPDF = async () => {
       producciones.forEach(p => {
         const fecha = p.fechaproduccion ? p.fechaproduccion.split('T')[0] : null
         if (!fecha) return
-        const monday = getWeekMonday(fecha)
+        const monday = getWeekStart(fecha)
         if (!weeks[monday]) weeks[monday] = { fecha: monday, semanaLabel: getWeekLabel(monday), producciones: [] }
         weeks[monday].producciones.push(p)
       })
@@ -3138,7 +3138,7 @@ const exportarPDF = async () => {
       comisionDetallada.value.reporte.forEach(g => {
         const fecha = g.fecha ? g.fecha.split('T')[0] : null
         if (!fecha) return
-        const monday = getWeekMonday(fecha)
+        const monday = getWeekStart(fecha)
         if (!weeks[monday]) weeks[monday] = { fecha: monday, semanaLabel: getWeekLabel(monday), groups: [], totalComision: 0, totalLiquido: 0, totalGastoExtra: 0, totalNetoEntrega: 0, totalControles: 0 }
         weeks[monday].groups.push(g)
         if (Array.isArray(g.controles)) g.controles.forEach(c => { weeks[monday].totalControles++; weeks[monday].totalGastoExtra += Number(c.total_gasto_extra || 0); if (Array.isArray(c.detalles)) c.detalles.forEach(d => { weeks[monday].totalComision += Number(d.comision_total || 0); weeks[monday].totalLiquido += Number(d.liquido_panaderia || 0) }) })
@@ -3598,7 +3598,7 @@ const exportarPDF = async () => {
       if (isSemanal) {
         const weeks = {}
         diario.forEach(d => {
-          const m = getWeekMonday(d.fecha)
+          const m = getWeekStart(d.fecha)
           if (!weeks[m]) weeks[m] = { fecha: m, semanaLabel: getWeekLabel(m), days: [], totalProd: 0, totalVend: 0 }
           weeks[m].days.push(d)
           weeks[m].totalProd += d.total_producido || 0
@@ -3836,7 +3836,7 @@ const exportarExcel = () => {
     const weeks = {}
     items.forEach(item => {
       const fecha = getDate(item).split('T')[0]
-      const monday = getWeekMonday(fecha)
+      const monday = getWeekStart(fecha)
       if (!weeks[monday]) weeks[monday] = { fecha: monday, semanaLabel: getWeekLabel(monday), items: [] }
       weeks[monday].items.push(item)
     })

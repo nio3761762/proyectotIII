@@ -71,7 +71,8 @@ API.interceptors.response.use(
         localStorage.removeItem('token');
         localStorage.removeItem('refreshToken');
         localStorage.removeItem('usuario'); 
-        window.location.href = '/login';
+        const { default: router } = await import('@/router');
+        router.push('/login');
         
         return Promise.reject(err);
       } finally {
@@ -89,7 +90,8 @@ API.interceptors.response.use(
         localStorage.removeItem('token');
         localStorage.removeItem('refreshToken');
         localStorage.removeItem('usuario');
-        window.location.href = '/login';
+        const { default: router } = await import('@/router');
+        router.push('/login');
       }
     }
 
