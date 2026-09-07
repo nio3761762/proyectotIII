@@ -23,6 +23,20 @@
           {{ (presentacion.Estado === 1 || presentacion.estado === 1) ? 'Activo' : 'Inactivo' }}
         </span> 
       </div>
+      <div class="flex gap-2 mb-4">
+        <span
+          v-if="(presentacion.Produccion === 1 || presentacion.produccion === 1)"
+          class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-orange-100 text-orange-700"
+        >
+          Producción
+        </span>
+        <span
+          v-if="(presentacion.Venta === 1 || presentacion.venta === 1)"
+          class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-red-100 text-red-700"
+        >
+          Venta
+        </span>
+      </div>
       <div class="flex gap-2">
         <button
           @click="$emit('editar', presentacion)"

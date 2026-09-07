@@ -246,8 +246,8 @@
                                     <thead>
                                       <tr class="text-[9px] font-black text-gray-400 uppercase tracking-widest bg-gray-50/20 border-b border-gray-50">
                                         <th class="px-6 py-3">Hora Registro</th>
-                                        <th class="px-6 py-3 text-center">Horno Utilizado</th>
                                         <th class="px-6 py-3">Producto Elaborado</th>
+                                        <th class="px-6 py-3">Presentación</th>
                                         <th class="px-6 py-3 text-right">Cantidad</th>
                                       </tr>
                                     </thead>
@@ -259,17 +259,18 @@
                                           </span>
                                         </td>
                                         <td class="px-6 py-3">
-                                          <div class="flex items-center justify-center gap-2 text-xs font-bold text-gray-600">
-                                            <Flame class="h-3.5 w-3.5 text-orange-400" />
-                                            {{ s.Horno }}
-                                          </div>
+                                          <p class="text-xs font-black text-gray-800">{{ s.Producto }}</p>
                                         </td>
                                         <td class="px-6 py-3">
-                                          <p class="text-xs font-black text-gray-800">{{ s.Producto }}</p>
+                                          <span v-if="s.Presentacion" class="text-[10px] font-black text-blue-600 bg-blue-50 px-2 py-1 rounded-lg border border-blue-100">
+                                            {{ s.Presentacion }}
+                                            <span v-if="Number(s.CantidadPresentacion) > 0" class="text-blue-400">x{{ s.CantidadPresentacion }}</span>
+                                          </span>
+                                          <span v-else class="text-[10px] font-bold text-gray-300 italic">—</span>
                                         </td>
                                         <td class="px-6 py-3 text-right">
                                           <span class="text-xs font-black text-orange-600 bg-orange-50 px-3 py-1 rounded-xl border border-orange-100">
-                                            {{ s.Cantidad }} <small class="text-[8px] ml-0.5 uppercase">unidades</small>
+                                            {{ s.CantidadUnidades || s.Cantidad }} <small class="text-[8px] ml-0.5 uppercase">unidades</small>
                                           </span>
                                         </td>
                                       </tr>
@@ -299,8 +300,12 @@
                                 </div>
                                 <div class="flex flex-col">
                                   <span class="text-[9px] font-black text-gray-400 uppercase tracking-widest">{{ d.producto?.Nombre }}</span>
+                                  <span v-if="d.productomedida?.Presentacion?.Nombre" class="text-[8px] font-black text-blue-500 uppercase tracking-wider">
+                                    {{ d.productomedida.Presentacion.Nombre }}
+                                    <span v-if="Number(d.cantidadPresentacion) > 0" class="text-blue-400 ml-0.5">x{{ d.cantidadPresentacion }}</span>
+                                  </span>
                                   <div class="flex items-center gap-2">
-                                    <span class="text-sm font-black text-gray-800 leading-tight">{{ d.cantidad }} <small class="text-[8px] text-blue-500 uppercase tracking-tighter">uds</small></span>
+                                    <span class="text-sm font-black text-gray-800 leading-tight">{{ d.cantidadUnidades || d.cantidad }} <small class="text-[8px] text-blue-500 uppercase tracking-tighter">uds</small></span>
                                     <span v-if="Number(d.cantidadMala) > 0" class="text-[9px] font-black text-red-500 bg-red-50 px-1.5 py-0.5 rounded uppercase flex items-center gap-1" :title="d.motivo">
                                       <Trash2 class="h-2.5 w-2.5" />
                                       {{ d.cantidadMala }}
@@ -557,7 +562,7 @@
 
 <script setup>
 import { ref, reactive, onMounted, watch, computed } from 'vue';
-import { Factory, Search, TrendingUp, CheckCircle, AlertCircle, AlertTriangle, LayoutGrid, List as ListIcon, Pencil, Trash2, Flame, User, Users, Package, ChevronDown, Activity, Loader2, X, Calendar, Eye } from 'lucide-vue-next';
+import { Factory, Search, TrendingUp, CheckCircle, AlertCircle, AlertTriangle, LayoutGrid, List as ListIcon, Pencil, Trash2, User, Users, Package, ChevronDown, Activity, Loader2, X, Calendar, Eye } from 'lucide-vue-next';
 
 import { getProducciones, anularProduccion } from '@/Server/Produccion';
 import { SucursalUsuario } from '@/Server/Usuario';
@@ -870,10 +875,14 @@ const transformProduccion = (p) => {
       id: d.IdDetalleProduccion,
       producto: d.Producto,
       cantidad: d.Cantidad,
+      cantidadPresentacion: d.CantidadPresentacion,
+      cantidadUnidades: d.CantidadUnidades,
+      productomedida: d.ProductoMedida,
       cantidadMala: d.CantidadMala,
       motivo: d.Motivo,
       costoUnitario: d.CostoUnitario,
-      costoTotal: d.CostoTotal
+      costoTotal: d.CostoTotal,
+      empleado: d.Empleado ? { id: d.Empleado.IdEmpleado, nombre: d.Empleado.Nombre } : null
     })),
     salidas: p.SalidasDetalladas || [], // Nueva lista detallada
     observaciones: p.Observacion

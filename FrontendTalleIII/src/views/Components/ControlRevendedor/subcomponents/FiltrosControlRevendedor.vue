@@ -70,22 +70,37 @@
         </button>
       </div>
     </div>
+
+    <!-- Exportar PDF del Día -->
+    <div>
+      <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Exportar</label>
+      <button
+        @click="$emit('export-pdf')"
+        :disabled="exportandoPdf"
+        class="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-60 disabled:pointer-events-none"
+      >
+        <Loader2 v-if="exportandoPdf" class="h-4 w-4 animate-spin" />
+        <FileDown v-else class="h-4 w-4" />
+        {{ exportandoPdf ? 'Generando...' : 'PDF del Día' }}
+      </button>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, watch, onMounted } from 'vue';
-import { LayoutGrid, List as ListIcon } from 'lucide-vue-next';
+import { LayoutGrid, List as ListIcon, FileDown, Loader2 } from 'lucide-vue-next';
 import { listarTodasPersonas } from '@/Server/persona';
 
 const props = defineProps({
   modelValue: { type: Object, required: true },
   sucursales: { type: Array, default: () => [] },
   limit: { type: Number, default: 9 },
-  vistaModo: { type: String, default: 'card' }
+  vistaModo: { type: String, default: 'card' },
+  exportandoPdf: { type: Boolean, default: false }
 });
 
-const emit = defineEmits(['update:modelValue', 'update:limit', 'update:vistaModo', 'filter']);
+const emit = defineEmits(['update:modelValue', 'update:limit', 'update:vistaModo', 'filter', 'export-pdf']);
 
 const personas = ref([]);
 

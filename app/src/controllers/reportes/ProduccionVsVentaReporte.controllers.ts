@@ -116,13 +116,138 @@ export const getReporteProduccionVsVenta = async (req: Request, res: Response) =
       ORDER BY rc.fecha, pr.nombre
     `;
 
-    const [produccion, venta, revendedor, prodDiario, ventaDiario, revDiario] = await Promise.all([
+    const sqlProduccionPres = `
+      SELECT
+        dp.idproducto,
+        pr.nombre as producto,
+        dp.idproductomedida,
+        COALESCE(pm2.idpresentacion, dp.idpresentacion) as idpresentacion,
+        CASE WHEN dp.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE 'Unidad' END as presentacion,
+        SUM(CASE WHEN COALESCE(dp.cantidadpresentacion, 0) > 0 THEN dp.cantidadpresentacion ELSE COALESCE(dp.cantidadunidades, 0) END) as cantidad_producida,
+        SUM(CASE WHEN dp.idproductomedida IS NOT NULL THEN dp.cantidadmala / NULLIF(pm2.cantidad, 0) ELSE dp.cantidadmala END) as cantidad_descartada
+      FROM detalle_produccion dp
+      INNER JOIN produccion prod ON dp.idproduccion = prod.idproduccion
+      INNER JOIN producto pr ON dp.idproducto = pr.idproducto
+      LEFT JOIN productomedida pm2 ON dp.idproductomedida = pm2.idproductomedida
+      LEFT JOIN presentacion pres ON COALESCE(pm2.idpresentacion, dp.idpresentacion) = pres.idpresentacion
+      WHERE prod.fechaproduccion BETWEEN $1 AND $2 AND prod.estado = 1 ${sucursalCondProd}
+      GROUP BY dp.idproducto, pr.nombre, dp.idproductomedida, COALESCE(pm2.idpresentacion, dp.idpresentacion), CASE WHEN dp.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE 'Unidad' END
+      ORDER BY pr.nombre, CASE WHEN dp.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE 'Unidad' END
+    `;
+
+    const sqlVentaPres = `
+      SELECT
+        COALESCE(pm.idproducto, dv.idproducto) as idproducto,
+        COALESCE(pr.nombre, pr2.nombre) as producto,
+        dv.idproductomedida,
+        CASE WHEN dv.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE 'Unidad' END as presentacion,
+        SUM(dv.cantidad) as cantidad_vendida,
+        SUM(dv.cantidad * dv.precio) as total_venta
+      FROM detalleventa dv
+      INNER JOIN venta v ON dv.idventa = v.idventa
+      LEFT JOIN productomedida pm ON dv.idproductomedida = pm.idproductomedida
+      LEFT JOIN producto pr ON pm.idproducto = pr.idproducto
+      LEFT JOIN producto pr2 ON dv.idproducto = pr2.idproducto
+      LEFT JOIN presentacion pres ON pm.idpresentacion = pres.idpresentacion
+      WHERE v.fechaventa BETWEEN $1 AND $2 AND v.estado = 1 ${sucursalCondVenta}
+        AND dv.idpromocion IS NULL
+      GROUP BY COALESCE(pm.idproducto, dv.idproducto), COALESCE(pr.nombre, pr2.nombre), dv.idproductomedida, CASE WHEN dv.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE 'Unidad' END
+      ORDER BY COALESCE(pr.nombre, pr2.nombre), CASE WHEN dv.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE 'Unidad' END
+    `;
+
+    const sqlRevendedorPres = `
+      WITH d AS (
+        SELECT
+          rcd.idrevendedorcontrol,
+          rc.gastoextra,
+          rcd.idproductomedida,
+          pm.idproducto,
+          pr.nombre as producto,
+          COALESCE(pres.nombre, 'S/N') as presentacion,
+          (rcd.cantidadentregada - rcd.cantidaddevuelta) as cantidad_vendida,
+          (rcd.cantidadentregada - rcd.cantidaddevuelta) * rcd.precioventa as total_venta_detalle
+        FROM revendedorcontroldetalle rcd
+        INNER JOIN revendedorcontrol rc ON rcd.idrevendedorcontrol = rc.idrevendedorcontrol
+        INNER JOIN productomedida pm ON rcd.idproductomedida = pm.idproductomedida
+        INNER JOIN producto pr ON pm.idproducto = pr.idproducto
+        LEFT JOIN presentacion pres ON pm.idpresentacion = pres.idpresentacion
+        WHERE rc.fecha BETWEEN $1 AND $2 AND rc.estado = 1 ${sucursalCondRev}
+      ),
+      ct AS (
+        SELECT idrevendedorcontrol, SUM(total_venta_detalle) as total_control
+        FROM d GROUP BY idrevendedorcontrol
+      )
+      SELECT
+        d.idproducto,
+        d.producto,
+        d.idproductomedida,
+        d.presentacion,
+        SUM(d.cantidad_vendida) as cantidad_vendida,
+        SUM(d.total_venta_detalle) as total_venta,
+        SUM(COALESCE(d.gastoextra, 0) * d.total_venta_detalle / NULLIF(ct.total_control, 0)) as gasto_extra
+      FROM d
+      INNER JOIN ct ON d.idrevendedorcontrol = ct.idrevendedorcontrol
+      GROUP BY d.idproducto, d.producto, d.idproductomedida, d.presentacion
+      ORDER BY d.producto, d.presentacion
+    `;
+
+    const sqlGanancias = `
+      WITH ingresos AS (
+        SELECT SUM(dv.cantidad * dv.precio) as ingreso_tienda
+        FROM detalleventa dv
+        INNER JOIN venta v ON dv.idventa = v.idventa
+        WHERE v.fechaventa BETWEEN $1 AND $2 AND v.estado = 1 ${sucursalCondVenta}
+          AND dv.idpromocion IS NULL
+      ),
+      gastos AS (
+        SELECT SUM(COALESCE(v.gastoextra, 0)) as gasto_extra
+        FROM venta v
+        WHERE v.fechaventa BETWEEN $1 AND $2 AND v.estado = 1 ${sucursalCondVenta}
+      )
+      SELECT
+        (SELECT COALESCE(ingreso_tienda, 0) FROM ingresos) as ingreso_tienda,
+        (SELECT COALESCE(gasto_extra, 0) FROM gastos) as gasto_extra
+    `;
+
+    const sqlLiquido = `
+      WITH precios_agg AS (
+        SELECT
+          p.idrevendedorcontroldetalle,
+          COALESCE(SUM(p.cantidad), 0) as total_cantidad_ajustada,
+          COALESCE(SUM(p.cantidad * p.precioventa), 0) as total_venta_ajustada
+        FROM revendedorcontrolprecio p
+        WHERE (p.estado IS NULL OR p.estado != 'NORMAL')
+        GROUP BY p.idrevendedorcontroldetalle
+      ),
+      gastos_rev AS (
+        SELECT SUM(COALESCE(rc.gastoextra, 0)) as gasto_extra_revendedor
+        FROM revendedorcontrol rc
+        WHERE rc.fecha BETWEEN $1 AND $2 AND rc.estado = 1 ${sucursalCondRev}
+      )
+      SELECT COALESCE(SUM(
+        ((d.cantidadentregada - d.cantidaddevuelta - COALESCE(pa.total_cantidad_ajustada, 0)) * d.precioventa) +
+        COALESCE(pa.total_venta_ajustada, 0) -
+        (GREATEST(0, (d.cantidadentregada - d.cantidaddevuelta) - COALESCE(d.cantidadsincomision, 0)) * COALESCE(d.comisionunitaria, 0))
+      ), 0) as liquido_revendedor,
+      (SELECT COALESCE(gasto_extra_revendedor, 0) FROM gastos_rev) as gasto_extra_revendedor
+      FROM revendedorcontroldetalle d
+      INNER JOIN revendedorcontrol rc ON rc.idrevendedorcontrol = d.idrevendedorcontrol
+      LEFT JOIN precios_agg pa ON pa.idrevendedorcontroldetalle = d.idrevendedorcontroldetalle
+      WHERE rc.fecha BETWEEN $1 AND $2 AND rc.estado = 1 ${sucursalCondRev}
+    `;
+
+    const [produccion, venta, revendedor, prodDiario, ventaDiario, revDiario, produccionPres, ventaPres, revendedorPres, gananciasRes, liquidoRes] = await Promise.all([
       AppDataSource.query(sqlProduccion, params),
       AppDataSource.query(sqlVenta, params),
       AppDataSource.query(sqlRevendedor, params),
       AppDataSource.query(sqlProduccionDiario, params),
       AppDataSource.query(sqlVentaDiario, params),
-      AppDataSource.query(sqlRevendedorDiario, params)
+      AppDataSource.query(sqlRevendedorDiario, params),
+      AppDataSource.query(sqlProduccionPres, params),
+      AppDataSource.query(sqlVentaPres, params),
+      AppDataSource.query(sqlRevendedorPres, params),
+      AppDataSource.query(sqlGanancias, params),
+      AppDataSource.query(sqlLiquido, params)
     ]);
 
     const prodMap = new Map<string, any>();
@@ -276,16 +401,154 @@ export const getReporteProduccionVsVenta = async (req: Request, res: Response) =
       detalleDiario.push({ fecha, productos, total_producido: totalProd, total_vendido: totalVend });
     }
 
+    const presKey = (row: any) => `prod:${row.idproducto || ""}:${row.presentacion || "S/N"}`;
+
+    const presMeta = new Map<string, any>();
+    const presProdMap = new Map<string, any>();
+    const presVentaMap = new Map<string, any>();
+    const presRevMap = new Map<string, any>();
+
+    for (const row of produccionPres as any[]) {
+      const key = presKey(row);
+      if (!presMeta.has(key)) presMeta.set(key, {
+        idproductomedida: row.idproductomedida || null,
+        idproducto: row.idproducto,
+        producto: row.producto || "Sin nombre",
+        presentacion: row.presentacion || "S/N"
+      });
+      const prev = presProdMap.get(key) || { cantidad_producida: 0, cantidad_descartada: 0 };
+      prev.cantidad_producida += Number(row.cantidad_producida) || 0;
+      prev.cantidad_descartada += Number(row.cantidad_descartada) || 0;
+      presProdMap.set(key, prev);
+    }
+
+    for (const row of ventaPres as any[]) {
+      const key = presKey(row);
+      if (!presMeta.has(key)) presMeta.set(key, {
+        idproductomedida: row.idproductomedida || null,
+        idproducto: row.idproducto,
+        producto: row.producto || "Sin nombre",
+        presentacion: row.presentacion || "S/N"
+      });
+      const prev = presVentaMap.get(key) || { cantidad_vendida: 0, total_venta: 0 };
+      prev.cantidad_vendida += Number(row.cantidad_vendida) || 0;
+      prev.total_venta += Number(row.total_venta) || 0;
+      presVentaMap.set(key, prev);
+    }
+
+    for (const row of revendedorPres as any[]) {
+      const key = presKey(row);
+      if (!presMeta.has(key)) presMeta.set(key, {
+        idproductomedida: row.idproductomedida || null,
+        idproducto: row.idproducto,
+        producto: row.producto || "Sin nombre",
+        presentacion: row.presentacion || "S/N"
+      });
+      const prev = presRevMap.get(key) || { cantidad_vendida: 0, total_venta: 0, gasto_extra: 0 };
+      prev.cantidad_vendida += Number(row.cantidad_vendida) || 0;
+      prev.total_venta += Number(row.total_venta) || 0;
+      prev.gasto_extra += Number(row.gasto_extra) || 0;
+      presRevMap.set(key, prev);
+    }
+
+    const presKeys = new Set<string>([...presProdMap.keys(), ...presVentaMap.keys(), ...presRevMap.keys()]);
+
+    const porPresentacion: any[] = [];
+    let totProd = 0, totDescarte = 0, totVendTienda = 0, totIngresoTienda = 0, totVendRev = 0, totVentaRev = 0, totVentaTotal = 0, totGastoExtraRev = 0;
+
+    for (const key of presKeys) {
+      const meta = presMeta.get(key) || { idproductomedida: null, idproducto: "", producto: "Sin nombre", presentacion: "S/N" };
+      const p = presProdMap.get(key) || { cantidad_producida: 0, cantidad_descartada: 0 };
+      const v = presVentaMap.get(key) || { cantidad_vendida: 0, total_venta: 0 };
+      const r = presRevMap.get(key) || { cantidad_vendida: 0, total_venta: 0, gasto_extra: 0 };
+
+      const prodCant = p.cantidad_producida;
+      const descCant = p.cantidad_descartada;
+      const vendTienda = v.cantidad_vendida;
+      const ingTienda = v.total_venta;
+      const vendRev = r.cantidad_vendida;
+      const ventaRev = r.total_venta;
+      const gastoExtraRev = r.gasto_extra;
+      const totalVendido = vendTienda + vendRev;
+      const totalVenta = ingTienda + ventaRev;
+      const diferencia = prodCant - totalVendido;
+
+      totProd += prodCant;
+      totDescarte += descCant;
+      totVendTienda += vendTienda;
+      totIngresoTienda += ingTienda;
+      totVendRev += vendRev;
+      totVentaRev += ventaRev;
+      totVentaTotal += totalVenta;
+      totGastoExtraRev += gastoExtraRev;
+
+      porPresentacion.push({
+        idproductomedida: meta.idproductomedida,
+        idproducto: meta.idproducto,
+        producto: meta.producto,
+        presentacion: meta.presentacion,
+        cantidad_producida: prodCant,
+        cantidad_descartada: descCant,
+        cantidad_vendida_tienda: vendTienda,
+        total_venta_tienda: ingTienda,
+        cantidad_vendida_revendedor: vendRev,
+        total_venta_revendedor: ventaRev,
+        gasto_extra_revendedor: gastoExtraRev,
+        total_venta: totalVenta,
+        cantidad_vendida_total: totalVendido,
+        diferencia: diferencia
+      });
+    }
+
+    porPresentacion.sort((a, b) => b.cantidad_producida - a.cantidad_producida);
+
+    const gRow = (gananciasRes as any[])[0] || {};
+    const lRow = (liquidoRes as any[])[0] || {};
+    const ingreso_tienda = Number(gRow.ingreso_tienda) || 0;
+    const gasto_extra_tienda = Number(gRow.gasto_extra) || 0;
+    const liquido_revendedor = Number(lRow.liquido_revendedor) || 0;
+    const gasto_extra_revendedor = Number(lRow.gasto_extra_revendedor) || 0;
+    const neto_tienda = ingreso_tienda - gasto_extra_tienda;
+    const neto_revendedor = liquido_revendedor - gasto_extra_revendedor;
+    const gasto_extra_total = gasto_extra_tienda + gasto_extra_revendedor;
+    const ganancia_total = neto_tienda + neto_revendedor;
+
+    const ganancias = {
+      ingreso_tienda: ingreso_tienda,
+      gasto_extra: gasto_extra_tienda,
+      neto_tienda: neto_tienda,
+      liquido_revendedor: liquido_revendedor,
+      gasto_extra_revendedor: gasto_extra_revendedor,
+      neto_revendedor: neto_revendedor,
+      gasto_extra_total: gasto_extra_total,
+      balance: ganancia_total,
+      ganancia_total: ganancia_total
+    };
+
     return res.json({
       metadatos: { desde: fechadesde, hasta: fechahasta, sucursal: idsucursal || "TODAS" },
       detalle: detalle,
       detalleDiario: detalleDiario,
+      porPresentacion: porPresentacion,
+      ganancias: ganancias,
       resumen: {
         total_producido: totalProducido,
         total_vendido_tienda: totalVendidoTienda,
         total_vendido_revendedor: totalVendidoRevendedor,
         total_vendido: totalVendidoTienda + totalVendidoRevendedor,
         diferencia_total: totalProducido - (totalVendidoTienda + totalVendidoRevendedor)
+      },
+      resumenPorPresentacion: {
+        total_producido: totProd,
+        total_descartado: totDescarte,
+        total_vendido_tienda: totVendTienda,
+        total_ingreso_tienda: totIngresoTienda,
+        total_vendido_revendedor: totVendRev,
+        total_venta_revendedor: totVentaRev,
+        total_gasto_extra_revendedor: totGastoExtraRev,
+        total_venta: totVentaTotal,
+        total_vendido: totVendTienda + totVendRev,
+        diferencia_total: totProd - (totVendTienda + totVendRev)
       }
     });
 

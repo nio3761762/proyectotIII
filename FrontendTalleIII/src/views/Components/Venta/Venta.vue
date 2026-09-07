@@ -972,7 +972,8 @@ const prepararAnulacion = (id) => {
 };
 
 const abrirEditarVenta = (venta) => {
-  ventaParaEditar.value = venta;
+  const id = venta.idventa || venta.IdVenta;
+  ventaParaEditar.value = ventas.value.find(v => (v.idventa || v.IdVenta) === id) || venta;
   itemsPreseleccionados.value = []; 
   modoRegistro.value = true;
 };
@@ -1029,6 +1030,7 @@ const onVentaSuccess = async (payload) => {
       pendingPersona.value = null;
     }
 
+    let nuevoIdVenta = null;
     if (ventaParaEditar.value) {
       await actualizarventa(
         ventaParaEditar.value.idventa || ventaParaEditar.value.IdVenta,
@@ -1044,6 +1046,7 @@ const onVentaSuccess = async (payload) => {
      
       const res = await RegistrarVenta({ ...payload, IdUsuario: payload.IdUsuario || usuarioId.value });
       showNotification('Venta registrada con éxito', 'success');
+      nuevoIdVenta = res?.idVenta || null;
       
       if (res && res.idVenta) {
         try {
@@ -1074,6 +1077,10 @@ const onVentaSuccess = async (payload) => {
     }
     
     await Promise.all([fetchVentas(), cargarProductosCatalogo(), cargarPromocionesCatalogo()]);
+    if (nuevoIdVenta) {
+      const full = ventas.value.find(v => (v.idventa || v.IdVenta) === nuevoIdVenta);
+      if (full) ventasSesion.value = ventasSesion.value.map(s => (s.idventa === nuevoIdVenta ? full : s));
+    }
   } catch (e) { 
     console.error('Error en registro de venta:', e);
     const msg = e?.response?.data?.message || e?.message || 'Error al procesar la venta';

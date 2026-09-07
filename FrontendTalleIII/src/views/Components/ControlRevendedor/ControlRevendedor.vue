@@ -61,7 +61,7 @@
               </div>
 
               <button 
-                @click="modoRegistro = true" 
+                @click="nuevoRegistro" 
                 class="bg-linear-to-r from-orange-500 to-red-600 hover:from-red-600 hover:to-orange-500 text-white px-6 py-3 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 flex items-center gap-2 group"
               >
                 <Plus class="h-5 w-5 group-hover:scale-110 transition-transform" />
@@ -132,8 +132,10 @@
               v-model:vistaModo="vistaModo"
               :sucursales="sucursales"
               :limit="paginacion.limit"
+              :exportandoPdf="exportandoPDF"
               @update:limit="onLimiteHistorialChange"
               @filter="cargarControles"
+              @export-pdf="exportarPDF"
             />
 
             <div v-if="loading" class="flex justify-center py-20">
@@ -147,7 +149,7 @@
                 </div>
                 <h3 class="text-xl font-bold text-gray-800 mb-2">No se encontraron registros</h3>
                 <p class="text-gray-500 mb-6">Intenta cambiar los filtros o registra una nueva entrega.</p>
-                <button @click="modoRegistro = true" class="text-orange-600 font-semibold hover:underline">
+                <button @click="nuevoRegistro" class="text-orange-600 font-semibold hover:underline">
                   Registrar Primera Entrega
                 </button>
               </div>
@@ -159,11 +161,13 @@
                     :key="c.idrevendedorcontrol" 
                     :control="c"
                     @edit-detail="abrirAjuste"
+                    @edit="editarControl"
                   />
                 </div>
                 <ControlRevendedorTable 
                   v-else 
                   :controles="controles" 
+                  @edit="editarControl"
                 />
 
                 <Paginado
@@ -184,6 +188,7 @@
           <RegistrarControlRevendedor 
             :sucursales="sucursales"
             :productoInicial="productoInicial"
+            :controlEditar="controlEnEdicion"
             @cancel="cancelarRegistro"
             @saved="onControlSaved"
           />
@@ -212,6 +217,9 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, watch } from 'vue';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import logoMasasCori from '@/views/assets/LogoMasasCorir.png';
 import { 
   Users, TrendingUp, LayoutGrid, List as ListIcon, Search, 
   ChevronLeft, ChevronRight, CheckCircle, Plus, ShoppingCart, Package, AlertTriangle
@@ -250,6 +258,8 @@ const controles = ref([]);
 const sucursales = ref([]);
 const totalItems = ref(0);
 const productoInicial = ref(null);
+const controlEnEdicion = ref(null);
+const exportandoPDF = ref(false);
 
 // Catálogo State
 const loadingCatalog = ref(false);
@@ -402,8 +412,22 @@ const onLimiteProductosChange = (l) => {
 
 const onControlSaved = () => {
   modoRegistro.value = false;
+  controlEnEdicion.value = null;
+  productoInicial.value = null;
   cargarControles();
-  showNotification('Control registrado correctamente');
+  showNotification('Control guardado correctamente');
+};
+
+const editarControl = (c) => {
+  controlEnEdicion.value = c;
+  productoInicial.value = null;
+  modoRegistro.value = true;
+};
+
+const nuevoRegistro = () => {
+  controlEnEdicion.value = null;
+  productoInicial.value = null;
+  modoRegistro.value = true;
 };
 
 const abrirAjuste = (det) => {
@@ -413,12 +437,179 @@ const abrirAjuste = (det) => {
 
 const seleccionarProductoDeCatalogo = ({ producto, medida }) => {
   productoInicial.value = { producto, medida };
+  controlEnEdicion.value = null;
   modoRegistro.value = true;
 };
 
 const cancelarRegistro = () => {
   modoRegistro.value = false;
   productoInicial.value = null;
+  controlEnEdicion.value = null;
+};
+
+const formatoFecha = (f) => {
+  if (!f) return 'N/A';
+  const clean = String(f).split('T')[0];
+  const [y, m, d] = clean.split('-');
+  return `${d}/${m}/${y}`;
+};
+
+const formatoBs = (val) => `Bs ${Number(val || 0).toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+const getImageBase64PDF = async (imagePath) => {
+  try {
+    const response = await fetch(imagePath);
+    const blob = await response.blob();
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch (error) {
+    console.error('Error al cargar la imagen:', error);
+    return null;
+  }
+};
+
+const exportarPDF = async () => {
+  if (!filtros.value.fecha) {
+    showNotification('Selecciona una fecha para exportar', 'error');
+    return;
+  }
+  exportandoPDF.value = true;
+  try {
+    const res = await listarControlRevendedor(
+      filtros.value.fecha || null,
+      filtros.value.idempleado || null,
+      filtros.value.idsucursal || null,
+      1,
+      100000
+    );
+    const data = res.data || [];
+    if (!data.length) {
+      showNotification('No hay registros para el día seleccionado', 'error');
+      return;
+    }
+
+    const doc = new jsPDF();
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+
+    let logoOffset = 0;
+    try {
+      const logo = await getImageBase64PDF(logoMasasCori);
+      if (logo) {
+        doc.addImage(logo, 'PNG', 14, 8, 26, 26);
+        logoOffset = 32;
+      }
+    } catch (e) { /* sin logo */ }
+
+    doc.setFontSize(16);
+    doc.setFont(undefined, 'bold');
+    doc.text('Control de Personas (Revendedores)', 14 + logoOffset, 18);
+    doc.setFontSize(9);
+    doc.setFont(undefined, 'normal');
+    doc.setTextColor(100);
+    doc.text(`Fecha: ${formatoFecha(filtros.value.fecha)}`, 14 + logoOffset, 26);
+    doc.text(`Generado: ${new Date().toLocaleString('es-ES')}`, 14 + logoOffset, 32);
+    doc.setDrawColor(200);
+    doc.line(14, 40, pageW - 14, 40);
+    doc.setTextColor(0);
+
+    let startY = 46;
+
+    autoTable(doc, {
+      head: [['#', 'Persona', 'Hora', 'Sucursal', 'Total Venta', 'Comisión', 'Gasto Extra', 'Neto a Entregar']],
+      body: data.map(c => [
+        c.idrevendedorcontrol,
+        `${c.Persona?.Nombre || ''} ${c.Persona?.ApellidoPaterno || ''}`.trim(),
+        c.hora || '-',
+        c.Sucursal?.Nombre || '-',
+        formatoBs(c.TotalVenta),
+        formatoBs(c.TotalComision),
+        formatoBs(c.GastoExtra),
+        formatoBs(Number(c.TotalLiquidoPanaderia || 0) - Number(c.GastoExtra || 0))
+      ]),
+      startY,
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [249, 115, 22] },
+      margin: { left: 14, right: 14 },
+      theme: 'grid'
+    });
+    startY = doc.lastAutoTable.finalY + 8;
+
+    data.forEach(c => {
+      if (!c.Detalles?.length) return;
+      if (startY + 24 > pageH - 20) { doc.addPage(); startY = 20; }
+      doc.setFontSize(10);
+      doc.setFont(undefined, 'bold');
+      doc.setTextColor(194, 65, 12);
+      doc.text(`Detalle ${c.idrevendedorcontrol} - ${c.Persona?.Nombre || ''} ${c.Persona?.ApellidoPaterno || ''}`.trim(), 14, startY);
+      doc.setTextColor(0);
+      startY += 5;
+
+      autoTable(doc, {
+        head: [['Producto', 'Presentación', 'Entregado', 'Devuelto', 'P. Venta', 'P. Mayor', 'Comisión', 'Subtotal Ventas', 'Líquido']],
+        body: c.Detalles.map(d => [
+          d.Producto,
+          d.Presentacion,
+          String(d.CantidadEntregada),
+          String(d.CantidadDevuelta || 0),
+          formatoBs(d.PrecioVenta),
+          formatoBs(d.PrecioMayor ?? d.PrecioVenta),
+          formatoBs(d.ComisionUnitaria),
+          formatoBs(d.VentaTotal),
+          formatoBs(d.LiquidoPanaderia)
+        ]),
+        startY,
+        styles: { fontSize: 7.5 },
+        headStyles: { fillColor: [253, 230, 138], textColor: [120, 53, 15] },
+        margin: { left: 14, right: 14 },
+        theme: 'striped'
+      });
+      startY = doc.lastAutoTable.finalY + 8;
+    });
+
+    const totalVenta = data.reduce((a, c) => a + Number(c.TotalVenta || 0), 0);
+    const totalComision = data.reduce((a, c) => a + Number(c.TotalComision || 0), 0);
+    const totalGasto = data.reduce((a, c) => a + Number(c.GastoExtra || 0), 0);
+    const totalNeto = data.reduce((a, c) => a + (Number(c.TotalLiquidoPanaderia || 0) - Number(c.GastoExtra || 0)), 0);
+
+    autoTable(doc, {
+      body: [[
+        `TOTAL (${data.length} controles)`,
+        `Venta: ${formatoBs(totalVenta)}`,
+        `Comisión: ${formatoBs(totalComision)}`,
+        `Gasto Extra: ${formatoBs(totalGasto)}`,
+        `Neto: ${formatoBs(totalNeto)}`
+      ]],
+      startY,
+      styles: { fontSize: 8, fontStyle: 'bold', fillColor: [254, 243, 199] },
+      margin: { left: 14, right: 14 },
+      theme: 'grid'
+    });
+
+    // Resumen destacado: Líquido total a entregar
+    const boxY = doc.lastAutoTable.finalY + 12;
+    const boxH = 22;
+    doc.setFillColor(249, 115, 22);
+    doc.roundedRect(14, boxY, pageW - 28, boxH, 4, 4, 'F');
+    doc.setTextColor(255);
+    doc.setFontSize(10);
+    doc.setFont(undefined, 'bold');
+    doc.text(`TOTAL LÍQUIDO A ENTREGAR EN GENERAL`, pageW / 2, boxY + 9, { align: 'center' });
+    doc.setFontSize(16);
+    doc.text(formatoBs(totalNeto), pageW / 2, boxY + 18, { align: 'center' });
+
+    doc.save(`control_revendedor_${filtros.value.fecha}.pdf`);
+    showNotification('PDF exportado correctamente');
+  } catch (error) {
+    console.error('Error al exportar PDF:', error);
+    showNotification('Error al exportar PDF', 'error');
+  } finally {
+    exportandoPDF.value = false;
+  }
 };
 
 let debounceTimer = null;

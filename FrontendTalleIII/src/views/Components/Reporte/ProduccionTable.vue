@@ -761,6 +761,7 @@
 <script setup>
 import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { Chart, registerables } from 'chart.js'
+import { getWeekStart as sharedWeekStart, getWeekLabel as sharedWeekLabel } from './useSemana'
 import {
   Building, User, BarChart3, Package, ChevronDown, Factory, 
   Utensils, Clock, Users, Search, Calendar,Droplets, ClipboardList, Layers
@@ -787,34 +788,9 @@ const props = defineProps({
   }
 })
 
-const getWeekStart = (dateStr) => {
-  if (!dateStr || dateStr === 'N/A' || dateStr === 'Sin fecha') return dateStr
-  const clean = dateStr.split('T')[0]
-  const d = new Date(clean + 'T12:00:00')
-  if (isNaN(d.getTime())) return clean
-  const day = d.getDay()
-  const diff = d.getDate() - day
-  d.setDate(diff)
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const dd = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${dd}`
-}
+const getWeekStart = (dateStr) => sharedWeekStart(dateStr)
 
-const getWeekLabel = (weekStartStr) => {
-  if (!weekStartStr || weekStartStr === 'N/A' || weekStartStr === 'Sin fecha') return weekStartStr
-  const d = new Date(weekStartStr + 'T12:00:00')
-  if (isNaN(d.getTime())) return weekStartStr
-  const end = new Date(d)
-  end.setDate(d.getDate() + 6)
-  const fmt = (date) => {
-    const dd = String(date.getDate()).padStart(2, '0')
-    const mm = String(date.getMonth() + 1).padStart(2, '0')
-    const yyyy = date.getFullYear()
-    return `${dd}/${mm}/${yyyy}`
-  }
-  return `${fmt(d)} - ${fmt(end)}`
-}
+const getWeekLabel = (weekStartStr) => sharedWeekLabel(weekStartStr)
 
 const formatCurrency = (val) => Number(val || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
 

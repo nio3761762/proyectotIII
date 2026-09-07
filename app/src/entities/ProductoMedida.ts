@@ -64,5 +64,4 @@ export class Productomedida extends BaseEntity {
 
     @OneToMany(() => Detalleventa, (detalleventa) => detalleventa.Productomedida)
     Detalleventa: Detalleventa[];
-     
 }

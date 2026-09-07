@@ -504,6 +504,7 @@
 <script setup>
 import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { Chart, registerables } from 'chart.js'
+import { getWeekStart as sharedWeekStart, getWeekLabel as sharedWeekLabel } from './useSemana'
 import {
   User, BarChart3, Trophy, TrendingUp, TrendingDown, Users, 
   ChevronDown, ChevronRight, Clock, Package, Store, Search, List, Calendar
@@ -571,34 +572,9 @@ const processedConsolidado = computed(() => {
   return { empleados, productosUnicos, totalPorProducto, totalComisionGlobal, totalLiquidoGlobal, totalGastoExtraGlobal, totalNetoEntregarGlobal };
 });
 
-const getWeekMonday = (dateStr) => {
-  if (!dateStr || dateStr === 'N/A' || dateStr === 'Sin fecha') return dateStr
-  const clean = dateStr.split('T')[0]
-  const d = new Date(clean + 'T12:00:00')
-  if (isNaN(d.getTime())) return clean
-  const day = d.getDay()
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1)
-  d.setDate(diff)
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const dd = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${dd}`
-}
+const getWeekMonday = (dateStr) => sharedWeekStart(dateStr)
 
-const getWeekLabel = (mondayStr) => {
-  if (!mondayStr || mondayStr === 'N/A' || mondayStr === 'Sin fecha') return mondayStr
-  const d = new Date(mondayStr + 'T12:00:00')
-  if (isNaN(d.getTime())) return mondayStr
-  const end = new Date(d)
-  end.setDate(d.getDate() + 6)
-  const fmt = (date) => {
-    const dd = String(date.getDate()).padStart(2, '0')
-    const mm = String(date.getMonth() + 1).padStart(2, '0')
-    const yyyy = date.getFullYear()
-    return `${dd}/${mm}/${yyyy}`
-  }
-  return `${fmt(d)} - ${fmt(end)}`
-}
+const getWeekLabel = (mondayStr) => sharedWeekLabel(mondayStr)
 
 const processedDetallado = computed(() => {
   const data = props.detallado?.reporte || [];

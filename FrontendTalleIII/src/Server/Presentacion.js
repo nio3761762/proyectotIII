@@ -42,7 +42,9 @@ export const registrarPresentacion = async (data) => {
     try {
         const response = await api.post('/addpresentacion', {
             Nombre:data.Nombre,
-            Abreviatura: data.Abreviatura
+            Abreviatura: data.Abreviatura,
+            Produccion: data.Produccion,
+            Venta: data.Venta
         });
         return response.data;
     } catch (error) {
@@ -55,7 +57,9 @@ export const updatePresentacion = async (data) => {
     try {
         const response = await api.put(`/updatePresntacion/${data.IdPresentacion}`, {
             Nombre:data.Nombre,
-            Abreviatura:data.Abreviatura
+            Abreviatura:data.Abreviatura,
+            Produccion: data.Produccion,
+            Venta: data.Venta
         });
         return response.data;
     } catch (error) {

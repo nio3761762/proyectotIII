@@ -72,6 +72,110 @@
         </table>
       </div>
 
+      <div class="bg-gradient-to-r from-emerald-500 to-teal-600 rounded-3xl p-6 text-white shadow-xl">
+        <p class="text-[10px] uppercase font-bold tracking-widest opacity-80 mb-3">Ganancias / Balance</p>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+          <div>
+            <p class="text-[10px] opacity-80">Ingreso Tienda</p>
+            <p class="text-xl font-black">{{ formatMoney(ganancias.ingreso_tienda) }}</p>
+            <p class="text-[9px] opacity-70 mt-1">Ventas en tienda</p>
+          </div>
+          <div>
+            <p class="text-[10px] opacity-80 flex items-center gap-1">Gasto Extra <span class="font-black">(−)</span></p>
+            <p class="text-xl font-black">{{ formatMoney(ganancias.gasto_extra) }}</p>
+            <p class="text-[9px] opacity-70 mt-1">Descuento a la tienda</p>
+          </div>
+          <div>
+            <p class="text-[10px] opacity-80">Neto Tienda</p>
+            <p class="text-xl font-black">{{ formatMoney(ganancias.neto_tienda) }}</p>
+            <p class="text-[9px] opacity-70 mt-1">Ingreso − Gasto Extra</p>
+          </div>
+          <div>
+            <p class="text-[10px] opacity-80 flex items-center gap-1">Líquido Revendedor <span class="font-black">(+)</span></p>
+            <p class="text-xl font-black">{{ formatMoney(ganancias.liquido_revendedor) }}</p>
+            <p class="text-[9px] opacity-70 mt-1">Ganancia de los revendedores</p>
+          </div>
+          <div>
+            <p class="text-[10px] opacity-80 flex items-center gap-1">Gasto Extra Rev. <span class="font-black">(−)</span></p>
+            <p class="text-xl font-black">{{ formatMoney(ganancias.gasto_extra_revendedor) }}</p>
+            <p class="text-[9px] opacity-70 mt-1">Gasto extra de la liquidación</p>
+          </div>
+          <div>
+            <p class="text-[10px] opacity-80">Neto Revendedor</p>
+            <p class="text-xl font-black">{{ formatMoney(ganancias.neto_revendedor) }}</p>
+            <p class="text-[9px] opacity-70 mt-1">Líquido − Gasto Extra Rev.</p>
+          </div>
+          <div class="bg-white/15 rounded-2xl p-3 flex flex-col justify-center col-span-2 md:col-span-2">
+            <p class="text-[10px] opacity-90">Ganancia Total</p>
+            <p class="text-3xl font-black">{{ formatMoney(ganancias.ganancia_total) }}</p>
+            <p class="text-[9px] opacity-70 mt-1">Neto Tienda + Neto Revendedor</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="overflow-x-auto rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <div class="p-4 border-b border-gray-100">
+          <h3 class="text-lg font-bold text-gray-800">Producción y Venta por Presentación</h3>
+        </div>
+        <table class="w-full text-left border-collapse">
+          <thead>
+            <tr class="bg-gray-50/30">
+              <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b min-w-[180px]">Producto</th>
+              <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b min-w-[110px]">Presentación</th>
+              <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-center min-w-[90px]">Producido</th>
+              <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-center min-w-[90px]">Descartado</th>
+              <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-center min-w-[100px]">Vend. Tienda</th>
+              <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-center min-w-[100px]">Ing. Tienda</th>
+              <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-center min-w-[100px]">Vend. Rev.</th>
+              <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-center min-w-[100px]">Ing. Rev.</th>
+              <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-center min-w-[110px]">Gasto Extra Rev.</th>
+              <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-center min-w-[110px]">Total Venta</th>
+              <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-center min-w-[90px]">Total Vend.</th>
+              <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-center min-w-[90px]">Diferencia</th>
+              <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-center min-w-[90px]">% Vendido</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="item in porPresentacionRows" :key="item.key"
+                class="hover:bg-orange-50/30 transition-colors border-b border-gray-100">
+              <td class="p-3 font-medium text-gray-800">{{ item.producto }}</td>
+              <td class="p-3 text-gray-500">{{ item.presentacion }}</td>
+              <td class="p-3 text-center font-black text-emerald-600">{{ item.cantidad_producida }}</td>
+              <td class="p-3 text-center font-medium text-red-500">{{ item.cantidad_descartada }}</td>
+              <td class="p-3 text-center font-medium text-blue-600">{{ item.cantidad_vendida_tienda }}</td>
+              <td class="p-3 text-center font-medium text-gray-700">{{ formatMoney(item.total_venta_tienda) }}</td>
+              <td class="p-3 text-center font-medium text-purple-600">{{ item.cantidad_vendida_revendedor }}</td>
+              <td class="p-3 text-center font-black text-gray-700">{{ formatMoney(item.total_venta_revendedor) }}</td>
+              <td class="p-3 text-center font-black text-red-600">{{ formatMoney(item.gasto_extra_revendedor) }}</td>
+              <td class="p-3 text-center font-black text-emerald-700">{{ formatMoney(item.total_venta) }}</td>
+              <td class="p-3 text-center font-black text-gray-700">{{ item.cantidad_vendida_total }}</td>
+              <td class="p-3 text-center font-black" :class="item.diferencia >= 0 ? 'text-green-600' : 'text-red-600'">
+                {{ item.diferencia >= 0 ? '+' : '' }}{{ item.diferencia }}
+              </td>
+              <td class="p-3 text-center font-black text-gray-700">{{ item.porcentaje }}</td>
+            </tr>
+          </tbody>
+          <tfoot>
+            <tr class="bg-orange-50/50">
+              <td class="p-3 font-black text-gray-600 text-xs uppercase border-t-2 border-orange-200" colspan="2">Totales</td>
+              <td class="p-3 text-center font-black text-emerald-700 border-t-2 border-orange-200">{{ resumenPorPresentacion.total_producido }}</td>
+              <td class="p-3 text-center font-black text-red-600 border-t-2 border-orange-200">{{ resumenPorPresentacion.total_descartado }}</td>
+              <td class="p-3 text-center font-black text-blue-700 border-t-2 border-orange-200">{{ resumenPorPresentacion.total_vendido_tienda }}</td>
+              <td class="p-3 text-center font-black text-gray-800 border-t-2 border-orange-200">{{ formatMoney(resumenPorPresentacion.total_ingreso_tienda) }}</td>
+              <td class="p-3 text-center font-black text-purple-700 border-t-2 border-orange-200">{{ resumenPorPresentacion.total_vendido_revendedor }}</td>
+              <td class="p-3 text-center font-black text-gray-800 border-t-2 border-orange-200">{{ formatMoney(resumenPorPresentacion.total_venta_revendedor) }}</td>
+              <td class="p-3 text-center font-black text-red-600 border-t-2 border-orange-200">{{ formatMoney(resumenPorPresentacion.total_gasto_extra_revendedor) }}</td>
+              <td class="p-3 text-center font-black text-emerald-700 border-t-2 border-orange-200">{{ formatMoney(resumenPorPresentacion.total_venta) }}</td>
+              <td class="p-3 text-center font-black text-gray-800 border-t-2 border-orange-200">{{ resumenPorPresentacion.total_vendido }}</td>
+              <td class="p-3 text-center font-black border-t-2 border-orange-200" :class="resumenPorPresentacion.diferencia_total >= 0 ? 'text-green-700' : 'text-red-700'">
+                {{ resumenPorPresentacion.diferencia_total >= 0 ? '+' : '' }}{{ resumenPorPresentacion.diferencia_total }}
+              </td>
+              <td class="p-3 text-center font-black text-gray-700 border-t-2 border-orange-200">{{ totalPorcentajePresentacion }}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
       <div v-if="agruparPorSemana" class="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
         <div class="p-4 border-b border-gray-100">
           <h3 class="text-lg font-bold text-gray-800">Resumen por Semana</h3>
@@ -297,6 +401,7 @@
 <script setup>
 import { computed, ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { Chart, registerables } from 'chart.js'
+import { getWeekStart as sharedWeekStart, getWeekLabel as sharedWeekLabel } from './useSemana'
 
 Chart.register(...registerables)
 
@@ -304,6 +409,9 @@ const props = defineProps({
   detalle: { type: Array, default: () => [] },
   detalleDiario: { type: Array, default: () => [] },
   resumen: { type: Object, default: () => ({ total_producido: 0, total_vendido_tienda: 0, total_vendido_revendedor: 0, total_vendido: 0, diferencia_total: 0 }) },
+  porPresentacion: { type: Array, default: () => [] },
+  ganancias: { type: Object, default: () => ({ ingreso_tienda: 0, gasto_extra: 0, neto_tienda: 0, liquido_revendedor: 0, gasto_extra_revendedor: 0, neto_revendedor: 0, gasto_extra_total: 0, ganancia_total: 0, balance: 0 }) },
+  resumenPorPresentacion: { type: Object, default: () => ({ total_producido: 0, total_descartado: 0, total_vendido_tienda: 0, total_ingreso_tienda: 0, total_vendido_revendedor: 0, total_venta_revendedor: 0, total_gasto_extra_revendedor: 0, total_venta: 0, total_vendido: 0, diferencia_total: 0 }) },
   formatFecha: { type: Function, default: (f) => f },
   agruparPorSemana: { type: Boolean, default: false }
 })
@@ -316,34 +424,9 @@ const diferenciaClase = computed(() => {
   return d >= 0 ? 'text-green-300' : 'text-red-300'
 })
 
-const getWeekStart = (dateStr) => {
-  if (!dateStr) return dateStr
-  const clean = dateStr.split('T')[0]
-  const d = new Date(clean + 'T12:00:00')
-  if (isNaN(d.getTime())) return clean
-  const day = d.getDay()
-  const diff = d.getDate() - day
-  d.setDate(diff)
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const dd = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${dd}`
-}
+const getWeekStart = (dateStr) => sharedWeekStart(dateStr)
 
-const getWeekLabel = (weekStartStr) => {
-  if (!weekStartStr) return weekStartStr
-  const d = new Date(weekStartStr + 'T12:00:00')
-  if (isNaN(d.getTime())) return weekStartStr
-  const end = new Date(d)
-  end.setDate(d.getDate() + 6)
-  const fmt = (date) => {
-    const dd = String(date.getDate()).padStart(2, '0')
-    const mm = String(date.getMonth() + 1).padStart(2, '0')
-    const yyyy = date.getFullYear()
-    return `${dd}/${mm}/${yyyy}`
-  }
-  return `${fmt(d)} - ${fmt(end)}`
-}
+const getWeekLabel = (weekStartStr) => sharedWeekLabel(weekStartStr)
 
 const sortedDiario = computed(() => {
   return [...props.detalleDiario].sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
@@ -420,6 +503,18 @@ const productRows = computed(() => {
 })
 
 const totalPorcentaje = computed(() => calcPct(props.resumen.total_producido, props.resumen.total_vendido))
+
+const formatMoney = (v) => '$' + Number(v || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+
+const porPresentacionRows = computed(() => {
+  return props.porPresentacion.map((item, i) => ({
+    ...item,
+    key: (item.idproductomedida || 'prod') + '-' + i,
+    porcentaje: calcPct(item.cantidad_producida, item.cantidad_vendida_total)
+  }))
+})
+
+const totalPorcentajePresentacion = computed(() => calcPct(props.resumenPorPresentacion.total_producido, props.resumenPorPresentacion.total_vendido))
 
 const productRowsFallback = computed(() => {
   return props.detalle.map(item => ({

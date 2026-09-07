@@ -11,6 +11,7 @@
       v-model:filtros="filtros"
       v-model:filtro-categoria="filtroCategoria"
       v-model:agrupar-por-semana="agruparPorSemana"
+      v-model:inicio-semana="inicioSemana"
       :active-tab="activeTab"
       :sucursales="sucursales"
       :empleados="empleados"
@@ -117,6 +118,9 @@
           :detalle="reporteProduccionVsVenta?.detalle || []"
           :detalle-diario="reporteProduccionVsVenta?.detalleDiario || []"
           :resumen="reporteProduccionVsVenta?.resumen || {}"
+          :por-presentacion="reporteProduccionVsVenta?.porPresentacion || []"
+          :ganancias="reporteProduccionVsVenta?.ganancias || {}"
+          :resumen-por-presentacion="reporteProduccionVsVenta?.resumenPorPresentacion || {}"
           :format-fecha="formatFecha"
           :agrupar-por-semana="agruparPorSemana"
         />
@@ -162,6 +166,7 @@ import GastosGeneralesTable from './GastosGeneralesTable.vue'
 import ProduccionVsVentaTable from './ProduccionVsVentaTable.vue'
 
 import logoMasasCori from '@/views/assets/LogoMasasCorir.png';
+import { useInicioSemana, getAnchorWeekday, getWeekStart as semanaGetWeekStart, getWeekLabel as semanaGetWeekLabel } from './useSemana'
 
 // --- Lógica de Pestañas ---
 const activeTab = ref('financiero');
@@ -181,34 +186,10 @@ const produccionVsVentaTableRef = ref(null);
 // --- Agrupación por Semana ---
 const agruparPorSemana = ref(false)
 
-const getWeekStart = (dateStr) => {
-  if (!dateStr || dateStr === 'N/A' || dateStr === 'Sin fecha') return dateStr
-  const clean = dateStr.split('T')[0]
-  const d = new Date(clean + 'T12:00:00')
-  if (isNaN(d.getTime())) return clean
-  const day = d.getDay()
-  const diff = d.getDate() - day
-  d.setDate(diff)
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const dd = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${dd}`
-}
+const inicioSemana = useInicioSemana()
 
-const getWeekLabel = (weekStartStr) => {
-  if (!weekStartStr || weekStartStr === 'N/A' || weekStartStr === 'Sin fecha') return weekStartStr
-  const d = new Date(weekStartStr + 'T12:00:00')
-  if (isNaN(d.getTime())) return weekStartStr
-  const end = new Date(d)
-  end.setDate(d.getDate() + 6)
-  const fmt = (date) => {
-    const dd = String(date.getDate()).padStart(2, '0')
-    const mm = String(date.getMonth() + 1).padStart(2, '0')
-    const yyyy = date.getFullYear()
-    return `${dd}/${mm}/${yyyy}`
-  }
-  return `${fmt(d)} - ${fmt(end)}`
-}
+const getWeekStart = (dateStr) => semanaGetWeekStart(dateStr)
+const getWeekLabel = (weekStartStr) => semanaGetWeekLabel(weekStartStr)
 
 const groupByWeek = (dayGroups, itemsKey, totalKey) => {
   const weeks = {}
@@ -743,7 +724,10 @@ const aplicarFiltroRapido = (rango) => {
   switch (rango) {
     case 'today': newDesde = today; newHasta = today; break;
     case 'yesterday': newDesde.setDate(today.getDate() - 1); newHasta.setDate(today.getDate() - 1); break;
-    case 'this_week': newDesde.setDate(today.getDate() - today.getDay()); newHasta = today; break;
+    case 'this_week': {
+      const offset = getAnchorWeekday();
+      newDesde.setDate(today.getDate() - ((today.getDay() - offset + 7) % 7)); newHasta = today; break;
+    }
     case 'this_month': newDesde = new Date(today.getFullYear(), today.getMonth(), 1); newHasta = today; break;
     case 'last_7_days': newDesde.setDate(today.getDate() - 6); newHasta = today; break;
     case 'last_30_days': newDesde.setDate(today.getDate() - 29); newHasta = today; break;
@@ -3556,6 +3540,7 @@ const exportarPDF = async () => {
     }
 
     const diario = data.detalleDiario || []
+    const pct = (p, v) => !p || p === 0 ? '—' : ((v / p) * 100).toFixed(1) + '%'
     if (diario.length > 0) {
       const fmtPdfFecha = (f) => {
         const clean = String(f).split('T')[0]
@@ -3573,7 +3558,6 @@ const exportarPDF = async () => {
       doc.text('Total por Producto', 14, startY)
       startY += 8
 
-      const pct = (p, v) => !p || p === 0 ? '—' : ((v / p) * 100).toFixed(1) + '%'
       const detRows = (data.detalle || []).map(item => [
         item.producto, String(item.cantidad_producida), String(item.cantidad_vendida_tienda),
         String(item.cantidad_vendida_revendedor), String(item.cantidad_vendida_total),
@@ -3734,6 +3718,81 @@ const exportarPDF = async () => {
         body: detRows, startY, styles: { fontSize: 8 }
       })
     }
+
+    const pp = data.porPresentacion || []
+    if (startY > 240) { doc.addPage(); startY = 50 }
+    doc.setFontSize(12)
+    doc.setTextColor(0)
+    doc.setFont(undefined, 'bold')
+    doc.text('Producción y Venta por Presentación', 14, startY)
+    startY += 8
+    const ppRows = pp.map(item => [
+      item.producto, item.presentacion, String(item.cantidad_producida), String(item.cantidad_descartada),
+      String(item.cantidad_vendida_tienda), `${Number(item.total_venta_tienda || 0).toFixed(2)}`,
+      String(item.cantidad_vendida_revendedor), `${Number(item.total_venta_revendedor || 0).toFixed(2)}`,
+      `${Number(item.gasto_extra_revendedor || 0).toFixed(2)}`,
+      `${Number(item.total_venta || 0).toFixed(2)}`,
+      String(item.cantidad_vendida_total),
+      `${item.diferencia >= 0 ? '+' : ''}${item.diferencia}`, pct(item.cantidad_producida, item.cantidad_vendida_total)
+    ])
+    const rp = data.resumenPorPresentacion || {}
+    ppRows.push([{ content: 'TOTALES', colSpan: 2, styles: { fontStyle: 'bold', fillColor: [255,247,237] } },
+      { content: String(rp.total_producido || 0), styles: { fontStyle: 'bold', fillColor: [255,247,237] } },
+      { content: String(rp.total_descartado || 0), styles: { fontStyle: 'bold', fillColor: [255,247,237] } },
+      { content: String(rp.total_vendido_tienda || 0), styles: { fontStyle: 'bold', fillColor: [255,247,237] } },
+      { content: String(Number(rp.total_ingreso_tienda || 0).toFixed(2)), styles: { fontStyle: 'bold', fillColor: [255,247,237] } },
+      { content: String(rp.total_vendido_revendedor || 0), styles: { fontStyle: 'bold', fillColor: [255,247,237] } },
+      { content: String(Number(rp.total_venta_revendedor || 0).toFixed(2)), styles: { fontStyle: 'bold', fillColor: [255,247,237] } },
+      { content: String(Number(rp.total_gasto_extra_revendedor || 0).toFixed(2)), styles: { fontStyle: 'bold', fillColor: [255,247,237] } },
+      { content: String(Number(rp.total_venta || 0).toFixed(2)), styles: { fontStyle: 'bold', fillColor: [255,247,237] } },
+      { content: String(rp.total_vendido || 0), styles: { fontStyle: 'bold', fillColor: [255,247,237] } },
+      { content: String((rp.diferencia_total || 0) >= 0 ? '+' + (rp.diferencia_total || 0) : (rp.diferencia_total || 0)), styles: { fontStyle: 'bold', fillColor: [255,247,237] } },
+      { content: pct(rp.total_producido, rp.total_vendido), styles: { fontStyle: 'bold', fillColor: [255,247,237] } }])
+    if (ppRows.length) autoTable(doc, {
+      head: [['Producto', 'Presentación', 'Producido', 'Descartado', 'Vend. Tienda', 'Ing. Tienda', 'Vend. Rev.', 'Ing. Rev.', 'Gasto Extra Rev.', 'Total Venta', 'Total Vend.', 'Diferencia', '% Vendido']],
+      body: ppRows, startY, styles: { fontSize: 5.5 }, headStyles: { fontSize: 5.5 }
+    })
+    startY = doc.lastAutoTable.finalY + 10
+
+    const gan = data.ganancias || {}
+    if (startY > 250) { doc.addPage(); startY = 50 }
+    doc.setFontSize(12)
+    doc.setTextColor(0)
+    doc.setFont(undefined, 'bold')
+    doc.text('Ganancias / Balance', 14, startY)
+    startY += 8
+
+    const ganRows = [
+      ['Ingreso Tienda', '', `${Number(gan.ingreso_tienda || 0).toFixed(2)}`],
+      ['Gasto Extra (ventas tienda)', '−', `(${Number(gan.gasto_extra || 0).toFixed(2)})`],
+      ['Neto Tienda', '', `${Number(gan.neto_tienda || 0).toFixed(2)}`],
+      ['Líquido Revendedor (ganancia)', '+', `${Number(gan.liquido_revendedor || 0).toFixed(2)}`],
+      ['Gasto Extra (revendedores)', '−', `(${Number(gan.gasto_extra_revendedor || 0).toFixed(2)})`],
+      ['Neto Revendedor', '', `${Number(gan.neto_revendedor || 0).toFixed(2)}`],
+      ['Gasto Extra Total', '−', `(${Number(gan.gasto_extra_total || 0).toFixed(2)})`],
+    ]
+    autoTable(doc, {
+      head: [['Concepto', '', 'Monto (Bs.)']],
+      body: ganRows, startY,
+      styles: { fontSize: 9, cellPadding: 4 },
+      columnStyles: { 0: { fontStyle: 'bold' }, 2: { halign: 'right' } },
+      theme: 'grid'
+    })
+    startY = doc.lastAutoTable.finalY + 2
+
+    const ga = Number(gan.ganancia_total || 0)
+    const balFill = ga >= 0 ? [255, 247, 237] : [254, 242, 242]
+    autoTable(doc, {
+      startY,
+      body: [[
+        { content: 'GANANCIA TOTAL (Neto Tienda + Neto Revendedor)', styles: { fontStyle: 'bold', fontSize: 12, fillColor: [16, 185, 129], textColor: [255, 255, 255] } },
+        { content: `$${ga.toFixed(2)}`, styles: { fontStyle: 'bold', fontSize: 12, halign: 'right', fillColor: balFill, textColor: ga >= 0 ? [5, 122, 85] : [185, 28, 28] } }
+      ]],
+      margin: { left: 14, right: 14 },
+      columnStyles: { 0: { cellWidth: 'auto' }, 1: { cellWidth: 40 } },
+      theme: 'plain'
+    })
+    startY = doc.lastAutoTable.finalY + 10
 
     doc.save(`reporte_produccion_vs_venta${agruparPorSemana.value ? '_semanal' : ''}_${new Date().toISOString().slice(0, 10)}.pdf`);
   } else if (activeTab.value === 'resumen-semanal') {
@@ -5021,17 +5080,8 @@ const exportarExcel = () => {
     XLSX.utils.book_append_sheet(workbook, wsRes, "Resumen");
 
     if (data.detalleDiario?.length > 0) {
-      const getWM = (ds) => {
-        const c = String(ds).split('T')[0]; const d = new Date(c + 'T12:00:00');
-        if (isNaN(d.getTime())) return c; const dy = d.getDay(); const df = d.getDate() - dy + (dy === 0 ? -6 : 1);
-        d.setDate(df); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
-      }
-      const getWL = (ms) => {
-        if (!ms) return ms; const d = new Date(ms + 'T12:00:00'); if (isNaN(d.getTime())) return ms;
-        const e = new Date(d); e.setDate(d.getDate()+6);
-        const f = (dd) => `${String(dd.getDate()).padStart(2,'0')}/${String(dd.getMonth()+1).padStart(2,'0')}/${dd.getFullYear()}`
-        return `${f(d)} - ${f(e)}`
-      }
+      const getWM = (ds) => getWeekStart(ds)
+      const getWL = (ms) => getWeekLabel(ms)
 
       const pct = (p, v) => !p || p === 0 ? '—' : ((v / p) * 100).toFixed(1) + '%'
       const wsProd = XLSX.utils.json_to_sheet(data.detalle.map(item => ({
@@ -5085,6 +5135,40 @@ const exportarExcel = () => {
       })));
       XLSX.utils.book_append_sheet(workbook, wsDet, "Detalle");
     }
+
+    const pp = data.porPresentacion || []
+    const pctPp = (p, v) => !p || p === 0 ? '—' : ((v / p) * 100).toFixed(1) + '%'
+    if (pp.length) {
+      const wsPp = XLSX.utils.json_to_sheet(pp.map(item => ({
+        Producto: item.producto,
+        Presentación: item.presentacion,
+        Producido: item.cantidad_producida,
+        Descartado: item.cantidad_descartada,
+        'Vendido Tienda': item.cantidad_vendida_tienda,
+        'Ingreso Tienda (Bs.)': item.total_venta_tienda,
+        'Vendido Revendedor': item.cantidad_vendida_revendedor,
+        'Ingreso Revendedor (Bs.)': item.total_venta_revendedor,
+        'Gasto Extra Revendedor (Bs.)': item.gasto_extra_revendedor,
+        'Total Venta (Bs.)': item.total_venta,
+        'Total Vendido': item.cantidad_vendida_total,
+        Diferencia: item.diferencia,
+        '% Vendido': pctPp(item.cantidad_producida, item.cantidad_vendida_total)
+      })))
+      XLSX.utils.book_append_sheet(workbook, wsPp, "Por Presentación")
+    }
+
+    const gan = data.ganancias || {}
+    const wsGan = XLSX.utils.json_to_sheet([
+      { Concepto: 'Ingreso Tienda', Monto: gan.ingreso_tienda },
+      { Concepto: 'Gasto Extra Tienda', Monto: (-1 * Number(gan.gasto_extra || 0)) },
+      { Concepto: 'Neto Tienda', Monto: gan.neto_tienda },
+      { Concepto: 'Líquido Revendedor', Monto: gan.liquido_revendedor },
+      { Concepto: 'Gasto Extra Revendedor', Monto: (-1 * Number(gan.gasto_extra_revendedor || 0)) },
+      { Concepto: 'Neto Revendedor', Monto: gan.neto_revendedor },
+      { Concepto: 'Gasto Extra Total', Monto: (-1 * Number(gan.gasto_extra_total || 0)) },
+      { Concepto: 'GANANCIA TOTAL', Monto: gan.ganancia_total }
+    ])
+    XLSX.utils.book_append_sheet(workbook, wsGan, "Ganancias")
 
     XLSX.writeFile(workbook, `reporte_produccion_vs_venta_${new Date().toISOString().slice(0, 10)}.xlsx`);
   }

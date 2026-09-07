@@ -26,5 +26,11 @@ export class Presentacion extends BaseEntity {
 
     @Column({ name: "estado", type: "integer",default: 1}) 
     Estado: number; 
+    
+     @Column({ name: "venta", type: "integer",default: 1}) 
+    Venta: number; 
 
+     @Column({ name: "produccion", type: "integer",default: 1}) 
+    Produccion: number; 
+ 
     }

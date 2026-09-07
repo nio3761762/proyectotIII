@@ -146,7 +146,9 @@ export const getmedidasdelProducto = async (req: Request, res: Response) => {
           'IdPresentacion', pr.idpresentacion,
           'Nombre', pr.nombre,
           'Estado', pr.estado,
-          'Abreviatura', pr.abreviatura
+          'Abreviatura', pr.abreviatura,
+          'Produccion', pr.produccion,
+          'Venta', pr.venta
         ) AS presentacion
 
       FROM productomedida pm

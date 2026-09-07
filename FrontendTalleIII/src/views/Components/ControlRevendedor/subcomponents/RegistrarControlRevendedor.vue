@@ -9,9 +9,11 @@
           </div>
           <div>
             <h1 class="text-2xl md:text-3xl font-bold bg-linear-to-r from-orange-600 via-red-600 to-orange-700 bg-clip-text text-transparent">
-              Registro de Entregas y Ajustes
+              {{ editando ? 'Edición de Entrega' : 'Registro de Entregas y Ajustes' }}
             </h1>
-            <p class="text-gray-600 text-sm">Gestiona entregas y liquidaciones para varias personas en un solo lote</p>
+            <p class="text-gray-600 text-sm">
+              {{ editando ? 'Modifica los datos y productos de la entrega #' + controlEditar?.idrevendedorcontrol : 'Gestiona entregas y liquidaciones para varias personas en un solo lote' }}
+            </p>
           </div>
         </div>
         
@@ -95,8 +97,8 @@
         <div class="bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl border border-white/50 p-6 space-y-4 relative z-10" style="overflow: visible;">
           <div class="space-y-1.5">
             <label class="text-sm font-semibold text-gray-700">Sucursal de Salida</label>
-            <select v-model="idSucursalGeneral" @change="onSucursalChange"
-              class="w-full px-4 py-3 bg-gray-50/80 border-0 rounded-2xl focus:bg-white focus:ring-2 focus:ring-orange-500/20 text-gray-700 outline-none transition-all shadow-inner">
+            <select v-model="idSucursalGeneral" @change="onSucursalChange" :disabled="editando"
+              class="w-full px-4 py-3 bg-gray-50/80 border-0 rounded-2xl focus:bg-white focus:ring-2 focus:ring-orange-500/20 text-gray-700 outline-none transition-all shadow-inner disabled:opacity-60 disabled:cursor-not-allowed">
               <option value="" disabled>Seleccionar Sucursal</option>
               <option v-for="s in sucursales" :key="s.idsucursal" :value="s.idsucursal">{{ s.nombre }}</option>
             </select>
@@ -115,7 +117,13 @@
             </div>
           </div>
 
-          <div class="space-y-1.5">
+          <div v-if="editando" class="space-y-1.5">
+            <label class="text-sm font-semibold text-gray-700">Gasto Extra (Bs)</label>
+            <input v-model.number="gastoExtraEdicion" type="number" step="0.01" min="0"
+              class="w-full px-4 py-3 bg-gray-50/80 border-0 rounded-2xl focus:bg-white focus:ring-2 focus:ring-orange-500/20 text-gray-700 outline-none transition-all shadow-inner" />
+          </div>
+
+          <div v-if="!editando" class="space-y-1.5">
             <label class="text-sm font-semibold text-gray-700">Días a Repetir</label>
             <input v-model.number="repeticiones" type="number" min="1" step="1"
               class="w-full px-4 py-3 bg-gray-50/80 border-0 rounded-2xl focus:bg-white focus:ring-2 focus:ring-orange-500/20 text-gray-700 outline-none transition-all shadow-inner" />
@@ -186,7 +194,7 @@
             </div>
             
             <div class="space-y-4">
-              <div v-for="(det, idx) in currentDetalles" :key="det.idProductoMedida" 
+              <div v-for="(det, idx) in currentDetalles" :key="det._uid || det.idProductoMedida" 
                 class="bg-white p-4 rounded-2xl shadow-sm border border-orange-50 flex flex-col gap-3">
                 
                 <div class="flex gap-4">
@@ -240,7 +248,12 @@
                  class="w-full px-4 py-3 bg-gray-50 border-0 rounded-xl font-bold text-sm text-gray-700 outline-none shadow-inner resize-none"></textarea>
              </div>
              
-             <button @click="stageRegistro" :disabled="!isCurrentValid"
+             <button v-if="editando" @click="handleActualizar" :disabled="!isCurrentValid || submitting"
+               class="w-full py-5 bg-linear-to-r from-orange-600 to-red-700 text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-lg shadow-orange-100 hover:from-red-600 hover:to-orange-500 disabled:opacity-50 transition-all flex items-center justify-center gap-2">
+               <CheckCircle v-if="!submitting" class="h-5 w-5" />
+               <Loader2 v-else class="h-5 w-5 animate-spin" /> Guardar Cambios
+             </button>
+             <button v-else @click="stageRegistro" :disabled="!isCurrentValid"
                class="w-full py-5 bg-orange-500 text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-lg shadow-orange-100 hover:bg-orange-600 disabled:opacity-50 transition-all flex items-center justify-center gap-2">
                <Plus class="h-5 w-5" /> Añadir al Lote de Envío
              </button>
@@ -855,7 +868,7 @@ import Paginado from '../../Modals/Paginado.vue';
 import { ListarProductosOnSucursal } from '@/Server/Producto';
 
 import { listarCategorias, ObtenerSubCategorias } from '@/Server/Categoria';
-import { registrarcontrolRevendedor } from '@/Server/ControlRevendedor';
+import { registrarcontrolRevendedor, actualizarControlCompleto } from '@/Server/ControlRevendedor';
 import { RegistrarPersona, listarTodasPersonas } from '@/Server/persona';
 import { listarComplemento, listarDocumento, listarEmail, listarNumero } from '@/Server/Complemento';
 import { SubirFoto, listarBarrios } from '@/Server/api';
@@ -863,10 +876,16 @@ import { SucursalUsuario } from '@/Server/Usuario';
 
 const props = defineProps({
   sucursales: { type: Array, default: () => [] },
-  productoInicial: { type: Object, default: null }
+  productoInicial: { type: Object, default: null },
+  controlEditar: { type: [Object, null], default: null }
 });
 
 const emit = defineEmits(['cancel', 'saved']);
+
+const editando = computed(() => !!props.controlEditar);
+const gastoExtraEdicion = ref(0);
+
+const nuevoUid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
 // State
 const submitting = ref(false);
@@ -1051,6 +1070,7 @@ const confirmProductSelection = (closeAfter = false) => {
     existing.cantidadEntregada += productQty.value;
   } else {
     reg.detalles.push({
+      _uid: nuevoUid(),
       idProductoMedida: idPM,
       nombre: selectedProduct.value.nombre || selectedProduct.value.Nombre,
       presentacion: (typeof pm.presentacion === 'object' ? pm.presentacion.nombre : pm.presentacion) || pm.Nombre,
@@ -1395,8 +1415,16 @@ const agregarProductoACurrent = ({ producto, medida }) => {
   }
 
   const idPM = medida.idproductomedida || medida.IdProductoMedida;
-  if (currentDetalles.value.some(d => d.idProductoMedida === idPM)) {
-    currentDetalles.value.find(d => d.idProductoMedida === idPM).cantidadEntregada++;
+  const presentacion = (typeof medida.presentacion === 'object' ? medida.presentacion.nombre : medida.presentacion) || medida.Nombre;
+
+  // En modo edición los detalles existentes vienen de la BD (sin idProductoMedida),
+  // por lo que se emparejan por nombre + presentación para no duplicarlos.
+  const existing = editando.value
+    ? currentDetalles.value.find(d => d.nombre === (producto.nombre || producto.Nombre) && d.presentacion === presentacion)
+    : currentDetalles.value.find(d => d.idProductoMedida === idPM);
+
+  if (existing) {
+    existing.cantidadEntregada++;
     return;
   }
   
@@ -1405,9 +1433,10 @@ const agregarProductoACurrent = ({ producto, medida }) => {
   const wholesalePrice = medida.preciomayor || medida.PrecioMayor || retailPrice;
 
   currentDetalles.value.push({
+    _uid: nuevoUid(),
     idProductoMedida: idPM,
     nombre: producto.nombre || producto.Nombre,
-    presentacion: (typeof medida.presentacion === 'object' ? medida.presentacion.nombre : medida.presentacion) || medida.Nombre,
+    presentacion,
     precioNormal: retailPrice,
     precioMayor: wholesalePrice,
     precioVenta: retailPrice, // Correct value for registration
@@ -1523,6 +1552,50 @@ const removeDetailFromLote = (regIdx, detIdx) => {
   }
 };
 
+const buildDetallePayload = (d) => {
+  const qtyDevuelta = d.cantidadDevuelta || 0;
+  const qtyAjustada = getCantidadAjustada(d);
+  const qtyNormal = Math.max(0, d.cantidadEntregada - qtyDevuelta - qtyAjustada);
+  const ajustes = d.ajustes || [];
+
+  const precioVentaNormal = d.precioNormal ?? d.precioVenta ?? 0;
+
+  const detailObj = {
+    idDetalle: d.idDetalle || null,
+    idProductoMedida: d.idProductoMedida,
+    cantidadEntregada: d.cantidadEntregada,
+    cantidadDevuelta: qtyDevuelta,
+    cantidadAjustada: qtyAjustada,
+    precioAjuste: d.precioAjuste || 0,
+    precioVenta: precioVentaNormal,
+    comisionUnitaria: d.comisionUnitaria,
+    motivo: d.motivo,
+    precios: []
+  };
+
+  if (qtyNormal > 0) {
+    detailObj.precios.push({
+      cantidad: qtyNormal,
+      precioVenta: precioVentaNormal,
+      estado: 'NORMAL',
+      observacion: null
+    });
+  }
+
+  ajustes.forEach(a => {
+    if (a.cantidad > 0) {
+      detailObj.precios.push({
+        cantidad: a.cantidad,
+        precioVenta: a.precioVenta,
+        estado: 'AJUSTE',
+        observacion: a.observacion || d.motivo
+      });
+    }
+  });
+
+  return detailObj;
+};
+
 const handleSubmit = async () => {
   if (!isFormValid.value) return;
   submitting.value = true;
@@ -1535,48 +1608,7 @@ const handleSubmit = async () => {
       hora: r.hora || horaRegistro.value,
       observacion: r.observacion,
       gastoExtra: r.gastoExtra || 0,
-      detalles: r.detalles.map(d => {
-        const qtyDevuelta = d.cantidadDevuelta || 0;
-        const qtyAjustada = getCantidadAjustada(d);
-        const qtyNormal = Math.max(0, d.cantidadEntregada - qtyDevuelta - qtyAjustada);
-        const ajustes = d.ajustes || [];
-
-        const precioVentaNormal = d.precioNormal ?? d.precioVenta ?? 0;
-
-        const detailObj = {
-          idProductoMedida: d.idProductoMedida,
-          cantidadEntregada: d.cantidadEntregada,
-          cantidadDevuelta: qtyDevuelta,
-          cantidadAjustada: qtyAjustada,
-          precioAjuste: d.precioAjuste || 0,
-          precioVenta: precioVentaNormal,
-          comisionUnitaria: d.comisionUnitaria,
-          motivo: d.motivo,
-          precios: []
-        };
-
-        if (qtyNormal > 0) {
-          detailObj.precios.push({
-            cantidad: qtyNormal,
-            precioVenta: precioVentaNormal,
-            estado: 'NORMAL',
-            observacion: null
-          });
-        }
-
-        ajustes.forEach(a => {
-          if (a.cantidad > 0) {
-            detailObj.precios.push({
-              cantidad: a.cantidad,
-              precioVenta: a.precioVenta,
-              estado: 'AJUSTE',
-              observacion: a.observacion || d.motivo
-            });
-          }
-        });
-
-        return detailObj;
-      })
+      detalles: r.detalles.map(d => buildDetallePayload(d))
     }));
     
     await registrarcontrolRevendedor(payload);
@@ -1588,6 +1620,80 @@ const handleSubmit = async () => {
     submitting.value = false;
   }
 };
+
+const cargarControlParaEditar = (control) => {
+  if (!control) return;
+
+  const detalles = (control.Detalles || []).map(d => {
+    const preciosAjustados = d.PreciosAjustados || [];
+    const preciosAjuste = preciosAjustados.filter(p => p.Estado === 'AJUSTE');
+    const cantidadAjustada = preciosAjuste.reduce((s, p) => s + Number(p.Cantidad || 0), 0);
+
+    return {
+      _uid: d.IdDetalle,
+      idDetalle: d.IdDetalle,
+      idProductoMedida: d.IdProductoMedida || null,
+      nombre: d.Producto,
+      presentacion: d.Presentacion,
+      precioNormal: Number(d.PrecioVenta) || 0,
+      precioMayor: Number(d.PrecioMayor ?? d.PrecioVenta) || 0,
+      precioVenta: Number(d.PrecioVenta) || 0,
+      comisionUnitaria: Number(d.ComisionUnitaria) || 0,
+      cantidadEntregada: Number(d.CantidadEntregada) || 0,
+      cantidadDevuelta: Number(d.CantidadDevuelta) || 0,
+      cantidadAjustada,
+      precioAjuste: preciosAjuste.length ? Number(preciosAjuste[0].PrecioVenta) : (Number(d.PrecioVenta) || 0),
+      motivo: d.Motivo || '',
+      imagen: d.Imagen_Producto,
+      ajustes: preciosAjuste.map(p => ({
+        cantidad: Number(p.Cantidad) || 0,
+        precioVenta: Number(p.PrecioVenta) || 0,
+        observacion: p.Observacion || ''
+      }))
+    };
+  });
+
+  idSucursalGeneral.value = control.Sucursal?.IdSucursal || control.Sucursal?.idsucursal || '';
+  currentPersonaId.value = control.Persona?.IdPersona ?? control.Persona?.IdEmpleado ?? control.idpersona ?? control.idempleado ?? '';
+  fechaRegistro.value = (control.fecha || '').split('T')[0];
+  horaRegistro.value = control.hora || '';
+  currentObservacion.value = control.observacion || '';
+  gastoExtraEdicion.value = Number(control.GastoExtra || 0);
+  currentDetalles.value = detalles;
+
+  if (idSucursalGeneral.value) {
+    paginacionProd.paginaActual = 1;
+    fetchItems();
+  }
+};
+
+const handleActualizar = async () => {
+  if (!props.controlEditar || !isCurrentValid.value) return;
+  submitting.value = true;
+  try {
+    const payload = {
+      fecha: fechaRegistro.value,
+      hora: horaRegistro.value || null,
+      idpersona: currentPersonaId.value || null,
+      gastoExtra: gastoExtraEdicion.value || 0,
+      observacion: currentObservacion.value,
+      detalles: currentDetalles.value.map(d => buildDetallePayload(d))
+    };
+
+    await actualizarControlCompleto(props.controlEditar.idrevendedorcontrol, payload);
+    showNotification('Control actualizado correctamente', 'success');
+    emit('saved');
+  } catch (error) {
+    console.error(error);
+    showNotification("Error al actualizar el control", "error");
+  } finally {
+    submitting.value = false;
+  }
+};
+
+watch(() => props.controlEditar, (val) => {
+  if (val) cargarControlParaEditar(val);
+}, { immediate: true });
 
 const onCambiarPaginaProd = (page) => {
   paginacionProd.paginaActual = page;
@@ -1603,19 +1709,23 @@ onMounted(async () => {
     ]);
     categorias.value = cats.result|| cats.data || cats || [];
     
-    const u = JSON.parse(localStorage.getItem('usuario'));
-    if (u?.IdUsuario) {
-      try {
-        const sucResp = await SucursalUsuario(u.IdUsuario);
-        if (sucResp?.idsucursal) {
-          idSucursalGeneral.value = sucResp.idsucursal;
+    if (!editando.value) {
+      const u = JSON.parse(localStorage.getItem('usuario'));
+      if (u?.IdUsuario) {
+        try {
+          const sucResp = await SucursalUsuario(u.IdUsuario);
+          if (sucResp?.idsucursal) {
+            idSucursalGeneral.value = sucResp.idsucursal;
+          }
+        } catch (e) {
+          console.error('Error al obtener sucursal del usuario:', e);
         }
-      } catch (e) {
-        console.error('Error al obtener sucursal del usuario:', e);
       }
     }
     
-    if (idSucursalGeneral.value) {
+    if (editando.value) {
+      cargarControlParaEditar(props.controlEditar);
+    } else if (idSucursalGeneral.value) {
       fetchItems();
     }
   } catch (e) { console.error(e); }

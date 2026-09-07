@@ -94,18 +94,22 @@
           <div v-if="produccion.salidas?.length" class="space-y-2">
             <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Registros de Salida</p>
             <div v-for="s in produccion.salidas" :key="s.IdHornoProducto" class="p-3 bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col gap-2 group/item hover:border-orange-200 transition-colors">
-              <div class="flex justify-between items-center">
+              <div class="flex items-center justify-between">
                 <div class="flex items-center gap-2">
                    <span class="text-[10px] bg-gray-100 px-1.5 py-0.5 rounded text-gray-600 font-black">{{ s.Hora || '--:--' }}</span>
                    <span class="text-xs font-bold text-gray-700">{{ s.Producto }}</span>
+                   <span v-if="s.Presentacion" class="text-[9px] font-black text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">
+                     {{ s.Presentacion }}<span v-if="Number(s.CantidadPresentacion) > 0"> x{{ s.CantidadPresentacion }}</span>
+                   </span>
                 </div>
-                <span class="text-xs font-black text-blue-600 group-hover/item:text-orange-600">{{ s.Cantidad }} uds</span>
+                <div class="flex items-center gap-2">
+                  <span v-if="Number(s.CantidadMala) > 0" class="text-[9px] font-black text-red-500 bg-red-50 px-1.5 py-0.5 rounded uppercase" :title="`Dañados: ${s.CantidadMala}. ${s.Motivo || ''}`">
+                    Dañados: {{ s.CantidadMala }}
+                  </span>
+                  <span class="text-xs font-black text-blue-600 group-hover/item:text-orange-600">{{ s.CantidadUnidades || s.Cantidad }} uds</span>
+                </div>
               </div>
               <div class="flex items-center gap-3 text-[9px] font-bold text-gray-400 border-t border-gray-50 pt-2">
-                 <div class="flex items-center gap-1 text-orange-500/70">
-                    <Flame class="h-3 w-3" />
-                    <span>{{ s.Horno || 'S/H' }}</span>
-                 </div>
                  <div class="flex items-center gap-1 text-blue-500/70">
                     <User class="h-3 w-3" />
                     <span>{{ s.Empleado || 'S/E' }}</span>
@@ -124,14 +128,18 @@
                 </div>
                 <div class="flex flex-col">
                   <span class="text-xs font-bold text-gray-700">{{ detalle.producto?.Nombre }}</span>
+                  <span v-if="detalle.productomedida?.Presentacion?.Nombre" class="text-[8px] font-black text-blue-500 uppercase tracking-wider">
+                    {{ detalle.productomedida.Presentacion.Nombre }}
+                    <span v-if="Number(detalle.cantidadPresentacion) > 0" class="text-blue-400 ml-0.5">x{{ detalle.cantidadPresentacion }}</span>
+                  </span>
                   <span v-if="produccion.estado === 1" class="text-[9px] text-gray-400 font-bold">Costo Unit: {{ formatCurrency(detalle.costoUnitario) }} Bs</span>
                 </div>
               </div>
               <div class="flex flex-col items-end">
-                <span class="text-xs font-black text-blue-600 group-hover/item:text-orange-600">{{ detalle.cantidad }} uds</span>
-                <div v-if="Number(detalle.cantidadMala) > 0" class="flex flex-col items-end mt-1">
+                <span class="text-xs font-black text-blue-600 group-hover/item:text-orange-600">{{ detalle.cantidadUnidades || detalle.cantidad }} uds</span>
+                <div v-if="Number(detalle.CantidadMala) > 0" class="flex flex-col items-end mt-1">
                   <span class="text-[9px] font-black text-red-500 bg-red-50 px-1.5 py-0.5 rounded uppercase">
-                    Dañados: {{ detalle.cantidadMala }}
+                    Dañados: {{ detalle.CantidadMala }}
                   </span>
                   <span class="text-[8px] text-gray-400 italic max-w-[120px] truncate" :title="detalle.motivo">
                     {{ detalle.motivo }}
@@ -191,7 +199,7 @@
 
 <script setup>
 import { ref } from 'vue';
-import { Factory, Building2, Package, Calendar, ChevronDown, Info, X, Activity, User, DollarSign, Flame, Edit } from 'lucide-vue-next';
+import { Factory, Building2, Package, Calendar, ChevronDown, Info, X, Activity, User, DollarSign, Edit } from 'lucide-vue-next';
 
 const props = defineProps({
   produccion: { type: Object, required: true }

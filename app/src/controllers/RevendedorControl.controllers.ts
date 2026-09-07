@@ -224,6 +224,7 @@ export const getRevendedorControls = async (req: Request, res: Response) => {
               'VendidoTotal', dc.vendido_total,
               'VendidoNormal', dc.vendido_normal,
               'PrecioVenta', dc.precioventa,
+              'PrecioMayor', pm.preciomayor,
               'VentaTotal', dc.venta_total,
               'CantidadSinComision', COALESCE(dc.cantidadsincomision, 0),
               'ComisionUnitaria', dc.comisionunitaria,
@@ -360,10 +361,10 @@ export const actualizarControlCompleto = async (req: Request, res: Response) => 
 
   try {
     const { idControl } = req.params;
-    const { observacion, detalles } = req.body;
+    const { observacion, detalles, fecha, hora, idpersona, gastoExtra, idSucursal } = req.body;
 
     const control = await queryRunner.manager.findOne(Revendedorcontrol, {
-      where: { IdRevendedorControl: idControl },
+      where: { IdRevendedorControl: idControl } as any,
       relations: ["Sucursal"]
     });
 
@@ -371,60 +372,150 @@ export const actualizarControlCompleto = async (req: Request, res: Response) => 
       throw new HttpError(404, "Control no encontrado.");
     }
 
-    if (observacion !== undefined) {
-      control.Observacion = observacion;
+    if (observacion !== undefined) control.Observacion = observacion;
+    if (fecha !== undefined) control.Fecha = fecha;
+    if (hora !== undefined) control.Hora = hora;
+    if (gastoExtra !== undefined) control.GastoExtra = Number(gastoExtra) || 0;
+
+    if (idpersona !== undefined) {
+      if (idpersona) {
+        const persona = await queryRunner.manager.findOne(Persona, { where: { IdPersona: idpersona } as any });
+        if (!persona) throw new HttpError(404, `Persona con ID ${idpersona} no encontrada.`);
+        control.Persona = persona;
+      }
+      control.Empleado = null;
     }
+
     await queryRunner.manager.save(control);
 
-    const idSucursal = control.Sucursal.IdSucursal;
+    const idSucursalOrigen = control.Sucursal.IdSucursal;
+    let idSucursalInventario = idSucursalOrigen;
+    let sucursalCambiada = false;
 
-    if (Array.isArray(detalles)) {
-      for (const det of detalles) {
-        const { idDetalle, cantidadEntregada, cantidadDevuelta, precioVenta, motivo, precios } = det;
+    // Cargar detalles existentes
+    const existingDetalles = await queryRunner.manager.find(Revendedorcontroldetalle, {
+      where: { RevendedorControl: { IdRevendedorControl: idControl } } as any,
+      relations: ["ProductoMedida", "ProductoMedida.Producto", "ProductoMedida.Presentacion"]
+    });
 
-        if (!idDetalle) continue;
+    // Si cambia la sucursal: devolver todo el stock entregado a la sucursal de origen
+    if (idSucursal && idSucursal !== idSucursalOrigen) {
+      const sucursalNueva = await verifySucursal({ SucursalId: idSucursal });
+      for (const d of existingDetalles) {
+        const qty = Number(d.CantidadEntregada);
+        if (qty > 0) {
+          await IncrementProducto(queryRunner, d.ProductoMedida, idSucursalOrigen, qty, idControl, "AJUSTE_REVENDEDOR");
+        }
+      }
+      control.Sucursal = sucursalNueva;
+      await queryRunner.manager.save(control);
+      idSucursalInventario = idSucursal;
+      sucursalCambiada = true;
+    }
 
-        const detalle = await queryRunner.manager.findOne(Revendedorcontroldetalle, {
-          where: { IdRevendedorControlDetalle: idDetalle },
-          relations: ["ProductoMedida", "ProductoMedida.Producto", "ProductoMedida.Presentacion"]
-        });
+    const targetIds = new Set<string>();
+    const detallesAProcesar = Array.isArray(detalles) ? detalles : [];
 
-        if (!detalle) {
-          throw new HttpError(404, `Detalle ${idDetalle} no encontrado.`);
+    for (const det of detallesAProcesar) {
+      const { idDetalle, cantidadEntregada, cantidadDevuelta, precioVenta, motivo, precios, idProductoMedida, comisionUnitaria } = det;
+
+      const detalle = idDetalle
+        ? existingDetalles.find(d => d.IdRevendedorControlDetalle === idDetalle)
+        : undefined;
+
+      if (idDetalle) targetIds.add(idDetalle);
+
+      if (!detalle) {
+        // Nuevo detalle (agregado en la edición)
+        if (!idProductoMedida) continue;
+        const productoMedida = await verifyProductoMedida({ PaqueteId: idProductoMedida });
+        const nuevoDetalle = new Revendedorcontroldetalle();
+        nuevoDetalle.IdRevendedorControlDetalle = await generarIdSecuencial('RCD');
+        nuevoDetalle.RevendedorControl = control;
+        nuevoDetalle.ProductoMedida = productoMedida;
+        nuevoDetalle.CantidadEntregada = cantidadEntregada || 0;
+        nuevoDetalle.CantidadDevuelta = cantidadDevuelta || 0;
+        nuevoDetalle.PrecioVenta = precioVenta ?? Number(productoMedida.PrecioVenta);
+        nuevoDetalle.ComisionUnitaria = comisionUnitaria !== undefined ? comisionUnitaria : Number(productoMedida.Comision);
+        nuevoDetalle.Motivo = motivo;
+        nuevoDetalle.CantidadSinComision = 0;
+
+        if (nuevoDetalle.CantidadEntregada > 0) {
+          await DecrementProducto(queryRunner, productoMedida, idSucursalInventario, nuevoDetalle.CantidadEntregada, idControl, "SALIDA_REVENDEDOR");
         }
 
-        const productoMedida = detalle.ProductoMedida;
-
-        if (cantidadEntregada !== undefined && cantidadEntregada !== Number(detalle.CantidadEntregada)) {
-          const oldCantidad = Number(detalle.CantidadEntregada);
-          await IncrementProducto(queryRunner, productoMedida, idSucursal, oldCantidad, idControl, "AJUSTE_REVENDEDOR");
-          await DecrementProducto(queryRunner, productoMedida, idSucursal, cantidadEntregada, idControl, "SALIDA_REVENDEDOR");
-          detalle.CantidadEntregada = cantidadEntregada;
-        }
-
-        if (precioVenta !== undefined) detalle.PrecioVenta = precioVenta;
-        if (cantidadDevuelta !== undefined) detalle.CantidadDevuelta = cantidadDevuelta;
-        if (motivo !== undefined) detalle.Motivo = motivo;
-
-        await queryRunner.manager.save(detalle);
+        await queryRunner.manager.save(nuevoDetalle);
 
         if (Array.isArray(precios)) {
-          await queryRunner.manager.delete(Revendedorcontrolprecio, {
-            RevendedorControlDetalle: { IdRevendedorControlDetalle: idDetalle }
-          });
-
           for (const p of precios) {
             const rcp = new Revendedorcontrolprecio();
             rcp.IdRevendedorControlPrecio = await generarIdSecuencial('RCP');
-            rcp.RevendedorControlDetalle = detalle;
+            rcp.RevendedorControlDetalle = nuevoDetalle;
             rcp.Cantidad = p.cantidad || 0;
-            rcp.PrecioVenta = p.precioVenta ?? detalle.PrecioVenta;
+            rcp.PrecioVenta = p.precioVenta ?? nuevoDetalle.PrecioVenta;
             rcp.Estado = p.estado || 'NORMAL';
             rcp.Observacion = p.observacion;
             await queryRunner.manager.save(rcp);
           }
         }
+        continue;
       }
+
+      const productoMedida = detalle.ProductoMedida;
+      const oldCantidad = Number(detalle.CantidadEntregada);
+
+      if (!sucursalCambiada) {
+        if (cantidadEntregada !== undefined && cantidadEntregada !== oldCantidad) {
+          if (oldCantidad > 0) await IncrementProducto(queryRunner, productoMedida, idSucursalInventario, oldCantidad, idControl, "AJUSTE_REVENDEDOR");
+          if (cantidadEntregada > 0) await DecrementProducto(queryRunner, productoMedida, idSucursalInventario, cantidadEntregada, idControl, "SALIDA_REVENDEDOR");
+          detalle.CantidadEntregada = cantidadEntregada;
+        }
+      } else {
+        // La sucursal ya cambió: el stock se devolvió arriba, ahora se descuenta de la nueva sucursal
+        if (cantidadEntregada !== undefined) {
+          if (cantidadEntregada > 0) await DecrementProducto(queryRunner, productoMedida, idSucursalInventario, cantidadEntregada, idControl, "SALIDA_REVENDEDOR");
+          detalle.CantidadEntregada = cantidadEntregada;
+        }
+      }
+
+      if (precioVenta !== undefined) detalle.PrecioVenta = precioVenta;
+      if (cantidadDevuelta !== undefined) detalle.CantidadDevuelta = cantidadDevuelta;
+      if (motivo !== undefined) detalle.Motivo = motivo;
+      if (comisionUnitaria !== undefined) detalle.ComisionUnitaria = comisionUnitaria;
+
+      await queryRunner.manager.save(detalle);
+
+      if (Array.isArray(precios)) {
+        await queryRunner.manager.delete(Revendedorcontrolprecio, {
+          RevendedorControlDetalle: { IdRevendedorControlDetalle: detalle.IdRevendedorControlDetalle }
+        } as any);
+
+        for (const p of precios) {
+          const rcp = new Revendedorcontrolprecio();
+          rcp.IdRevendedorControlPrecio = await generarIdSecuencial('RCP');
+          rcp.RevendedorControlDetalle = detalle;
+          rcp.Cantidad = p.cantidad || 0;
+          rcp.PrecioVenta = p.precioVenta ?? detalle.PrecioVenta;
+          rcp.Estado = p.estado || 'NORMAL';
+          rcp.Observacion = p.observacion;
+          await queryRunner.manager.save(rcp);
+        }
+      }
+    }
+
+    // Eliminar detalles que ya no están presentes en la lista enviada
+    for (const d of existingDetalles) {
+      if (targetIds.has(d.IdRevendedorControlDetalle)) continue;
+
+      await queryRunner.manager.delete(Revendedorcontrolprecio, {
+        RevendedorControlDetalle: { IdRevendedorControlDetalle: d.IdRevendedorControlDetalle }
+      } as any);
+
+      const cantEliminar = Number(d.CantidadEntregada);
+      if (cantEliminar > 0 && !sucursalCambiada) {
+        await IncrementProducto(queryRunner, d.ProductoMedida, idSucursalInventario, cantEliminar, idControl, "AJUSTE_REVENDEDOR");
+      }
+      await queryRunner.manager.delete(Revendedorcontroldetalle, d.IdRevendedorControlDetalle);
     }
 
     await queryRunner.commitTransaction();

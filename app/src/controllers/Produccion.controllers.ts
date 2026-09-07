@@ -17,10 +17,10 @@ import { Gasto } from "../entities/Gastos";
 import { Horario } from "../entities/Horario";
 import { DetalleProduccion } from "../entities/Detalleproduccuin";
 import { verifyProducto } from "./Producto.controllers";
-import { createLoteInventario, registrarMovimientoSalida } from "./Inventario.controllers";
+import { verifyProductoMedida } from "./ProductoMedida.controllers";
+import { createLoteInventario, registrarMovimientoEntrada, registrarMovimientoSalida } from "./Inventario.controllers";
 import { ProduccionHornoDetalle } from "../entities/Produccionhornodetalle";
 import { verifyHorno } from "./Horno.controllers";
-import { Hornoproducto } from "../entities/HornoProduccto";
 import { BajaProducto } from "../entities/BajaProducto";
 import { AppDataSource } from "../db";
 
@@ -244,41 +244,43 @@ export const registrarSalidaProducto = async (req: Request, res: Response) => {
   await queryRunner.startTransaction();
   try {
     const { hora } = getFechaHoraBolivia();
-    const { IdProduccion, IdProducto, IdEmpleado, Cantidad, IdHorno,HoraRegistro } = req.body;
+    const { IdProduccion, IdProducto, IdProductoMedida, IdEmpleado, Cantidad, CantidadPresentacion, HoraRegistro } = req.body;
     const produccion = await queryRunner.manager.findOne(Produccion, { where: { IdProduccion }, relations: ["Sucursal"] });
     if (!produccion) throw new Error("Producción no encontrada");
     const IdSucursal = produccion.Sucursal.IdSucursal;
     const empleado = await verifyEmpleado(IdEmpleado);
-    
-    const sesionHorno = await queryRunner.manager.findOne(ProduccionHornoDetalle, {
-      where: { Produccion: { IdProduccion }, Horno: { IdHorno }, HoraFin: IsNull() }
-    });
-    if (!sesionHorno) throw new Error("No hay sesión de horno activa.");
 
-    // 1. Registro detallado
-    const hp = new Hornoproducto();
-    hp.Idhornoproducto = await generarIdSecuencial("HPROD", queryRunner);
-    hp.ProduccionHornoDetalle = sesionHorno;
-    hp.Producto = await verifyProducto({ ProductoId: IdProducto });
-    hp.Empleado = empleado; 
-    hp.Cantidad = Cantidad;
-    hp.Hora = HoraRegistro; // Guardamos la hora de la salida
-    await queryRunner.manager.save(hp);
+    // 🔥 RESOLVER PRESENTACIÓN Y CANTIDADES
+    let cantidadUnidades = Number(Cantidad);
+    let cantidadPresentacion = Number(CantidadPresentacion || 0);
+    let productoMedida: any = null;
+    if (IdProductoMedida) {
+      productoMedida = await verifyProductoMedida({ PaqueteId: IdProductoMedida });
+      const unidadesPorPresentacion = Number(productoMedida.Cantidad) || 1;
+      if (cantidadPresentacion > 0) {
+        cantidadUnidades = cantidadPresentacion * unidadesPorPresentacion;
+      }
+    }
+    const CantidadParaCostos = cantidadUnidades > 0 ? cantidadUnidades : Number(Cantidad);
 
-    // 2. Descontar Insumos (FIFO)
+    // 1. Descontar Insumos (FIFO)
     const receta = await queryRunner.manager.findOne(Receta, { where: { Producto: { IdProducto } }, relations: ["Ingredientes", "Ingredientes.Insumo"] });
     let costoInsumosNuevos = 0;
     if (receta) {
-      const factor = Cantidad / Number(receta.Rendimiento);
+      const factor = CantidadParaCostos / Number(receta.Rendimiento);
       for (const ing of receta.Ingredientes) {
         costoInsumosNuevos += await consumirInsumoFIFO(queryRunner, ing.Insumo.IdInsumo, Number(ing.Pesoconvertido) * factor, IdSucursal, IdProduccion);
       }
     }
 
     // 3. Detalle Producción (Acumulado para el cierre)
-    let detalle = await queryRunner.manager.findOne(DetalleProduccion, { where: { Produccion: { IdProduccion }, Producto: { IdProducto }, Empleado: { IdEmpleado } } });
+    let detalle = await queryRunner.manager.findOne(DetalleProduccion, {
+      where: { Produccion: { IdProduccion }, Producto: { IdProducto }, Empleado: { IdEmpleado }, ...(productoMedida ? { ProductoMedida: { IdProductoMedida: productoMedida.IdProductoMedida } } : {}) }
+    });
     if (detalle) {
-      detalle.Cantidad = Number(detalle.Cantidad) + Number(Cantidad);
+      detalle.Cantidad = Number(detalle.Cantidad) + CantidadParaCostos;
+      detalle.CantidadPresentacion = Number(detalle.CantidadPresentacion || 0) + cantidadPresentacion;
+      detalle.CantidadUnidades = Number(detalle.CantidadUnidades || 0) + cantidadUnidades;
       detalle.CostoTotal = Number(detalle.CostoTotal) + costoInsumosNuevos;
       detalle.CostoUnitario = Number(detalle.CostoTotal) / Number(detalle.Cantidad);  
     } else {
@@ -286,10 +288,13 @@ export const registrarSalidaProducto = async (req: Request, res: Response) => {
       detalle.IdDetalleProduccion = await generarIdSecuencial("DTPRO", queryRunner);
       detalle.Produccion = produccion;
       detalle.Producto = await verifyProducto({ ProductoId: IdProducto });
+      if (productoMedida) detalle.ProductoMedida = productoMedida;
       detalle.Empleado = empleado;
-      detalle.Cantidad = Cantidad;
+      detalle.Cantidad = CantidadParaCostos;
+      detalle.CantidadPresentacion = cantidadPresentacion;
+      detalle.CantidadUnidades = cantidadUnidades;
       detalle.CostoTotal = costoInsumosNuevos;
-      detalle.CostoUnitario = costoInsumosNuevos / Cantidad;
+      detalle.CostoUnitario = CantidadParaCostos > 0 ? costoInsumosNuevos / CantidadParaCostos : 0;
     }
     
     await queryRunner.manager.save(detalle);
@@ -299,7 +304,7 @@ export const registrarSalidaProducto = async (req: Request, res: Response) => {
     await queryRunner.manager.save(produccion);
 
     // 🚀 5. ENTRADA AL INVENTARIO (AL INSTANTE PARA VENTA)
-    await createLoteInventario(queryRunner, IdProducto, null, Number(Cantidad), detalle.CostoUnitario, IdSucursal, 'ENTRADA_PRODUCCION', IdProduccion, detalle.CostoUnitario, undefined);
+    await createLoteInventario(queryRunner, IdProducto, null, cantidadUnidades, detalle.CostoUnitario, IdSucursal, 'ENTRADA_PRODUCCION', IdProduccion, detalle.CostoUnitario, undefined);
     
     await queryRunner.commitTransaction();
     return res.status(200).json({ message: "Salida registrada. Producto disponible para venta." });
@@ -518,8 +523,7 @@ export const descartarProductosDaniados = async (req: Request, res: Response) =>
     await registrarMovimientoSalida(queryRunner, lote, 'DESCARTE', Number(Cantidad), IdProduccion);
 
     // 5. Actualizar el detalle de producción existente
-    // Restamos de la cantidad "buena" y sumamos a la "mala"
-    detalle.Cantidad = Number(detalle.Cantidad) - Number(Cantidad);
+    // La cantidad producida se mantiene; solo acumulamos la merma
     detalle.CantidadMala = Number(detalle.CantidadMala) + Number(Cantidad);
     detalle.Motivo = Motivo;
     await queryRunner.manager.save(detalle);
@@ -666,33 +670,34 @@ export const registrarSalidaProductoMasiva = async (req: Request, res: Response)
     const resultados: any[] = [];
 
     for (const salida of Salidas) {
-      const { IdProducto, IdEmpleado, Cantidad, IdHorno, HoraRegistro } = salida;
-      if (!IdProducto || !Cantidad || !IdHorno) {
-        throw new Error("Cada salida debe tener IdProducto, Cantidad e IdHorno");
+      const { IdProducto, IdProductoMedida, IdEmpleado, Cantidad, CantidadPresentacion, HoraRegistro } = salida;
+      if (!IdProducto || !Cantidad) {
+        throw new Error("Cada salida debe tener IdProducto y Cantidad");
       }
 
       const empleado = IdEmpleado ? await verifyEmpleado(IdEmpleado) : null;
 
-      const sesionHorno = await queryRunner.manager.findOne(ProduccionHornoDetalle, {
-        where: { Produccion: { IdProduccion }, Horno: { IdHorno }, HoraFin: IsNull() }
-      });
-      if (!sesionHorno) throw new Error(`No hay sesión de horno activa para el horno ${IdHorno}`);
+      // 🔥 RESOLVER PRESENTACIÓN Y CANTIDADES
+      // CantidadUnidades = CantidadPresentacion (presentaciones) × cantidad de la presentación (unidades por presentación)
+      let cantidadUnidades = Number(Cantidad);
+      let cantidadPresentacion = Number(CantidadPresentacion || 0);
+      let productoMedida: any = null;
 
-      // 1. Registro detallado
-      const hp = new Hornoproducto();
-      hp.Idhornoproducto = await generarIdSecuencial("HPROD", queryRunner);
-      hp.ProduccionHornoDetalle = sesionHorno;
-      hp.Producto = await verifyProducto({ ProductoId: IdProducto });
-      if (empleado) hp.Empleado = empleado;
-      hp.Cantidad = Cantidad;
-      hp.Hora = HoraRegistro;
-      await queryRunner.manager.save(hp);
+      if (IdProductoMedida) {
+        productoMedida = await verifyProductoMedida({ PaqueteId: IdProductoMedida });
+        const unidadesPorPresentacion = Number(productoMedida.Cantidad) || 1;
+        // Si se envió cantidad de presentaciones, el total de unidades es presentaciones × unidades por presentación
+        if (cantidadPresentacion > 0) {
+          cantidadUnidades = cantidadPresentacion * unidadesPorPresentacion;
+        }
+      }
+      const CantidadParaCostos = cantidadUnidades > 0 ? cantidadUnidades : Number(Cantidad);
 
-      // 2. Descontar Insumos (FIFO)
+      // 1. Descontar Insumos (FIFO)
       const receta = await queryRunner.manager.findOne(Receta, { where: { Producto: { IdProducto } }, relations: ["Ingredientes", "Ingredientes.Insumo"] });
       let costoInsumosNuevos = 0;
       if (receta) {
-        const factor = Cantidad / Number(receta.Rendimiento);
+        const factor = CantidadParaCostos / Number(receta.Rendimiento);
         for (const ing of receta.Ingredientes) {
           costoInsumosNuevos += await consumirInsumoFIFO(queryRunner, ing.Insumo.IdInsumo, Number(ing.Pesoconvertido) * factor, IdSucursal, IdProduccion);
         }
@@ -700,10 +705,12 @@ export const registrarSalidaProductoMasiva = async (req: Request, res: Response)
 
       // 3. Detalle Producción (Acumulado)
       let detalle = await queryRunner.manager.findOne(DetalleProduccion, {
-        where: { Produccion: { IdProduccion }, Producto: { IdProducto }, ...(empleado ? { Empleado: { IdEmpleado } } : {}) }
+        where: { Produccion: { IdProduccion }, Producto: { IdProducto }, ...(empleado ? { Empleado: { IdEmpleado } } : {}), ...(productoMedida ? { ProductoMedida: { IdProductoMedida: productoMedida.IdProductoMedida } } : {}) }
       });
       if (detalle) {
-        detalle.Cantidad = Number(detalle.Cantidad) + Number(Cantidad);
+        detalle.Cantidad = Number(detalle.Cantidad) + CantidadParaCostos;
+        detalle.CantidadPresentacion = Number(detalle.CantidadPresentacion || 0) + cantidadPresentacion;
+        detalle.CantidadUnidades = Number(detalle.CantidadUnidades || 0) + cantidadUnidades;
         detalle.CostoTotal = Number(detalle.CostoTotal) + costoInsumosNuevos;
         detalle.CostoUnitario = Number(detalle.CostoTotal) / Number(detalle.Cantidad);
       } else {
@@ -711,19 +718,22 @@ export const registrarSalidaProductoMasiva = async (req: Request, res: Response)
         detalle.IdDetalleProduccion = await generarIdSecuencial("DTPRO", queryRunner);
         detalle.Produccion = produccion;
         detalle.Producto = await verifyProducto({ ProductoId: IdProducto });
+        if (productoMedida) detalle.ProductoMedida = productoMedida;
         if (empleado) detalle.Empleado = empleado;
-        detalle.Cantidad = Cantidad;
+        detalle.Cantidad = CantidadParaCostos;
+        detalle.CantidadPresentacion = cantidadPresentacion;
+        detalle.CantidadUnidades = cantidadUnidades;
         detalle.CostoTotal = costoInsumosNuevos;
-        detalle.CostoUnitario = costoInsumosNuevos / Cantidad;
+        detalle.CostoUnitario = CantidadParaCostos > 0 ? costoInsumosNuevos / CantidadParaCostos : 0;
       }
       await queryRunner.manager.save(detalle);
 
       totalCostoInsumos += costoInsumosNuevos;
 
-      // 4. Entrada al inventario
-      await createLoteInventario(queryRunner, IdProducto, null, Number(Cantidad), detalle.CostoUnitario, IdSucursal, 'ENTRADA_PRODUCCION', IdProduccion, detalle.CostoUnitario, undefined);
+      // 4. Entrada al inventario (en unidades totales producidas)
+      await createLoteInventario(queryRunner, IdProducto, null, cantidadUnidades, detalle.CostoUnitario, IdSucursal, 'ENTRADA_PRODUCCION', IdProduccion, detalle.CostoUnitario, undefined);
 
-      resultados.push({ IdProducto, Cantidad });
+      resultados.push({ IdProducto, Cantidad: cantidadUnidades });
     }
 
     // 5. Actualizar cabecera
@@ -780,8 +790,21 @@ export const actualizarProduccion = async (req: Request, res: Response) => {
       let totalCostoInsumosDelta = 0;
 
       for (const prod of Productos) {
-        const { IdProducto, Cantidad, IdEmpleado, IdHorno, HoraRegistro } = prod;
+        const { IdProducto, IdProductoMedida, Cantidad, CantidadPresentacion, IdEmpleado, HoraRegistro } = prod;
         if (!IdProducto || Cantidad === undefined) continue;
+
+        // 🔥 RESOLVER PRESENTACIÓN Y CANTIDADES
+        let cantidadUnidades = Number(Cantidad);
+        let cantidadPresentacion = Number(CantidadPresentacion || 0);
+        let productoMedida: any = null;
+        if (IdProductoMedida) {
+          productoMedida = await verifyProductoMedida({ PaqueteId: IdProductoMedida });
+          const unidadesPorPresentacion = Number(productoMedida.Cantidad) || 1;
+          if (cantidadPresentacion > 0) {
+            cantidadUnidades = cantidadPresentacion * unidadesPorPresentacion;
+          }
+        }
+        const CantidadParaCostos = cantidadUnidades > 0 ? cantidadUnidades : Number(Cantidad);
 
         // Buscar detalle existente
         const detalleExistente = await queryRunner.manager.findOne(DetalleProduccion, {
@@ -789,32 +812,11 @@ export const actualizarProduccion = async (req: Request, res: Response) => {
         });
 
         const cantidadActual = detalleExistente ? Number(detalleExistente.Cantidad) : 0;
-        const diferencia = Number(Cantidad) - cantidadActual;
+        const diferencia = Number(CantidadParaCostos) - cantidadActual;
 
         if (diferencia > 0) {
           // Aumentar cantidad - registrar salida adicional
           const empleado = IdEmpleado ? await verifyEmpleado(IdEmpleado) : null;
-          let sesionHorno = null;
-          if (IdHorno) {
-            sesionHorno = await queryRunner.manager.findOne(ProduccionHornoDetalle, {
-              where: { Produccion: { IdProduccion: id }, Horno: { IdHorno }, HoraFin: IsNull() }
-            });
-          } else {
-            sesionHorno = await queryRunner.manager.findOne(ProduccionHornoDetalle, {
-              where: { Produccion: { IdProduccion: id }, HoraFin: IsNull() }
-            });
-          }
-
-          if (sesionHorno) {
-            const hp = new Hornoproducto();
-            hp.Idhornoproducto = await generarIdSecuencial("HPROD", queryRunner);
-            hp.ProduccionHornoDetalle = sesionHorno;
-            hp.Producto = await verifyProducto({ ProductoId: IdProducto });
-            if (empleado) hp.Empleado = empleado;
-            hp.Cantidad = diferencia;
-            hp.Hora = HoraRegistro;
-            await queryRunner.manager.save(hp);
-          }
 
           // Consumir insumos adicionales
           const receta = await queryRunner.manager.findOne(Receta, {
@@ -831,24 +833,36 @@ export const actualizarProduccion = async (req: Request, res: Response) => {
 
           // Actualizar o crear detalle
           if (detalleExistente) {
-            detalleExistente.Cantidad = Number(Cantidad);
+            detalleExistente.Cantidad = Number(CantidadParaCostos);
+            if (IdProductoMedida) {
+              detalleExistente.CantidadPresentacion = cantidadPresentacion;
+              detalleExistente.CantidadUnidades = cantidadUnidades;
+            } else {
+              detalleExistente.CantidadPresentacion = 0;
+              detalleExistente.CantidadUnidades = Number(CantidadParaCostos);
+            }
             detalleExistente.CostoTotal = Number(detalleExistente.CostoTotal) + costoExtra;
-            detalleExistente.CostoUnitario = Number(detalleExistente.CostoTotal) / Number(Cantidad);
+            detalleExistente.CostoUnitario = Number(detalleExistente.CostoTotal) / Number(CantidadParaCostos);
+            if (productoMedida) detalleExistente.ProductoMedida = productoMedida;
+            if (IdEmpleado) detalleExistente.Empleado = await verifyEmpleado(IdEmpleado);
             await queryRunner.manager.save(detalleExistente);
           } else {
             const nuevoDetalle = new DetalleProduccion();
             nuevoDetalle.IdDetalleProduccion = await generarIdSecuencial("DTPRO", queryRunner);
             nuevoDetalle.Produccion = produccion;
             nuevoDetalle.Producto = await verifyProducto({ ProductoId: IdProducto });
+            if (productoMedida) nuevoDetalle.ProductoMedida = productoMedida;
             if (IdEmpleado) nuevoDetalle.Empleado = await verifyEmpleado(IdEmpleado);
-            nuevoDetalle.Cantidad = Cantidad;
+            nuevoDetalle.Cantidad = CantidadParaCostos;
+            nuevoDetalle.CantidadPresentacion = cantidadPresentacion;
+            nuevoDetalle.CantidadUnidades = cantidadUnidades;
             nuevoDetalle.CostoTotal = costoExtra;
-            nuevoDetalle.CostoUnitario = Cantidad > 0 ? costoExtra / Cantidad : 0;
+            nuevoDetalle.CostoUnitario = CantidadParaCostos > 0 ? costoExtra / CantidadParaCostos : 0;
             await queryRunner.manager.save(nuevoDetalle);
           }
 
           // Entrada al inventario
-          const costoUnitarioProducto = detalleExistente ? Number(detalleExistente.CostoUnitario) : (Cantidad > 0 ? costoExtra / Cantidad : 0);
+          const costoUnitarioProducto = detalleExistente ? Number(detalleExistente.CostoUnitario) : (CantidadParaCostos > 0 ? costoExtra / CantidadParaCostos : 0);
           await createLoteInventario(queryRunner, IdProducto, null, diferencia, costoUnitarioProducto, IdSucursal, 'ENTRADA_PRODUCCION', id, costoUnitarioProducto, undefined);
           totalCostoInsumosDelta += costoExtra;
 
@@ -872,17 +886,27 @@ export const actualizarProduccion = async (req: Request, res: Response) => {
           }
 
           // Actualizar detalle
-          detalleExistente.Cantidad = Number(Cantidad);
+          detalleExistente.Cantidad = Number(CantidadParaCostos);
           if (Number(detalleExistente.Cantidad) <= 0) {
             detalleExistente.CantidadMala = Number(detalleExistente.CantidadMala) + Math.abs(Number(detalleExistente.Cantidad));
           }
+          detalleExistente.CantidadPresentacion = IdProductoMedida ? cantidadPresentacion : 0;
+          detalleExistente.CantidadUnidades = IdProductoMedida ? cantidadUnidades : Number(CantidadParaCostos);
           // Recalcular costo proporcionalmente
           const proporcionReducir = cantidadAReducir / (cantidadActual || 1);
           detalleExistente.CostoTotal = Number(detalleExistente.CostoTotal) * (1 - proporcionReducir);
-          detalleExistente.CostoUnitario = Number(Cantidad) > 0 ? Number(detalleExistente.CostoTotal) / Number(Cantidad) : 0;
+          detalleExistente.CostoUnitario = Number(CantidadParaCostos) > 0 ? Number(detalleExistente.CostoTotal) / Number(CantidadParaCostos) : 0;
           await queryRunner.manager.save(detalleExistente);
+        } else {
+          // diferencia === 0 → misma cantidad total, pero puede cambiar presentación/encargado
+          if (detalleExistente && (IdProductoMedida || IdEmpleado)) {
+            if (productoMedida) detalleExistente.ProductoMedida = productoMedida;
+            detalleExistente.CantidadPresentacion = cantidadPresentacion;
+            detalleExistente.CantidadUnidades = cantidadUnidades;
+            if (IdEmpleado) detalleExistente.Empleado = await verifyEmpleado(IdEmpleado);
+            await queryRunner.manager.save(detalleExistente);
+          }
         }
-        // diferencia === 0 → no hay cambio
       }
 
       // Recalcular costos totales si la producción ya estaba finalizada o hubo cambios en productos
@@ -1124,6 +1148,8 @@ export const getProducciones = async (req: Request, res: Response) => {
             DISTINCT jsonb_build_object(
               'IdDetalleProduccion', dp.iddetalleproduccion,
               'Cantidad', dp.cantidad,
+              'CantidadPresentacion', dp.cantidadpresentacion,
+              'CantidadUnidades', dp.cantidadunidades,
               'CostoUnitario', dp.costounitario,
               'CostoTotal', dp.costototal,
               'CantidadMala', dp.cantidadmala,
@@ -1131,6 +1157,21 @@ export const getProducciones = async (req: Request, res: Response) => {
               'Producto', json_build_object(
                 'IdProducto', prod.idproducto,
                 'Nombre', prod.nombre
+              ),
+              'ProductoMedida', CASE WHEN dp.idproductomedida IS NOT NULL THEN jsonb_build_object(
+                'IdProductoMedida', pm.idproductomedida,
+                'Cantidad', pm.cantidad,
+                'Presentacion', json_build_object(
+                  'IdPresentacion', pres.idpresentacion,
+                  'Nombre', pres.nombre,
+                  'Abreviatura', pres.abreviatura,
+                  'Produccion', pres.produccion,
+                  'Venta', pres.venta
+                )
+              ) ELSE NULL END,
+              'Empleado', json_build_object(
+                'IdEmpleado', dp.idempleado,
+                'Nombre', COALESCE(pers4.nombre || ' ' || pers4.apellidopaterno, 'Sin asignar')
               )
             )
           ) FILTER (WHERE dp.iddetalleproduccion IS NOT NULL),
@@ -1176,26 +1217,32 @@ export const getProducciones = async (req: Request, res: Response) => {
           '[]'
         ) AS "DetalleHorno",
 
-        -- Salidas Detalladas (Quién produjo qué, en qué horno y a qué hora)
+        -- Salidas Detalladas (Quién produjo qué y a qué hora, desde el detalle de producción)
         COALESCE(
           (
             SELECT json_agg(
               jsonb_build_object(
-                'IdHornoProducto', hp.idhornoproducto,
-                'Cantidad', hp.cantidad,
-                'Hora', hp.hora,
-                'Producto', prod2.nombre,
-                'Empleado', pers2.nombre || ' ' || pers2.apellidopaterno,
-                'Horno', h2.nombre
+                'IdHornoProducto', dp3.iddetalleproduccion,
+                'Cantidad', dp3.cantidad,
+                'CantidadPresentacion', dp3.cantidadpresentacion,
+                'CantidadUnidades', dp3.cantidadunidades,
+                'CantidadMala', dp3.cantidadmala,
+                'Motivo', dp3.motivo,
+                'Hora', COALESCE(pe3.horainicio, p.horainicio),
+                'Producto', prod3.nombre,
+                'Empleado', pers3.nombre || ' ' || pers3.apellidopaterno,
+                'Presentacion', CASE WHEN dp3.idproductomedida IS NOT NULL THEN
+                  (SELECT pr3.nombre FROM productomedida pm3 INNER JOIN presentacion pr3 ON pr3.idpresentacion = pm3.idpresentacion WHERE pm3.idproductomedida = dp3.idproductomedida)
+                ELSE NULL END
               )
             )
-            FROM hornoproducto hp
-            INNER JOIN produccion_horno_detalle ph2 ON ph2.idproduccionhornodetalle = hp.idproduccionhornodetalle
-            INNER JOIN producto prod2 ON prod2.idproducto = hp.idproducto
-            INNER JOIN empleado emp2 ON emp2.idempleado = hp.idempleado
-            INNER JOIN persona pers2 ON pers2.idpersona = emp2.idpersona
-            INNER JOIN horno h2 ON h2.idhorno = ph2.idhorno
-            WHERE ph2.idproduccion = p.idproduccion
+            FROM detalle_produccion dp3
+            INNER JOIN producto prod3 ON prod3.idproducto = dp3.idproducto
+            LEFT JOIN empleado emp3 ON emp3.idempleado = dp3.idempleado
+            LEFT JOIN persona pers3 ON pers3.idpersona = emp3.idpersona
+            LEFT JOIN produccion_empleado pe3
+              ON pe3.idproduccion = dp3.idproduccion AND pe3.idempleado = dp3.idempleado
+            WHERE dp3.idproduccion = p.idproduccion
           ),
           '[]'
         ) AS "SalidasDetalladas"
@@ -1243,6 +1290,19 @@ export const getProducciones = async (req: Request, res: Response) => {
 
       LEFT JOIN cargo c
         ON c.idcargo = ec.idcargo
+
+      LEFT JOIN empleado emp4
+        ON emp4.idempleado = dp.idempleado
+
+      LEFT JOIN persona pers4
+        ON pers4.idpersona = emp4.idpersona
+
+      LEFT JOIN productomedida pm
+        ON pm.idproductomedida = dp.idproductomedida
+        AND pm.idproducto = dp.idproducto
+
+      LEFT JOIN presentacion pres
+        ON pres.idpresentacion = pm.idpresentacion
 
       LEFT JOIN produccion_horno_detalle ph
         ON ph.idproduccion = p.idproduccion
@@ -1444,28 +1504,59 @@ export const registrarMermaProduccion = async (req: Request, res: Response) => {
 
     if (!detalle) throw new Error("No se encontró el registro de este producto en la producción especificada.");
 
-    // 2. Buscar el lote en inventario asociado a esta producción
-    const lote = await queryRunner.manager.findOne(Inventario, {
-      where: { IdReferencia: IdProduccion, Producto: { IdProducto: IdProducto }, Estado: 1 }
-    });
-
-    if (!lote) throw new Error("No se encontró stock en inventario para esta producción.");
-
-    if (Number(lote.Stock) < Number(CantidadMala)) {
-      throw new Error(`Stock insuficiente en el lote para registrar la merma. Disponible: ${lote.Stock}`);
+    // La merma se envía como delta: positivo descuenta, negativo restaura
+    const delta = Number(CantidadMala);
+    const cantAnterior = Number(detalle.CantidadMala);
+    const cantNueva = cantAnterior + delta;
+    if (cantNueva < 0) {
+      throw new Error("La cantidad dañada no puede ser negativa.");
     }
 
-    // 3. Descontar del inventario
-    lote.Stock = Number(lote.Stock) - Number(CantidadMala);
-    if (lote.Stock <= 0) lote.Estado = 0;
-    await queryRunner.manager.save(lote);
+    // 2. Ajustar inventario según el delta
+    if (delta !== 0) {
+      let lote = await queryRunner.manager.findOne(Inventario, {
+        where: { IdReferencia: IdProduccion, Producto: { IdProducto: IdProducto }, Estado: 1 }
+      });
 
-    // 4. Registrar movimiento de salida por merma
-    await registrarMovimientoSalida(queryRunner, lote, "MERMA_PRODUCCION", Number(CantidadMala), IdProduccion);
+      if (delta > 0) {
+        if (!lote) throw new Error("No se encontró stock en inventario para esta producción.");
+        if (Number(lote.Stock) < delta) {
+          throw new Error(`Stock insuficiente en el lote para registrar la merma. Disponible: ${lote.Stock}`);
+        }
+
+        // 3a. Descontar del inventario
+        lote.Stock = Number(lote.Stock) - delta;
+        if (lote.Stock <= 0) {
+          lote.Estado = 0;
+          lote.Stock = 0;
+        }
+        await queryRunner.manager.save(lote);
+
+        // 4a. Registrar movimiento de salida por merma
+        await registrarMovimientoSalida(queryRunner, lote, "MERMA_PRODUCCION", delta, IdProduccion);
+      } else {
+        // Para restaurar stock se permite recuperar un lote agotado
+        if (!lote) {
+          lote = await queryRunner.manager.findOne(Inventario, {
+            where: { IdReferencia: IdProduccion, Producto: { IdProducto: IdProducto } }
+          });
+        }
+        if (!lote) throw new Error("No se encontró stock en inventario para esta producción.");
+
+        // 3b. Restaurar stock por reducción de merma
+        lote.Stock = Number(lote.Stock) + Math.abs(delta);
+        if (lote.Stock > 0) lote.Estado = 1;
+        await queryRunner.manager.save(lote);
+
+        // 4b. Registrar movimiento de entrada por ajuste de merma
+        await registrarMovimientoEntrada(queryRunner, lote, "AJUSTE_MERMA", IdProduccion, Math.abs(delta));
+      }
+    }
 
     // 5. Actualizar registro en detalle de producción (para reportes)
-    detalle.CantidadMala = Number(detalle.CantidadMala) + Number(CantidadMala);
     // Nota: La cantidad original se mantiene, pero ahora sabemos cuántos fueron mermas
+    detalle.CantidadMala = cantNueva;
+    if (Motivo !== undefined) detalle.Motivo = Motivo;
     await queryRunner.manager.save(detalle);
 
     await queryRunner.commitTransaction();

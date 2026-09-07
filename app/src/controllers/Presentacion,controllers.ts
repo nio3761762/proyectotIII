@@ -6,7 +6,7 @@ import { AppDataSource } from "../db";
 
 export const AddPresentacion = async (req: Request, res: Response) => {
     try {
-        const {Nombre,Abreviatura} = req.body;
+        const {Nombre,Abreviatura,Produccion,Venta} = req.body;
         
         const nuevo = new Presentacion();
         
@@ -14,6 +14,8 @@ export const AddPresentacion = async (req: Request, res: Response) => {
         nuevo.IdPresentacion = nuevoId;
         nuevo.Nombre =Nombre;
         nuevo.Abreviatura = Abreviatura
+        nuevo.Produccion = Produccion === false ? 0 : 1;
+        nuevo.Venta = Venta === false ? 0 : 1;
         nuevo.FechaRegistro = new Date();
         
         await nuevo.save();
@@ -30,7 +32,7 @@ export const AddPresentacion = async (req: Request, res: Response) => {
 export const updatePresentacion = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        const {Nombre,Abreviatura} = req.body;
+        const {Nombre,Abreviatura,Produccion,Venta} = req.body;
         
          const existe = await Presentacion.findOne({
           
@@ -43,6 +45,8 @@ export const updatePresentacion = async (req: Request, res: Response) => {
         existe.Nombre = Nombre;
         existe.FechaActualizacion = new Date();
         existe.Abreviatura = Abreviatura
+        existe.Produccion = Produccion === false ? 0 : 1;
+        existe.Venta = Venta === false ? 0 : 1;
         
         await existe.save();
 
@@ -109,6 +113,8 @@ export const getPresentacion = async (req: Request, res: Response) => {
           p.nombre,
           p.estado,
           p.abreviatura,
+          p.produccion,
+          p.venta,
           COUNT(*) OVER() AS total
       FROM presentacion p
       WHERE 

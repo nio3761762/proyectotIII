@@ -57,61 +57,8 @@
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <!-- Left Column: Ovens and Employees -->
-      <div class="lg:col-span-1 space-y-6">
-        <!-- Section: Hornos -->
-        <div class="bg-white/80 backdrop-blur-sm rounded-3xl p-6 shadow-xl border border-white/50">
-          <div class="flex items-center justify-between mb-6">
-            <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
-              <Flame class="h-5 w-5 text-orange-500" />
-              Hornos
-            </h3>
-            <button 
-              @click="abrirModalEncender"
-              class="p-2 bg-orange-100 text-orange-600 rounded-xl hover:bg-orange-200 transition-colors"
-            >
-              <Plus class="h-5 w-5" />
-            </button>
-          </div>
-
-          <div v-if="produccion.DetalleHorno?.filter(h => !h.HoraFin).length === 0" class="text-center py-8 text-gray-400 border-2 border-dashed border-gray-100 rounded-2xl">
-            <p class="text-sm font-medium">No hay hornos encendidos</p>
-          </div>
-          
-          <div v-else class="space-y-4">
-            <div v-for="h in produccion.DetalleHorno.filter(h => !h.HoraFin)" :key="h.IdProduccionHornoDetalle" class="p-4 bg-orange-50 rounded-2xl border border-orange-100">
-              <div class="flex justify-between items-start mb-2">
-                <div>
-                  <p class="font-bold text-gray-800">{{ h.Horno?.Nombre }}</p>
-                  <p class="text-xs text-orange-600 font-bold uppercase tracking-wider">{{ h.TipoEnergia }}</p>
-                </div>
-                <div class="flex flex-col gap-1">
-                  <button 
-                    @click="abrirCambioCombustible(h)"
-                    class="text-[10px] bg-white text-gray-600 px-2 py-1 rounded-lg border border-gray-200 hover:bg-gray-50 font-bold uppercase"
-                  >
-                    Cambiar
-                  </button>
-                  <button 
-                    @click="handleApagarHorno(h)"
-                    class="text-[10px] bg-red-50 text-red-600 px-2 py-1 rounded-lg border border-red-100 hover:bg-red-100 font-bold uppercase"
-                  >
-                    Apagar
-                  </button>
-                </div>
-              </div>
-              <div class="flex items-center justify-between text-[10px] text-gray-500 font-bold uppercase">
-                <span>Desde: {{ h.HoraInicio }}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Section: Empleados (hidden) -->
-      </div>
-
       <!-- Right Column: Registration and Details -->
-      <div class="lg:col-span-2 space-y-6">
+      <div class="lg:col-span-3 space-y-6">
         <div class="bg-white/80 backdrop-blur-sm rounded-3xl p-8 shadow-xl border border-white/50 h-full">
           
           <!-- Cost Summary Section (Now at the top) -->
@@ -164,8 +111,9 @@
                 <thead>
                   <tr class="text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100">
                     <th class="py-3 pr-2">Producto</th>
-                    <th class="py-3 px-2">Cantidad</th>
-                    <th class="py-3 px-2">Horno</th>
+                    <th class="py-3 px-2">Presentación</th>
+                    <th class="py-3 px-2">Cant. Presentación</th>
+                    <th class="py-3 px-2">Total Unidades</th>
                     <th class="py-3 px-2">Responsable</th>
                     <th class="py-3 px-2">Hora</th>
                     <th class="py-3 pl-2 w-10"></th>
@@ -175,6 +123,7 @@
                   <tr v-for="(fila, idx) in salidasMasivas" :key="idx" class="hover:bg-orange-50/20 transition-colors">
                     <td class="py-2 pr-2">
                       <select 
+                        @change="onProductoChange(fila)"
                         v-model="fila.IdProducto"
                         required
                         class="w-full px-3 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none font-bold text-gray-700 text-xs"
@@ -184,26 +133,33 @@
                       </select>
                     </td>
                     <td class="py-2 px-2">
-                      <input 
-                        v-model.number="fila.Cantidad"
-                        type="number"
-                        min="1"
-                        class="w-20 px-3 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none font-black text-gray-800 text-center text-sm"
-                      />
-                    </td>
-                    <td class="py-2 px-2">
                       <select 
-                        v-model="fila.IdHorno"
-                        required
-                        class="w-full px-3 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none font-bold text-gray-700 text-xs"
+                        @change="onPresentacionChange(fila)"
+                        v-model="fila.IdProductoMedida"
+                        :disabled="!fila.presentaciones.length"
+                        class="w-full px-3 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none font-bold text-gray-700 text-xs disabled:opacity-50"
                       >
-                        <option value="" disabled>Horno</option>
-                        <option v-for="h in produccion.DetalleHorno?.filter(h => !h.HoraFin)" :key="h.Horno?.IdHorno" :value="h.Horno?.IdHorno">
-                          {{ h.Horno?.Nombre }}
+                        <option value="" disabled>Presentación</option>
+                        <option v-for="pm in fila.presentaciones" :key="pm.idproductomedida" :value="pm.idproductomedida">
+                          {{ pm.presentacion?.Nombre || pm.nombre }} (x{{ pm.cantidad }})
                         </option>
                       </select>
                     </td>
                     <td class="py-2 px-2">
+                      <input 
+                        v-model.number="fila.CantidadPresentacion"
+                        @input="calcularTotalFila(fila)"
+                        type="number"
+                        min="1"
+                        class="w-24 px-3 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none font-black text-gray-800 text-center text-sm"
+                      />
+                    </td>
+                    <td class="py-2 px-2">
+                      <span class="px-3 py-3 bg-orange-50 border border-orange-100 rounded-xl font-black text-orange-700 text-sm block text-center min-w-[80px]">
+                        {{ fila.CantidadUnidades }}
+                      </span>
+                    </td>
+                    <td class="py-2 pr-2">
                       <select 
                         v-model="fila.IdEmpleado"
                         class="w-full px-3 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none font-bold text-gray-700 text-xs"
@@ -239,15 +195,12 @@
           <div class="pt-2">
             <button 
               @click="handleRegistrarMasivo"
-              :disabled="submittingSalida || !tieneHornosActivos || salidasMasivas.length === 0"
+              :disabled="submittingSalida || salidasMasivas.length === 0"
               class="w-full py-5 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-[2rem] font-black text-lg tracking-[0.2em] shadow-xl hover:shadow-green-200 transition-all transform hover:scale-[1.01] active:scale-95 flex items-center justify-center gap-3 disabled:opacity-50"
             >
               <component :is="submittingSalida ? Loader2 : CheckCircle" :class="['h-6 w-6', { 'animate-spin': submittingSalida }]" />
               {{ submittingSalida ? 'PROCESANDO...' : `REGISTRAR ${salidasMasivas.length} SALIDA(S)` }}
             </button>
-            <p v-if="!tieneHornosActivos" class="text-center text-xs text-red-500 font-bold mt-2 uppercase">
-              Debes encender al menos un horno para registrar productos
-            </p>
           </div>
 
           <!-- Detalle de Producción por Empleado (Now at the bottom) -->
@@ -276,8 +229,9 @@
                       <tr class="text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-50">
                         <th class="px-6 py-3">Hora Registro</th>
                         <th class="px-6 py-3">Producto</th>
-                        <th class="px-6 py-3 text-center">Cantidad</th>
-                        <th class="px-6 py-3">Horno</th>
+                        <th class="px-6 py-3">Presentación</th>
+                        <th class="px-6 py-3 text-center">Cant. Presentación</th>
+                        <th class="px-6 py-3 text-center">Cantidad (Uds)</th>
                       </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-50">
@@ -290,16 +244,18 @@
                         <td class="px-6 py-3">
                           <p class="text-sm font-bold text-gray-800">{{ log.Producto }}</p>
                         </td>
+                        <td class="px-6 py-3">
+                          <p class="text-xs font-bold text-gray-500 italic">{{ log.Presentacion || '—' }}</p>
+                        </td>
                         <td class="px-6 py-3 text-center">
-                          <span class="text-sm font-black text-orange-600 bg-orange-50 px-3 py-1 rounded-xl">
-                            {{ log.Cantidad }}
+                          <span class="text-xs font-black text-orange-600 bg-orange-50 px-3 py-1 rounded-xl">
+                            {{ log.CantidadPresentacion || '—' }}
                           </span>
                         </td>
-                        <td class="px-6 py-3">
-                          <div class="flex items-center gap-2 text-xs font-bold text-gray-600">
-                            <Flame class="h-3.5 w-3.5 text-orange-400" />
-                            {{ log.Horno }}
-                          </div>
+                        <td class="px-6 py-3 text-center">
+                          <span class="text-xs font-black text-orange-600 bg-orange-50 px-3 py-1 rounded-xl">
+                            {{ log.CantidadUnidades || log.Cantidad }}
+                          </span>
                         </td>
                       </tr>
                     </tbody>
@@ -417,106 +373,6 @@
       </div>
     </div>
 
-    <!-- Modal: Encender Horno -->
-    <div v-if="showEncenderModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-      <div class="bg-white rounded-[2.5rem] w-full max-w-md overflow-hidden shadow-2xl animate-scale-in">
-        <div class="p-8">
-          <h3 class="text-2xl font-black text-gray-800 mb-6 flex items-center gap-3">
-             <div class="p-3 bg-orange-500 rounded-2xl shadow-lg shadow-orange-200">
-                <Flame class="h-6 w-6 text-white" />
-             </div>
-             Encender Horno
-          </h3>
-          
-          <div class="space-y-6">
-            <div class="space-y-2">
-              <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Seleccionar Horno</label>
-              <select v-model="hornoForm.IdHorno" class="w-full px-5 py-4 bg-gray-50 border-0 rounded-2xl focus:ring-2 focus:ring-orange-500 font-bold text-gray-700">
-                <option value="" disabled>Elegir Horno</option>
-                <option v-for="h in hornosDisponibles" :key="h.IdHorno" :value="h.IdHorno">{{ h.Nombre }}</option>
-              </select>
-            </div>
-
-            <div v-if="selectedHorno" class="space-y-2">
-              <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Tipo de Energía</label>
-              <div class="grid grid-cols-2 gap-3">
-                <button 
-                  v-for="e in selectedHorno.Energia" 
-                  :key="e.Tipo"
-                  type="button"
-                  @click="hornoForm.TipoEnergia = e.Tipo"
-                  :class="['px-4 py-3 rounded-2xl text-xs font-black uppercase tracking-tighter transition-all border-2', 
-                    hornoForm.TipoEnergia === e.Tipo ? 'bg-orange-500 border-orange-500 text-white shadow-lg shadow-orange-200' : 'bg-white border-gray-100 text-gray-400 hover:border-orange-200']"
-                >
-                  {{ e.Tipo }}
-                </button>
-              </div>
-            </div>
-
-            <div class="space-y-2">
-              <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Hora de Encendido</label>
-              <input type="time" v-model="hornoForm.HoraInicio" class="w-full px-5 py-4 bg-gray-50 border-0 rounded-2xl focus:ring-2 focus:ring-orange-500 font-bold text-gray-700" required />
-            </div>
-          </div>
-
-          <div class="flex gap-4 mt-10">
-            <button @click="showEncenderModal = false" class="flex-1 py-4 bg-gray-100 text-gray-500 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-gray-200 transition-all">Cancelar</button>
-            <button 
-              @click="handleEncenderHorno"
-              :disabled="!hornoForm.IdHorno || !hornoForm.TipoEnergia || submittingHorno"
-              class="flex-1 py-4 bg-orange-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-orange-100 hover:bg-orange-600 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-            >
-               <Loader2 v-if="submittingHorno" class="h-4 w-4 animate-spin" />
-               {{ submittingHorno ? 'ENCENDIENDO...' : 'ENCENDER' }}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Modal: Cambiar Combustible -->
-    <div v-if="showCambioModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-      <div class="bg-white rounded-[2.5rem] w-full max-w-md overflow-hidden shadow-2xl animate-scale-in">
-        <div class="p-8">
-          <h3 class="text-2xl font-black text-gray-800 mb-2">Cambiar Energía</h3>
-          <p class="text-gray-400 text-sm font-bold uppercase tracking-wider mb-8">{{ selectedDetalleHorno?.Horno?.Nombre }}</p>
-          
-          <div class="space-y-4">
-            <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Nueva Energía</label>
-            <div class="grid grid-cols-2 gap-3">
-              <button 
-                v-for="e in hornosDisponibles.find(h => h.IdHorno === selectedDetalleHorno?.Horno?.IdHorno)?.Energia" 
-                :key="e.Tipo"
-                type="button"
-                @click="nuevoTipoEnergia = e.Tipo"
-                :class="['px-4 py-3 rounded-2xl text-xs font-black uppercase tracking-tighter transition-all border-2', 
-                  nuevoTipoEnergia === e.Tipo ? 'bg-orange-500 border-orange-500 text-white shadow-lg shadow-orange-200' : 'bg-white border-gray-100 text-gray-400 hover:border-orange-200']"
-              >
-                {{ e.Tipo }}
-              </button>
-            </div>
-
-            <div class="space-y-2 mt-4">
-              <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Hora del Cambio</label>
-              <input type="time" v-model="horaCambioCombustible" class="w-full px-5 py-4 bg-gray-50 border-0 rounded-2xl focus:ring-2 focus:ring-orange-500 font-bold text-gray-700" required />
-            </div>
-          </div>
-
-          <div class="flex gap-4 mt-10">
-            <button @click="showCambioModal = false" class="flex-1 py-4 bg-gray-100 text-gray-500 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-gray-200 transition-all">Cancelar</button>
-            <button 
-              @click="handleCambiarCombustible"
-              :disabled="!nuevoTipoEnergia || submittingCambio"
-              class="flex-1 py-4 bg-orange-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-orange-100 hover:bg-orange-600 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-            >
-               <Loader2 v-if="submittingCambio" class="h-4 w-4 animate-spin" />
-               {{ submittingCambio ? 'CAMBIANDO...' : 'CONFIRMAR' }}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-
     <!-- Modal: Finalizar Producción -->
     <div v-if="showFinalizarModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[120] flex items-center justify-center p-4">
       <div class="bg-white rounded-[2.5rem] w-full max-w-sm overflow-hidden shadow-2xl animate-scale-in text-center">
@@ -525,7 +381,7 @@
             <AlertTriangle class="h-10 w-10" />
           </div>
           <h3 class="text-2xl font-black text-gray-800 mb-2">¿Finalizar Producción?</h3>
-          <p class="text-gray-500 text-sm mb-6">Esto cerrará todos los turnos de empleados y el consumo de hornos.</p>
+          <p class="text-gray-500 text-sm mb-6">Esto cerrará todos los turnos de empleados.</p>
           
           <div class="space-y-2 mb-8 text-left">
             <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Hora de Cierre Total</label>
@@ -628,17 +484,15 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue';
 import { 
-  Factory, Clock, Plus, Flame, Users, User, LogOut, PackagePlus, 
+  Factory, Clock, Plus, Users, User, LogOut, PackagePlus, 
   Package, CheckCircle, Loader2, AlertTriangle, Power, X, Warehouse, Trash2
 } from 'lucide-vue-next';
 
 import { 
-  encenderHorno, cambiarCombustibleHorno, finalizarTurnoEmpleado, 
-  registrarSalidaProducto, finalizarProduccionTotal, Agregarempleado, getInsumosSucursal,
-  descartarProducto, apagarHorno, registrarSalidaProductoMasiva
+  finalizarTurnoEmpleado, finalizarProduccionTotal, Agregarempleado, getInsumosSucursal,
+  descartarProducto, registrarSalidaProductoMasiva
 } from '@/Server/Produccion';
-import { ListHornos } from '@/Server/Sucural';
-import { listProduct } from '@/Server/Producto';
+import { listProduct, listMedidasdeProducto } from '@/Server/Producto';
 import { ListEmpleado } from '@/Server/Empleado';
 
 const props = defineProps({
@@ -648,42 +502,25 @@ const props = defineProps({
 const emit = defineEmits(['updated', 'toast', 'close']);
 
 // State
-const hornosDisponibles = ref([]); 
 const productos = ref([]);
 const empleadosDisponibles = ref([]);
 const insumosStock = ref([]);
 const loadingInsumos = ref(false);
 
-const submittingHorno = ref(false);
-const submittingCambio = ref(false);
 const submittingSalida = ref(false);
 const submittingFinalizar = ref(false);
 const submittingAddEmpleado = ref(false);
 const submittingDescarte = ref(false);
-const submittingApagarHorno = ref(false);
 
 // Modals
-const showEncenderModal = ref(false);
-const showCambioModal = ref(false);
 const showFinalizarModal = ref(false);
 const showAddEmpleadoModal = ref(false);
 const showInsumosModal = ref(false);
 const showDescartarModal = ref(false);
 // Forms
-const hornoForm = reactive({
-  IdHorno: '',
-  TipoEnergia: '',
-  HoraInicio: ''
-});
-
-const selectedDetalleHorno = ref(null);
-const nuevoTipoEnergia = ref('');
-const horaCambioCombustible = ref('');
-
 const salidaForm = reactive({
   IdProducto: '',
   Cantidad: 1,
-  IdHorno: '',
   IdEmpleado: '',
   HoraRegistro: ''
 });
@@ -695,8 +532,11 @@ const agregarFila = () => {
   const primerEmp = props.produccion.Empleados?.find(e => !e.HoraFin);
   salidasMasivas.value.push({
     IdProducto: '',
+    IdProductoMedida: '',
     Cantidad: 1,
-    IdHorno: '',
+    CantidadPresentacion: 1,
+    CantidadUnidades: 0,
+    presentaciones: [],
     IdEmpleado: primerEmp?.Empleado?.IdEmpleado || '',
     HoraRegistro: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
   });
@@ -706,9 +546,41 @@ const removerFila = (idx) => {
   salidasMasivas.value.splice(idx, 1);
 };
 
-const tieneHornosActivos = computed(() => {
-  return props.produccion.DetalleHorno?.some(h => !h.HoraFin) || false;
-});
+// 🔥 Presentación y cantidades
+const onProductoChange = async (fila) => {
+  fila.IdProductoMedida = '';
+  fila.presentaciones = [];
+  fila.CantidadUnidades = 0;
+  if (!fila.IdProducto) return;
+  try {
+    const res = await listMedidasdeProducto(fila.IdProducto);
+    let medidas = Array.isArray(res) ? res : (res?.result || []);
+    // Filtrar solo presentaciones de producción
+    medidas = medidas.filter(m => {
+      const prodFlag = m.presentacion?.Produccion;
+      return prodFlag === undefined || prodFlag === 1 || prodFlag === true;
+    });
+    fila.presentaciones = medidas;
+  } catch (error) {
+    console.error('Error cargando presentaciones:', error);
+    fila.presentaciones = [];
+  }
+};
+
+const onPresentacionChange = (fila) => {
+  fila.CantidadPresentacion = fila.CantidadPresentacion || 1;
+  calcularTotalFila(fila);
+};
+
+const obtenerUnidadesPresentacion = (fila) => {
+  const pm = fila.presentaciones.find(p => p.idproductomedida === fila.IdProductoMedida);
+  return Number(pm?.cantidad) || 0;
+};
+
+const calcularTotalFila = (fila) => {
+  const unidadesPorPresentacion = obtenerUnidadesPresentacion(fila);
+  fila.CantidadUnidades = Number(fila.CantidadPresentacion || 0) * unidadesPorPresentacion;
+};
 
 const descarteForm = reactive({
   IdProducto: '',
@@ -728,10 +600,6 @@ const horaFinProduccion = ref('');
 const horaActual = ref(new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }));
 
 // Computed
-const selectedHorno = computed(() => {
-  return hornosDisponibles.value.find(h => h.IdHorno === hornoForm.IdHorno);
-});
-
 const filteredEmpleadosParaAgregar = computed(() => {
   const idsAsignados = props.produccion.Empleados?.map(pe => pe.Empleado?.IdEmpleado) || [];
   return empleadosDisponibles.value.filter(e => !idsAsignados.includes(e.idempleado));
@@ -761,19 +629,10 @@ const formatTime = (timeStr) => {
 // Data Loading
 const loadInitialData = async () => {
   try {
-    const [h, p, e] = await Promise.all([
-      ListHornos(props.produccion.Sucursal.IdSucursal),
+    const [p, e] = await Promise.all([
       listProduct(),
       ListEmpleado(props.produccion.Sucursal.IdSucursal)
     ]);
-    
-    // Transform Hornos
-    const listH = h.result || h;
-    hornosDisponibles.value = listH.map(item => ({
-      IdHorno: item.idhorno,
-      Nombre: item.nombre,
-      Energia: (item.energias || []).map(e => ({ Tipo: e.tipoEnergia }))
-    }));
 
     productos.value = p.result || p;
     empleadosDisponibles.value = e.result || e;
@@ -805,47 +664,6 @@ onMounted(() => {
 });
 
 // Handlers
-const abrirModalEncender = () => {
-  hornoForm.IdHorno = '';
-  hornoForm.TipoEnergia = '';
-  hornoForm.HoraInicio = '';
-  showEncenderModal.value = true;
-};
-
-const handleEncenderHorno = async () => {
-  if (!hornoForm.HoraInicio) {
-    emit('toast', 'Debe ingresar la hora de inicio', 'error');
-    return;
-  }
-  submittingHorno.value = true;
-  try {
-     await encenderHorno(props.produccion.IdProduccion, hornoForm.IdHorno, hornoForm.TipoEnergia, hornoForm.HoraInicio);
-    emit('toast', 'Horno encendido correctamente', 'success');
-    showEncenderModal.value = false;
-    emit('updated');
-  } catch (error) {
-    emit('toast', 'Error al encender horno', 'error');
-  } finally {
-    submittingHorno.value = false;
-  }
-};
-
-const handleApagarHorno = async (h) => {
-  const horaFin = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  if (!confirm(`¿Desea apagar el horno ${h.Horno?.Nombre}?`)) return;
-  
-  submittingApagarHorno.value = true;
-  try {
-    await apagarHorno(props.produccion.IdProduccion, h.Horno.IdHorno, horaFin);
-    emit('toast', 'Horno apagado con éxito', 'success');
-    emit('updated');
-  } catch (error) {
-    emit('toast', 'Error al apagar horno', 'error');
-  } finally {
-    submittingApagarHorno.value = false;
-  }
-};
-
 const abrirModalAddEmpleado = () => {
   selectedEmpleadoToAdd.value = '';
   horaInicioEmpleado.value = '';
@@ -872,37 +690,6 @@ const abrirModalInsumos = () => {
   showInsumosModal.value = true;
 };
 
-const abrirCambioCombustible = (h) => {
-  selectedDetalleHorno.value = h;
-  nuevoTipoEnergia.value = '';
-  horaCambioCombustible.value = '';
-  showCambioModal.value = true;
-};
-
-const handleCambiarCombustible = async () => {
-  if (!horaCambioCombustible.value) {
-    emit('toast', 'Debe ingresar la hora de cambio', 'error');
-    return;
-  }
-  submittingCambio.value = true;
-  try {
-      await cambiarCombustibleHorno(
-      props.produccion.IdProduccion, 
-      selectedDetalleHorno.value.Horno.IdHorno, 
-      nuevoTipoEnergia.value,
-      props.produccion.Sucursal.IdSucursal,
-      horaCambioCombustible.value
-    );
-    emit('toast', 'Combustible cambiado', 'success');
-    showCambioModal.value = false;
-    emit('updated');
-  } catch (error) {
-    emit('toast', 'Error al cambiar combustible', 'error');
-  } finally {
-    submittingCambio.value = false;
-  }
-};
-
 const confirmarFinTurno = (pe) => {
   selectedPeToFinalize.value = pe;
   horaFinTurno.value = '';
@@ -922,16 +709,25 @@ const handleFinTurno = async () => {
 };
 
 const handleRegistrarMasivo = async () => {
-  const incompletas = salidasMasivas.value.filter(f => !f.IdProducto || !f.Cantidad || !f.IdHorno);
+  salidasMasivas.value.forEach(f => calcularTotalFila(f));
+  const incompletas = salidasMasivas.value.filter(f => !f.IdProducto || !f.IdProductoMedida || !f.CantidadPresentacion);
   if (incompletas.length > 0) {
-    emit('toast', 'Complete todas las filas antes de registrar', 'error');
+    emit('toast', 'Complete presentación y cantidad de presentación en todas las filas', 'error');
     return;
   }
 
   submittingSalida.value = true;
   try {
-    await registrarSalidaProductoMasiva(props.produccion.IdProduccion, salidasMasivas.value);
-    emit('toast', `${salidasMasivas.value.length} salida(s) registrada(s) con éxito`, 'success');
+    const payload = salidasMasivas.value.map(f => ({
+      IdProducto: f.IdProducto,
+      IdProductoMedida: f.IdProductoMedida,
+      CantidadPresentacion: Number(f.CantidadPresentacion) || 0,
+      Cantidad: Number(f.CantidadUnidades) || 0,
+      IdEmpleado: f.IdEmpleado || undefined,
+      HoraRegistro: f.HoraRegistro
+    }));
+    await registrarSalidaProductoMasiva(props.produccion.IdProduccion, payload);
+    emit('toast', `${payload.length} salida(s) registrada(s) con éxito`, 'success');
     salidasMasivas.value = [];
     emit('updated');
   } catch (error) {

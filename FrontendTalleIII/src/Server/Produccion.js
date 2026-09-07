@@ -362,10 +362,10 @@ export const cambiarCombustibleHorno = async ( IdProduccion, IdHorno, NuevoTipoE
   }
 };
 
-export const registrarSalidaProducto = async ( IdProduccion, IdProducto, IdEmpleado, Cantidad, IdHorno, IdSucursal, HoraRegistro) => {
+export const registrarSalidaProducto = async ( IdProduccion, IdProducto, IdEmpleado, Cantidad, HoraRegistro) => {
   try {
     const response = await API.post('produccion/producto/salida', { 
-     IdProduccion, IdProducto, IdEmpleado, Cantidad, IdHorno, HoraRegistro
+     IdProduccion, IdProducto, IdEmpleado, Cantidad, HoraRegistro
     });
     return response.data;
 

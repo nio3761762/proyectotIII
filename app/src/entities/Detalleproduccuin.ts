@@ -2,6 +2,8 @@ import { BaseEntity, Column, Entity, JoinColumn, ManyToOne, PrimaryColumn } from
 import { Produccion } from "./Produccion";
 import { Producto } from "./Producto";
 import { Empleado } from "./Empleado";
+import { Presentacion } from "./Presentacion";
+import { Productomedida } from "./ProductoMedida";
 
 @Entity()
 export class DetalleProduccion extends BaseEntity {
@@ -21,8 +23,22 @@ export class DetalleProduccion extends BaseEntity {
   @JoinColumn({ name: "idempleado" })
   Empleado: Empleado;
 
+  @ManyToOne(() => Presentacion, (p) => p.Productomedida, { nullable: true })
+  @JoinColumn({ name: "idpresentacion" })
+  Presentacion: Presentacion;
+
+  @ManyToOne(() => Productomedida, { nullable: true })
+  @JoinColumn({ name: "idproductomedida" })
+  ProductoMedida: Productomedida;
+
   @Column({ name: "cantidad", type: "numeric", precision: 10, scale: 2 })
   Cantidad: number;
+
+  @Column({ name: "cantidadpresentacion", type: "numeric", precision: 10, scale: 2, nullable: true, default: 0 })
+  CantidadPresentacion: number;
+
+  @Column({ name: "cantidadunidades", type: "numeric", precision: 12, scale: 2, nullable: true, default: 0 })
+  CantidadUnidades: number;
 
   @Column({ name: "cantidadmala", type: "numeric", precision: 10, scale: 2, default: 0 })
   CantidadMala: number;

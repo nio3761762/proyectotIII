@@ -71,4 +71,14 @@ export const actualizarGastoExtra = async (id, gastoExtra) => {
   }
 };
 
+export const actualizarControlCompleto = async (idControl, payload) => {
+  try {
+    const response = await API.put(`revendedorControl/${idControl}`, payload);
+    return response.data;
+  } catch (error) {
+    console.error('Error al actualizar el control completo:', error.response);
+    throw error;
+  }
+};
+
 

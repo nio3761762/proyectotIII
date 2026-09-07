@@ -154,8 +154,9 @@
                <p class="text-sm font-black text-gray-800 leading-none mt-1">Bs {{ formatCurrency(netoFinal) }}</p>
             </div>
         </div>
-        <button class="p-3 bg-gray-50 hover:bg-orange-50 text-gray-400 hover:text-orange-600 rounded-2xl transition-all border border-gray-100 hover:border-orange-200">
-           <FileText class="h-5 w-5" />
+        <button @click="$emit('edit', control)" title="Editar registro"
+          class="p-3 bg-gray-50 hover:bg-orange-50 text-gray-400 hover:text-orange-600 rounded-2xl transition-all border border-gray-100 hover:border-orange-200">
+           <Edit2 class="h-5 w-5" />
         </button>
       </div>
     </div>
@@ -166,7 +167,7 @@
 import { ref, computed } from 'vue';
 import { 
   User as UserIcon, Building2, ChevronDown, Edit2, Calendar, 
-  Package, TrendingUp, Info, FileText 
+  Package, TrendingUp, Info
 } from 'lucide-vue-next';
 import { actualizarGastoExtra } from '@/Server/ControlRevendedor';
 
@@ -174,7 +175,7 @@ const props = defineProps({
   control: { type: Object, required: true }
 }); 
 
-defineEmits(['edit-detail']);
+defineEmits(['edit-detail', 'edit']);
 
 const expandido = ref(false);
 

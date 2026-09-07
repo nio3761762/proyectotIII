@@ -73,6 +73,61 @@
               </p>
             </Transition>
           </div>
+
+          <div class="space-y-3">
+            <label class="flex items-center text-gray-700 font-bold mb-1 ml-1">
+              <Package class="h-5 w-5 mr-2 text-orange-500" /> Tipo de Uso
+            </label>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <button
+                type="button"
+                @click="toggleUso('Produccion')"
+                :class="[
+                  'flex items-center gap-3 px-5 py-4 rounded-2xl border-2 transition-all duration-300 text-left',
+                  form.Produccion
+                    ? 'border-orange-500 bg-orange-50 shadow-md'
+                    : 'border-gray-200 bg-white hover:border-gray-300'
+                ]"
+              >
+                <div
+                  :class="[
+                    'h-6 w-6 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all',
+                    form.Produccion ? 'bg-orange-500 border-orange-500' : 'border-gray-300 bg-white'
+                  ]"
+                >
+                  <Check v-if="form.Produccion" class="h-4 w-4 text-white" />
+                </div>
+                <div>
+                  <p :class="['font-bold', form.Produccion ? 'text-orange-600' : 'text-gray-600']">Producción</p>
+                  <p class="text-xs text-gray-500">Usado para producir productos</p>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                @click="toggleUso('Venta')"
+                :class="[
+                  'flex items-center gap-3 px-5 py-4 rounded-2xl border-2 transition-all duration-300 text-left',
+                  form.Venta
+                    ? 'border-red-500 bg-red-50 shadow-md'
+                    : 'border-gray-200 bg-white hover:border-gray-300'
+                ]"
+              >
+                <div
+                  :class="[
+                    'h-6 w-6 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all',
+                    form.Venta ? 'bg-red-500 border-red-500' : 'border-gray-300 bg-white'
+                  ]"
+                >
+                  <Check v-if="form.Venta" class="h-4 w-4 text-white" />
+                </div>
+                <div>
+                  <p :class="['font-bold', form.Venta ? 'text-red-600' : 'text-gray-600']">Venta</p>
+                  <p class="text-xs text-gray-500">Usado para venta de productos</p>
+                </div>
+              </button>
+            </div>
+          </div>
         </div>
 
         <!-- Footer -->
@@ -102,7 +157,7 @@
 
 <script setup>
 import { ref, reactive, computed, watch, onMounted, nextTick } from 'vue';
-import { Package, X, Type, Save, LoaderCircle, AlertCircle } from 'lucide-vue-next';
+import { Package, X, Type, Save, LoaderCircle, AlertCircle, Check } from 'lucide-vue-next';
 
 const props = defineProps({
   show: { type: Boolean, default: false },
@@ -120,6 +175,8 @@ const formVacio = () => ({
   IdPresentacion: null,
   Nombre: '',
   Abreviatura: '',
+  Produccion: true,
+  Venta: true,
 });
 
 const form = reactive(formVacio());
@@ -135,6 +192,8 @@ const inicializar = () => {
     form.IdPresentacion = p.IdPresentacion || p.idpresentacion || null;
     form.Nombre = p.Nombre || p.nombre || '';
     form.Abreviatura = p.Abreviatura || p.abreviatura || '';
+    form.Produccion = (p.Produccion ?? p.produccion ?? 1) === 1;
+    form.Venta = (p.Venta ?? p.venta ?? 1) === 1;
   }
   errors.Nombre = '';
   errors.Abreviatura = '';
@@ -187,6 +246,10 @@ const validateForm = () => {
   errors.Nombre = validateField('Nombre', form.Nombre);
   errors.Abreviatura = validateField('Abreviatura', form.Abreviatura);
   return !errors.Nombre && !errors.Abreviatura;
+};
+
+const toggleUso = (campo) => {
+  form[campo] = !form[campo];
 };
 
 const guardar = () => {

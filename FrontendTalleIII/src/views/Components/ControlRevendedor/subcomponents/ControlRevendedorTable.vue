@@ -61,16 +61,22 @@
                 </div>
               </td>
               <td class="px-6 py-6 text-right align-middle">
-                <span
-                  :class="[
-                    'px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest shadow-xs',
-                    c.estado === 1 
-                      ? 'bg-orange-50 text-orange-600 border border-orange-100' 
-                      : 'bg-red-50 text-red-600 border border-red-100'
-                  ]"
-                >
-                  {{ c.estado === 1 ? 'Activo' : 'Anulado' }}
-                </span>
+                <div class="flex items-center justify-end gap-2">
+                  <span
+                    :class="[
+                      'px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest shadow-xs',
+                      c.estado === 1 
+                        ? 'bg-orange-50 text-orange-600 border border-orange-100' 
+                        : 'bg-red-50 text-red-600 border border-red-100'
+                    ]"
+                  >
+                    {{ c.estado === 1 ? 'Activo' : 'Anulado' }}
+                  </span>
+                  <button @click="$emit('edit', c)" title="Editar registro"
+                    class="p-2.5 bg-gray-50 hover:bg-orange-50 text-gray-400 hover:text-orange-600 rounded-xl transition-all border border-gray-100 hover:border-orange-200">
+                    <Edit2 class="h-4 w-4" />
+                  </button>
+                </div>
               </td>
             </tr>
             <!-- Details Row: Product Table -->
@@ -132,12 +138,14 @@
 </template>
 
 <script setup>
-import { Package, Building2 } from 'lucide-vue-next';
+import { Package, Building2, Edit2 } from 'lucide-vue-next';
 import { actualizarGastoExtra } from '@/Server/ControlRevendedor';
 
-defineProps({
+const props = defineProps({
   controles: { type: Array, required: true }
 });
+
+defineEmits(['edit']);
 
 const getAjustes = (d) => {
   return (d.PreciosAjustados || []).filter(p => p.Estado === 'AJUSTE');

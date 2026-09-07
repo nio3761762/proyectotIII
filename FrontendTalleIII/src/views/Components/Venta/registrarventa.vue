@@ -294,39 +294,35 @@
                   </button>
                 </div>
                 
-                <!-- Producto: controles separados para Menor y Mayor -->
-                <div v-if="item.type === 'producto'" class="flex flex-col gap-2 mt-1">
-                  <div class="flex items-center justify-between">
-                    <span class="text-xs font-semibold text-gray-500">Al por menor</span>
-                    <div class="flex items-center gap-2 bg-orange-50 rounded-xl p-1">
-                      <button @click="cambiarCantidadMenor(index, -1)" class="w-7 h-7 rounded-lg bg-white text-orange-600 shadow-sm hover:bg-orange-500 hover:text-white transition-all font-bold text-sm">-</button>
+                <!-- Producto: controles compactos menor/mayor en una sola fila -->
+                <div v-if="item.type === 'producto'" class="mt-1">
+                  <div class="flex items-center gap-2 flex-wrap">
+                    <!-- Menor -->
+                    <div class="flex items-center gap-1 bg-orange-50 rounded-xl px-2 py-1">
+                      <span class="text-[10px] font-bold text-gray-400 select-none">Mn</span>
+                      <button @click="cambiarMenor(index, -1)" class="w-6 h-6 rounded-md bg-white text-orange-600 shadow-sm hover:bg-orange-500 hover:text-white transition-all font-bold text-xs">-</button>
                       <input 
                         type="number"
                         :value="item.cantidadMenor"
-                        @change="onDirectCantidadMenor(index, $event.target.value)"
-                        class="w-14 text-center font-bold text-orange-700 bg-transparent border-none focus:ring-0 text-base [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        @change="onDirectMenor(index, $event.target.value)"
+                        class="w-10 text-center font-bold text-orange-700 bg-transparent border-none focus:ring-0 text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       />
-                      <button @click="cambiarCantidadMenor(index, 1)" class="w-7 h-7 rounded-lg bg-white text-orange-600 shadow-sm hover:bg-orange-500 hover:text-white transition-all font-bold text-sm">+</button>
+                      <button @click="cambiarMenor(index, 1)" class="w-6 h-6 rounded-md bg-white text-orange-600 shadow-sm hover:bg-orange-500 hover:text-white transition-all font-bold text-xs">+</button>
                     </div>
-                    <span class="text-sm font-bold text-gray-700">Bs {{ (item.cantidadMenor * item.precioVentaOriginal).toFixed(2) }}</span>
-                  </div>
-                  <div v-if="item.precioMayorOriginal" class="flex items-center justify-between">
-                    <span class="text-xs font-semibold text-orange-500">Al por mayor</span>
-                    <div class="flex items-center gap-2 bg-orange-50 rounded-xl p-1">
-                      <button @click="cambiarCantidadMayor(index, -1)" class="w-7 h-7 rounded-lg bg-white text-orange-600 shadow-sm hover:bg-orange-500 hover:text-white transition-all font-bold text-sm">-</button>
+                    <!-- Mayor -->
+                    <div v-if="item.precioMayorOriginal > 0" class="flex items-center gap-1 bg-orange-50 rounded-xl px-2 py-1">
+                      <span class="text-[10px] font-bold text-orange-400 select-none">My</span>
+                      <button @click="cambiarMayor(index, -1)" class="w-6 h-6 rounded-md bg-white text-orange-600 shadow-sm hover:bg-orange-500 hover:text-white transition-all font-bold text-xs">-</button>
                       <input 
                         type="number"
                         :value="item.cantidadMayor"
-                        @change="onDirectCantidadMayor(index, $event.target.value)"
-                        class="w-14 text-center font-bold text-orange-700 bg-transparent border-none focus:ring-0 text-base [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        @change="onDirectMayor(index, $event.target.value)"
+                        class="w-10 text-center font-bold text-orange-700 bg-transparent border-none focus:ring-0 text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       />
-                      <button @click="cambiarCantidadMayor(index, 1)" class="w-7 h-7 rounded-lg bg-white text-orange-600 shadow-sm hover:bg-orange-500 hover:text-white transition-all font-bold text-sm">+</button>
+                      <button @click="cambiarMayor(index, 1)" class="w-6 h-6 rounded-md bg-white text-orange-600 shadow-sm hover:bg-orange-500 hover:text-white transition-all font-bold text-xs">+</button>
                     </div>
-                    <span class="text-sm font-bold text-orange-600">Bs {{ (item.cantidadMayor * item.precioMayorOriginal).toFixed(2) }}</span>
-                  </div>
-                  <div class="flex justify-between items-center pt-1 border-t border-gray-100">
-                    <span class="text-xs font-bold text-gray-500">Total item</span>
-                    <span class="text-base font-black text-gray-900">Bs {{ ((item.cantidadMenor * item.precioVentaOriginal) + (item.cantidadMayor * (item.precioMayorOriginal || item.precioVentaOriginal))).toFixed(2) }}</span>
+                    <!-- Total -->
+                    <span class="text-sm font-black text-gray-900 ml-auto">Bs {{ itemTotal(item).toFixed(2) }}</span>
                   </div>
                 </div>
 
@@ -1220,11 +1216,16 @@ const cargarUsuariosSucursal = async () => {
       }
     }
 
-    const u = JSON.parse(localStorage.getItem('usuario'));
-    if (u?.IdUsuario) {
-      const encontrado = usuariosSucursal.value.find(us => us.IdUsuario === u.IdUsuario);
-      if (encontrado) selectedUsuarioId.value = u.IdUsuario;
-      else if (usuariosSucursal.value.length > 0) selectedUsuarioId.value = usuariosSucursal.value[0].IdUsuario;
+    const yaSeleccionado = selectedUsuarioId.value && usuariosSucursal.value.find(us => us.IdUsuario === selectedUsuarioId.value);
+    if (!yaSeleccionado) {
+      const u = JSON.parse(localStorage.getItem('usuario'));
+      if (u?.IdUsuario) {
+        const encontrado = usuariosSucursal.value.find(us => us.IdUsuario === u.IdUsuario);
+        if (encontrado) selectedUsuarioId.value = u.IdUsuario;
+        else if (usuariosSucursal.value.length > 0) selectedUsuarioId.value = usuariosSucursal.value[0].IdUsuario;
+      } else if (usuariosSucursal.value.length > 0) {
+        selectedUsuarioId.value = usuariosSucursal.value[0].IdUsuario;
+      }
     }
   } catch (e) {
     console.error('Error al cargar usuarios de sucursal:', e);
@@ -1334,59 +1335,73 @@ const agregarPromocion = (promo) => {
   }
 };
 
-const verificarStockProducto = (item, deltaTotal) => {
-  if (deltaTotal <= 0) return true;
-  const productInStock = productosConStockReal.value.find(p => getProdId(p) === item.id);
-  if (!productInStock) return false;
-  if (deltaTotal * (parseFloat(item.multiplicador) || 1) > productInStock.cantidad) {
-    showNotification('Stock insuficiente', 'error');
-    return false;
+const _cambiarQty = (item, campo, delta) => {
+  const otro = campo === 'cantidadMenor' ? 'cantidadMayor' : 'cantidadMenor';
+  const multiplicador = parseFloat(item.multiplicador) || 1;
+  const nuevoCampo = item[campo] + delta;
+  if (nuevoCampo < 0) return false;
+  if (nuevoCampo + item[otro] < 1) return false;
+  let nuevoOtro = item[otro];
+
+  if (delta > 0) {
+    const nuevoTotal = nuevoCampo + nuevoOtro;
+    const productInStock = productosConStockReal.value.find(p => getProdId(p) === item.id);
+    // Stock disponible para este ítem = stock restante + lo que este mismo ítem ya consume
+    // (evita contar dos veces el consumo actual del propio ítem al cambiar de precio).
+    const disponibleParaItem = (productInStock?.cantidad || 0) + (item.cantidad * multiplicador);
+    const requerido = nuevoTotal * multiplicador;
+
+    if (requerido > disponibleParaItem) {
+      // Sin stock para SUMAR unidades: intentar convertir unidades del otro precio
+      // (ej: repreciar las unidades "menor" que ya tengo como "mayor") sin pasar el stock.
+      const excesoPaquetes = Math.ceil((requerido - disponibleParaItem) / multiplicador);
+      if (nuevoOtro >= excesoPaquetes && nuevoOtro - excesoPaquetes + nuevoCampo >= 1) {
+        nuevoOtro -= excesoPaquetes;
+      } else {
+        return false;
+      }
+    }
   }
+
+  item[campo] = nuevoCampo;
+  item[otro] = nuevoOtro;
+  item.cantidad = nuevoCampo + nuevoOtro;
   return true;
 };
 
-const cambiarCantidadMenor = (index, delta) => {
+const cambiarMenor = (index, delta) => {
   const item = carrito.value[index];
   if (item.type !== 'producto') return;
-  const nueva = item.cantidadMenor + delta;
-  if (nueva < 0 || item.cantidadMayor + nueva < 1) return;
-  if (!verificarStockProducto(item, delta)) return;
-  item.cantidadMenor = nueva;
-  item.cantidad = item.cantidadMenor + item.cantidadMayor;
+  if (!_cambiarQty(item, 'cantidadMenor', delta)) showNotification('Stock insuficiente', 'error');
 };
 
-const onDirectCantidadMenor = (index, value) => {
+const cambiarMayor = (index, delta) => {
+  const item = carrito.value[index];
+  if (item.type !== 'producto') return;
+  if (!_cambiarQty(item, 'cantidadMayor', delta)) showNotification('Stock insuficiente', 'error');
+};
+
+const onDirectMenor = (index, value) => {
   const item = carrito.value[index];
   if (item.type !== 'producto') return;
   const intVal = parseInt(value);
   if (isNaN(intVal) || intVal < 0) { showNotification('Cantidad inválida', 'error'); return; }
-  if (item.cantidadMayor + intVal < 1) { showNotification('Debe haber al menos 1 unidad', 'error'); return; }
   const delta = intVal - item.cantidadMenor;
-  if (!verificarStockProducto(item, delta)) return;
-  item.cantidadMenor = intVal;
-  item.cantidad = item.cantidadMenor + item.cantidadMayor;
+  if (!_cambiarQty(item, 'cantidadMenor', delta)) showNotification('Stock insuficiente o mín. 1 unidad', 'error');
 };
 
-const cambiarCantidadMayor = (index, delta) => {
-  const item = carrito.value[index];
-  if (item.type !== 'producto') return;
-  const nueva = item.cantidadMayor + delta;
-  if (nueva < 0 || item.cantidadMenor + nueva < 1) return;
-  if (!verificarStockProducto(item, delta)) return;
-  item.cantidadMayor = nueva;
-  item.cantidad = item.cantidadMenor + item.cantidadMayor;
-};
-
-const onDirectCantidadMayor = (index, value) => {
+const onDirectMayor = (index, value) => {
   const item = carrito.value[index];
   if (item.type !== 'producto') return;
   const intVal = parseInt(value);
   if (isNaN(intVal) || intVal < 0) { showNotification('Cantidad inválida', 'error'); return; }
-  if (item.cantidadMenor + intVal < 1) { showNotification('Debe haber al menos 1 unidad', 'error'); return; }
   const delta = intVal - item.cantidadMayor;
-  if (!verificarStockProducto(item, delta)) return;
-  item.cantidadMayor = intVal;
-  item.cantidad = item.cantidadMenor + item.cantidadMayor;
+  if (!_cambiarQty(item, 'cantidadMayor', delta)) showNotification('Stock insuficiente o mín. 1 unidad', 'error');
+};
+
+const itemTotal = (item) => {
+  if (item.type === 'promocion') return item.precioUnitario * item.cantidad;
+  return (item.cantidadMenor * item.precioVentaOriginal) + (item.cantidadMayor * (item.precioMayorOriginal || item.precioVentaOriginal));
 };
 
 const actualizarCantidad = (index, delta) => {
@@ -1475,10 +1490,7 @@ const filteredClientes = computed(() => {
   );
 });
 
-const subtotal = computed(() => carrito.value.reduce((acc, item) => {
-  if (item.type === 'promocion') return acc + (item.precioUnitario * item.cantidad);
-  return acc + (item.cantidadMenor * item.precioVentaOriginal) + (item.cantidadMayor * (item.precioMayorOriginal || item.precioVentaOriginal));
-}, 0));
+const subtotal = computed(() => carrito.value.reduce((acc, item) => acc + itemTotal(item), 0));
 
 const totalConGasto = computed(() => {
   const neto = subtotal.value;
@@ -1551,6 +1563,16 @@ onMounted(async () => {
       }
       if (selectedSucursalId.value) {
         await cargarUsuariosSucursal();
+        // Si el vendedor de la venta no está en la lista de la sucursal, agregarlo para que se muestre seleccionado
+        if (usuarioId && !usuariosSucursal.value.find(us => us.IdUsuario === usuarioId)) {
+          const nombreUsr = v.Usuario?.Usuario || v.usuario?.Usuario || v.usuario?.nombre || 'Vendedor';
+          usuariosSucursal.value.push({
+            IdUsuario: usuarioId,
+            Persona: { nombre: nombreUsr, apellidopaterno: '' },
+            nombre: nombreUsr,
+            apellidopaterno: ''
+          });
+        }
         fetchItems();
       }
       
@@ -1580,7 +1602,7 @@ onMounted(async () => {
           const idMedida = d.idproductomedida || d.IdProductoMedida || d.Productomedida?.IdProductoMedida || d.Productomedida?.idproductomedida;
           const productId = d.Productomedida?.Producto?.IdProducto || d.Productomedida?.IdProducto || d.idproducto;
           const key = productId + '|' + idMedida;
-          const hasPrecioMayor = d.PrecioMayor != null && d.PrecioMayor > 0;
+          const esMayor = d.PrecioMayor != null && d.PrecioMayor > 0;
           const qty = parseInt(d.Cantidad || d.cantidad || 0);
 
           if (!productosMap[key]) {
@@ -1596,7 +1618,7 @@ onMounted(async () => {
               multiplicador: parseFloat(d.Productomedida?.Cantidad || d.Productomedida?.cantidad || 1)
             };
           }
-          if (hasPrecioMayor) {
+          if (esMayor) {
             productosMap[key].cantidadMayor += qty;
           } else {
             productosMap[key].cantidadMenor += qty;
@@ -1624,6 +1646,7 @@ onMounted(async () => {
         }
       }
       if (v.horaventa) horaVenta.value = v.horaventa.substring(0, 5);
+      gastoExtra.value = Number(v.GastoExtra || v.gastoextra || 0);
     }
 
     // If there is a pending persona, add it to the list and select it
