@@ -58,7 +58,7 @@ export const getReporteProduccionVsVenta = async (req: Request, res: Response) =
         pm.idproducto,
         pr.nombre as producto,
         SUM((rcd.cantidadentregada - rcd.cantidaddevuelta) * COALESCE(pm.cantidad, 1)) as cantidad_vendida,
-        SUM(((rcd.cantidadentregada - rcd.cantidaddevuelta) * COALESCE(pm.cantidad, 1)) * rcd.precioventa) as total_venta
+        SUM(((rcd.cantidadentregada - rcd.cantidaddevuelta) * COALESCE(pm.cantidad, 1)) * COALESCE(pm.preciomayor, rcd.precioventa)) as total_venta
       FROM revendedorcontroldetalle rcd
       INNER JOIN revendedorcontrol rc ON rcd.idrevendedorcontrol = rc.idrevendedorcontrol
       INNER JOIN productomedida pm ON rcd.idproductomedida = pm.idproductomedida
@@ -106,7 +106,7 @@ export const getReporteProduccionVsVenta = async (req: Request, res: Response) =
         pm.idproducto,
         pr.nombre as producto,
         SUM((rcd.cantidadentregada - rcd.cantidaddevuelta) * COALESCE(pm.cantidad, 1)) as cantidad_vendida,
-        SUM(((rcd.cantidadentregada - rcd.cantidaddevuelta) * COALESCE(pm.cantidad, 1)) * rcd.precioventa) as total_venta
+        SUM(((rcd.cantidadentregada - rcd.cantidaddevuelta) * COALESCE(pm.cantidad, 1)) * COALESCE(pm.preciomayor, rcd.precioventa)) as total_venta
       FROM revendedorcontroldetalle rcd
       INNER JOIN revendedorcontrol rc ON rcd.idrevendedorcontrol = rc.idrevendedorcontrol
       INNER JOIN productomedida pm ON rcd.idproductomedida = pm.idproductomedida
@@ -165,7 +165,7 @@ export const getReporteProduccionVsVenta = async (req: Request, res: Response) =
           pr.nombre as producto,
           COALESCE(pres.nombre, 'S/N') as presentacion,
           (rcd.cantidadentregada - rcd.cantidaddevuelta) as cantidad_vendida,
-          (rcd.cantidadentregada - rcd.cantidaddevuelta) * rcd.precioventa as total_venta_detalle
+          (rcd.cantidadentregada - rcd.cantidaddevuelta) * COALESCE(pm.preciomayor, rcd.precioventa) as total_venta_detalle
         FROM revendedorcontroldetalle rcd
         INNER JOIN revendedorcontrol rc ON rcd.idrevendedorcontrol = rc.idrevendedorcontrol
         INNER JOIN productomedida pm ON rcd.idproductomedida = pm.idproductomedida
@@ -236,7 +236,78 @@ export const getReporteProduccionVsVenta = async (req: Request, res: Response) =
       WHERE rc.fecha BETWEEN $1 AND $2 AND rc.estado = 1 ${sucursalCondRev}
     `;
 
-    const [produccion, venta, revendedor, prodDiario, ventaDiario, revDiario, produccionPres, ventaPres, revendedorPres, gananciasRes, liquidoRes] = await Promise.all([
+    // ====== Consultas por TURNO (día comercial 12pm -> 12pm) ======
+    // Regla: si la hora de registro es >= 12:00 (tarde) el registro pertenece al día siguiente (dia_comercial + 1).
+    //        si la hora es < 12:00 (mañana) pertenece al mismo día calendario.
+    const sqlTurnosProd = `
+      SELECT
+        CASE WHEN COALESCE(prod.horainicio, '00:00') >= '12:00'
+             THEN (prod.fechaproduccion + INTERVAL '1 day')::date
+             ELSE prod.fechaproduccion END as dia_comercial,
+        CASE WHEN COALESCE(prod.horainicio, '00:00') >= '12:00' THEN 'tarde' ELSE 'manana' END as turno,
+        dp.idproducto,
+        pr.nombre as producto,
+        dp.idproductomedida,
+        COALESCE(pm2.idpresentacion, dp.idpresentacion) as idpresentacion,
+        CASE WHEN dp.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE 'Unidad' END as presentacion,
+        SUM(CASE WHEN COALESCE(dp.cantidadpresentacion, 0) > 0 THEN dp.cantidadpresentacion ELSE COALESCE(dp.cantidadunidades, 0) END) as cantidad_producida
+      FROM detalle_produccion dp
+      INNER JOIN produccion prod ON dp.idproduccion = prod.idproduccion
+      INNER JOIN producto pr ON dp.idproducto = pr.idproducto
+      LEFT JOIN productomedida pm2 ON dp.idproductomedida = pm2.idproductomedida
+      LEFT JOIN presentacion pres ON COALESCE(pm2.idpresentacion, dp.idpresentacion) = pres.idpresentacion
+      WHERE prod.fechaproduccion BETWEEN $1 AND $2 AND prod.estado = 1 ${sucursalCondProd}
+      GROUP BY dia_comercial, turno, dp.idproducto, pr.nombre, dp.idproductomedida, COALESCE(pm2.idpresentacion, dp.idpresentacion), CASE WHEN dp.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE 'Unidad' END
+      ORDER BY dia_comercial, turno, pr.nombre, CASE WHEN dp.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE 'Unidad' END
+    `;
+
+    const sqlTurnosVenta = `
+      SELECT
+        CASE WHEN COALESCE(v.horaventa, '00:00') >= '12:00'
+             THEN (v.fechaventa + INTERVAL '1 day')::date
+             ELSE v.fechaventa END as dia_comercial,
+        CASE WHEN COALESCE(v.horaventa, '00:00') >= '12:00' THEN 'tarde' ELSE 'manana' END as turno,
+        COALESCE(pm.idproducto, dv.idproducto) as idproducto,
+        COALESCE(pr.nombre, pr2.nombre) as producto,
+        dv.idproductomedida,
+        CASE WHEN dv.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE 'Unidad' END as presentacion,
+        SUM(dv.cantidad) as cantidad_vendida,
+        SUM(dv.cantidad * dv.precio) as total_venta
+      FROM detalleventa dv
+      INNER JOIN venta v ON dv.idventa = v.idventa
+      LEFT JOIN productomedida pm ON dv.idproductomedida = pm.idproductomedida
+      LEFT JOIN producto pr ON pm.idproducto = pr.idproducto
+      LEFT JOIN producto pr2 ON dv.idproducto = pr2.idproducto
+      LEFT JOIN presentacion pres ON pm.idpresentacion = pres.idpresentacion
+      WHERE v.fechaventa BETWEEN $1 AND $2 AND v.estado = 1 ${sucursalCondVenta}
+        AND dv.idpromocion IS NULL
+      GROUP BY dia_comercial, turno, COALESCE(pm.idproducto, dv.idproducto), COALESCE(pr.nombre, pr2.nombre), dv.idproductomedida, CASE WHEN dv.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE 'Unidad' END
+      ORDER BY dia_comercial, turno, COALESCE(pr.nombre, pr2.nombre), CASE WHEN dv.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE 'Unidad' END
+    `;
+
+    const sqlTurnosRev = `
+      SELECT
+        CASE WHEN COALESCE(rc.hora, '00:00') >= '12:00'
+             THEN (rc.fecha + INTERVAL '1 day')::date
+             ELSE rc.fecha END as dia_comercial,
+        CASE WHEN COALESCE(rc.hora, '00:00') >= '12:00' THEN 'tarde' ELSE 'manana' END as turno,
+        pm.idproducto,
+        pr.nombre as producto,
+        rcd.idproductomedida,
+        COALESCE(pres.nombre, 'S/N') as presentacion,
+        SUM((rcd.cantidadentregada - rcd.cantidaddevuelta) * COALESCE(pm.cantidad, 1)) as cantidad_vendida,
+        SUM(((rcd.cantidadentregada - rcd.cantidaddevuelta) * COALESCE(pm.cantidad, 1)) * COALESCE(pm.preciomayor, rcd.precioventa)) as total_venta
+      FROM revendedorcontroldetalle rcd
+      INNER JOIN revendedorcontrol rc ON rcd.idrevendedorcontrol = rc.idrevendedorcontrol
+      INNER JOIN productomedida pm ON rcd.idproductomedida = pm.idproductomedida
+      INNER JOIN producto pr ON pm.idproducto = pr.idproducto
+      LEFT JOIN presentacion pres ON pm.idpresentacion = pres.idpresentacion
+      WHERE rc.fecha BETWEEN $1 AND $2 AND rc.estado = 1 ${sucursalCondRev}
+      GROUP BY dia_comercial, turno, pm.idproducto, pr.nombre, rcd.idproductomedida, COALESCE(pres.nombre, 'S/N')
+      ORDER BY dia_comercial, turno, pr.nombre, COALESCE(pres.nombre, 'S/N')
+    `;
+
+    const [produccion, venta, revendedor, prodDiario, ventaDiario, revDiario, produccionPres, ventaPres, revendedorPres, gananciasRes, liquidoRes, turnosProd, turnosVenta, turnosRev] = await Promise.all([
       AppDataSource.query(sqlProduccion, params),
       AppDataSource.query(sqlVenta, params),
       AppDataSource.query(sqlRevendedor, params),
@@ -247,7 +318,10 @@ export const getReporteProduccionVsVenta = async (req: Request, res: Response) =
       AppDataSource.query(sqlVentaPres, params),
       AppDataSource.query(sqlRevendedorPres, params),
       AppDataSource.query(sqlGanancias, params),
-      AppDataSource.query(sqlLiquido, params)
+      AppDataSource.query(sqlLiquido, params),
+      AppDataSource.query(sqlTurnosProd, params),
+      AppDataSource.query(sqlTurnosVenta, params),
+      AppDataSource.query(sqlTurnosRev, params)
     ]);
 
     const prodMap = new Map<string, any>();
@@ -401,6 +475,128 @@ export const getReporteProduccionVsVenta = async (req: Request, res: Response) =
       detalleDiario.push({ fecha, productos, total_producido: totalProd, total_vendido: totalVend });
     }
 
+    // ====== Agregación por TURNO (detalleTurnos) ======
+    // Estructura: dia_comercial -> turno ('manana'|'tarde') -> idproducto -> fila
+    const turnoProdMap = new Map<string, Map<string, any>>();
+    const turnoVentaMap = new Map<string, Map<string, any>>();
+    const turnoRevMap = new Map<string, Map<string, any>>();
+    const turnoNombres = new Map<string, Map<string, string>>();
+
+    const normDia = (v: any) => {
+      const d = v instanceof Date ? v : new Date(String(v).split('T')[0] + 'T12:00:00');
+      return isNaN(d.getTime()) ? String(v) : `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    };
+
+    const ensureTurno = (map: Map<string, Map<string, any>>, dia: string, turno: string, clave: string) => {
+      let turnos = map.get(dia);
+      if (!turnos) { turnos = new Map(); map.set(dia, turnos); }
+      let prods = turnos.get(turno);
+      if (!prods) { prods = new Map(); turnos.set(turno, prods); }
+      let row = prods.get(clave);
+      if (!row) {
+        row = { clave, cantidad_producida: 0, cantidad_vendida_tienda: 0, total_venta_tienda: 0, cantidad_vendida_revendedor: 0, total_venta_revendedor: 0 };
+        prods.set(clave, row);
+      }
+      return row;
+    };
+
+    const turnoClave = (row: any) => `${row.idproducto}::${row.presentacion || "Unidad"}`;
+
+    for (const row of turnosProd as any[]) {
+      const dia = normDia(row.dia_comercial);
+      const clave = turnoClave(row);
+      const r = ensureTurno(turnoProdMap, dia, row.turno, clave);
+      r.idproducto = row.idproducto;
+      r.producto = row.producto || "Sin nombre";
+      r.presentacion = row.presentacion || "Unidad";
+      r.cantidad_producida += Number(row.cantidad_producida) || 0;
+      if (!turnoNombres.has(dia)) turnoNombres.set(dia, new Map());
+      if (!turnoNombres.get(dia)!.has(clave)) turnoNombres.get(dia)!.set(clave, row.producto || "Sin nombre");
+    }
+    for (const row of turnosVenta as any[]) {
+      const dia = normDia(row.dia_comercial);
+      const clave = turnoClave(row);
+      const r = ensureTurno(turnoVentaMap, dia, row.turno, clave);
+      r.idproducto = row.idproducto;
+      r.producto = row.producto || "Sin nombre";
+      r.presentacion = row.presentacion || "Unidad";
+      r.cantidad_vendida_tienda += Number(row.cantidad_vendida) || 0;
+      r.total_venta_tienda += Number(row.total_venta) || 0;
+      if (!turnoNombres.has(dia)) turnoNombres.set(dia, new Map());
+      if (!turnoNombres.get(dia)!.has(clave)) turnoNombres.get(dia)!.set(clave, row.producto || "Sin nombre");
+    }
+    for (const row of turnosRev as any[]) {
+      const dia = normDia(row.dia_comercial);
+      const clave = turnoClave(row);
+      const r = ensureTurno(turnoRevMap, dia, row.turno, clave);
+      r.idproducto = row.idproducto;
+      r.producto = row.producto || "Sin nombre";
+      r.presentacion = row.presentacion || "Unidad";
+      r.cantidad_vendida_revendedor += Number(row.cantidad_vendida) || 0;
+      r.total_venta_revendedor += Number(row.total_venta) || 0;
+      if (!turnoNombres.has(dia)) turnoNombres.set(dia, new Map());
+      if (!turnoNombres.get(dia)!.has(clave)) turnoNombres.get(dia)!.set(clave, row.producto || "Sin nombre");
+    }
+
+    const turnoDias = new Set<string>([...turnoProdMap.keys(), ...turnoVentaMap.keys(), ...turnoRevMap.keys()]);
+
+    const detalleTurnos: any[] = [];
+    for (const dia of [...turnoDias].sort()) {
+      const nombres = turnoNombres.get(dia) || new Map<string, string>();
+      const turnos: any = { manana: { productos: [] }, tarde: { productos: [] } };
+      let totalProdDia = 0, totalVendDia = 0;
+
+      for (const turno of ['manana', 'tarde']) {
+        const prodTurno: any = {};
+        const ventaTurno: any = {};
+        const revTurno: any = {};
+        const ids = new Set<string>();
+
+        (turnoProdMap.get(dia)?.get(turno) || new Map()).forEach((v: any, id: string) => { prodTurno[id] = v; ids.add(id); });
+        (turnoVentaMap.get(dia)?.get(turno) || new Map()).forEach((v: any, id: string) => { ventaTurno[id] = v; ids.add(id); });
+        (turnoRevMap.get(dia)?.get(turno) || new Map()).forEach((v: any, id: string) => { revTurno[id] = v; ids.add(id); });
+
+        let totalProd = 0, totalVend = 0;
+        const productos: any[] = [];
+        for (const id of ids) {
+          const p = prodTurno[id] || { cantidad_producida: 0, presentacion: "Unidad" };
+          const vt = ventaTurno[id] || { cantidad_vendida_tienda: 0, total_venta_tienda: 0, presentacion: "Unidad" };
+          const rv = revTurno[id] || { cantidad_vendida_revendedor: 0, total_venta_revendedor: 0, presentacion: "Unidad" };
+          const pres = p.presentacion || vt.presentacion || rv.presentacion || "Unidad";
+          const prodCant = p.cantidad_producida;
+          const vendCant = vt.cantidad_vendida_tienda + rv.cantidad_vendida_revendedor;
+          totalProd += prodCant;
+          totalVend += vendCant;
+          productos.push({
+            idproducto: p.idproducto || vt.idproducto || rv.idproducto || id,
+            producto: nombres.get(id) || "Sin nombre",
+            presentacion: pres,
+            cantidad_producida: prodCant,
+            cantidad_vendida_tienda: vt.cantidad_vendida_tienda,
+            total_venta_tienda: vt.total_venta_tienda,
+            cantidad_vendida_revendedor: rv.cantidad_vendida_revendedor,
+            total_venta_revendedor: rv.total_venta_revendedor,
+            cantidad_vendida_total: vendCant,
+            diferencia: prodCant - vendCant
+          });
+        }
+        productos.sort((a, b) => b.cantidad_producida - a.cantidad_producida);
+        turnos[turno].productos = productos;
+        turnos[turno].total_producido = totalProd;
+        turnos[turno].total_vendido = totalVend;
+        totalProdDia += totalProd;
+        totalVendDia += totalVend;
+      }
+
+      detalleTurnos.push({
+        fecha: dia,
+        turnos,
+        total_producido: totalProdDia,
+        total_vendido: totalVendDia
+      });
+    }
+    detalleTurnos.sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
+
     const presKey = (row: any) => `prod:${row.idproducto || ""}:${row.presentacion || "S/N"}`;
 
     const presMeta = new Map<string, any>();
@@ -529,6 +725,7 @@ export const getReporteProduccionVsVenta = async (req: Request, res: Response) =
       metadatos: { desde: fechadesde, hasta: fechahasta, sucursal: idsucursal || "TODAS" },
       detalle: detalle,
       detalleDiario: detalleDiario,
+      detalleTurnos: detalleTurnos,
       porPresentacion: porPresentacion,
       ganancias: ganancias,
       resumen: {

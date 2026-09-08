@@ -293,7 +293,7 @@ export const getTransferencias = async (req: Request, res: Response) => {
     const query = `
       SELECT
         t.idtransferencia,
-        t.fecha,
+        TO_CHAR(t.fecha, 'YYYY-MM-DD') AS fecha,
         t.tipo,
         t.estado,
         t.hora,

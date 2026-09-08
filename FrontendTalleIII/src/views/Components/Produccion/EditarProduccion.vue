@@ -85,7 +85,7 @@
                       <input @input="calcularTotal(prod)" v-model.number="prod.CantidadPresentacion" type="number" min="0" class="w-24 px-3 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-black text-gray-800 text-center text-sm" />
                     </td>
                     <td class="py-3 px-2">
-                      <span class="px-3 py-3 bg-blue-50 border border-blue-100 rounded-xl font-black text-blue-700 text-sm block text-center min-w-[80px]">{{ prod.CantidadUnidades }}</span>
+                      <input @input="unidadesChange(prod)" v-model.number="prod.CantidadUnidades" type="number" min="0" class="w-28 px-3 py-3 bg-blue-50 border border-blue-100 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-black text-blue-700 text-sm block text-center" />
                     </td>
                     <td class="py-3 px-2">
                       <select v-model="prod.IdEmpleado" class="w-full px-3 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-gray-700 text-xs">
@@ -277,7 +277,20 @@ const unidadesPresentacion = (prod) => {
 };
 
 const calcularTotal = (prod) => {
-  prod.CantidadUnidades = Number(prod.CantidadPresentacion || 0) * unidadesPresentacion(prod);
+  const up = unidadesPresentacion(prod);
+  prod.CantidadUnidades = up > 0
+    ? Number(prod.CantidadPresentacion || 0) * up
+    : Number(prod.CantidadPresentacion || 0);
+  prod.Cantidad = Number(prod.CantidadUnidades);
+};
+
+const unidadesChange = (prod) => {
+  prod.CantidadUnidades = Number(prod.CantidadUnidades || 0);
+  const up = unidadesPresentacion(prod);
+  if (up > 0) {
+    prod.CantidadPresentacion = Math.round((prod.CantidadUnidades / up) * 100) / 100;
+  }
+  prod.Cantidad = Number(prod.CantidadUnidades);
 };
 
 const getProductName = (id) => {

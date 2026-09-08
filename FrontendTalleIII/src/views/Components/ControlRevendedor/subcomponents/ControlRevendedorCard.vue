@@ -12,9 +12,15 @@
             <UserIcon v-else class="h-6 w-6" />
           </div>
           <div>
-            <h3 class="text-lg font-black text-gray-800 group-hover:text-orange-600 transition-colors">
-              Control #{{ control.idrevendedorcontrol }}
-            </h3>
+            <div class="flex items-center gap-2">
+              <h3 class="text-lg font-black text-gray-800 group-hover:text-orange-600 transition-colors">
+                Control #{{ control.idrevendedorcontrol }}
+              </h3>
+              <span class="px-2 py-1 bg-orange-100 text-orange-700 rounded-lg text-[11px] font-black uppercase tracking-widest flex items-center gap-1">
+                <Clock class="h-3 w-3" />
+                {{ formatHora(control.hora) }}
+              </span>
+            </div>
             <p class="text-gray-600 text-xs font-bold uppercase tracking-wider">
               {{ control.Persona?.Nombre }} {{ control.Persona?.ApellidoPaterno }}
             </p>
@@ -72,7 +78,7 @@
         <div class="mt-3 pt-3 border-t border-orange-100/50 space-y-2">
           <div class="flex items-center gap-2 text-[10px] text-gray-500 font-bold uppercase tracking-tight">
             <Calendar class="h-3 w-3 text-orange-500" />
-            <span>{{ formatDate(control.fecha) }} {{ control.hora }}</span>
+            <span>{{ formatDate(control.fecha) }} {{ formatHora(control.hora) }}</span>
           </div>
           <div class="flex items-center gap-2 text-[10px] text-gray-500 font-bold uppercase tracking-tight">
             <Building2 class="h-3 w-3 text-orange-500" />
@@ -167,7 +173,7 @@
 import { ref, computed } from 'vue';
 import { 
   User as UserIcon, Building2, ChevronDown, Edit2, Calendar, 
-  Package, TrendingUp, Info
+  Package, TrendingUp, Info, Clock
 } from 'lucide-vue-next';
 import { actualizarGastoExtra } from '@/Server/ControlRevendedor';
 
@@ -196,7 +202,14 @@ const onGastoExtraChange = () => {
 };
 const formatDate = (date) => {
   if (!date) return 'N/A';
+  const m = String(date).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return `${m[3]}/${m[2]}/${m[1]}`;
   return new Date(date).toLocaleDateString('es-BO', { day: '2-digit', month: '2-digit', year: 'numeric' });
+};
+
+const formatHora = (hora) => {
+  if (!hora) return '--:--';
+  return String(hora).slice(0, 5);
 };
 
 const formatCurrency = (val) => Number(val || 0).toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });

@@ -1630,19 +1630,27 @@ onMounted(async () => {
 
       // Set payment method
       if (v.Pago && v.Pago.length > 0) {
-        metodoPagoSeleccionado.value = v.Pago[0].IdMetodoPago;
-        montoRecibido.value = parseFloat(v.Pago[0].Monto) + parseFloat(v.Pago[0].Cambio);
+        const pago = v.Pago[0];
+        metodoPagoSeleccionado.value = pago.Metodopago?.IdMetodoPago ?? pago.IdMetodoPago;
+        montoRecibido.value = (parseFloat(pago.Monto) || 0) + (parseFloat(pago.Cambio) || 0);
       }
 
       if (v.fechaventa) {
-        const d = new Date(v.fechaventa);
-        if (!isNaN(d.getTime())) {
-          const year = d.getFullYear();
-          const month = String(d.getMonth() + 1).padStart(2, '0');
-          const day = String(d.getDate()).padStart(2, '0');
-          fechaVenta.value = `${year}-${month}-${day}`;
+        const fechaStr = String(v.fechaventa);
+        // Si ya viene como fecha sola (YYYY-MM-DD), usarla directo para evitar desfase de zona horaria
+        const match = fechaStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (match) {
+          fechaVenta.value = `${match[1]}-${match[2]}-${match[3]}`;
         } else {
-          fechaVenta.value = v.fechaventa.split('T')[0].split(' ')[0];
+          const d = new Date(fechaStr);
+          if (!isNaN(d.getTime())) {
+            const year = d.getUTCFullYear();
+            const month = String(d.getUTCMonth() + 1).padStart(2, '0');
+            const day = String(d.getUTCDate()).padStart(2, '0');
+            fechaVenta.value = `${year}-${month}-${day}`;
+          } else {
+            fechaVenta.value = fechaStr.split('T')[0].split(' ')[0];
+          }
         }
       }
       if (v.horaventa) horaVenta.value = v.horaventa.substring(0, 5);

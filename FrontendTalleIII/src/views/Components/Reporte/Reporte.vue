@@ -124,6 +124,18 @@
           :format-fecha="formatFecha"
           :agrupar-por-semana="agruparPorSemana"
         />
+
+        <div class="mt-8 border-t-2 border-dashed border-gray-200 pt-8">
+          <ProduccionVsVentaTurnosTable ref="produccionVsVentaTurnosTableRef"
+            :detalle-turnos="reporteProduccionVsVenta?.detalleTurnos || []"
+            :format-fecha="formatFecha"
+            :agrupar-por-semana="agruparPorSemana"
+          />
+        </div>
+
+        <div class="mt-8">
+          <ResumenTurnosTable :detalle-turnos="reporteProduccionVsVenta?.detalleTurnos || []" />
+        </div>
       </div>
 
     </div>
@@ -164,6 +176,8 @@ import FinancieroTable from './FinancieroTable.vue'
 import ComisionTable from './ComisionTable.vue'
 import GastosGeneralesTable from './GastosGeneralesTable.vue'
 import ProduccionVsVentaTable from './ProduccionVsVentaTable.vue'
+import ProduccionVsVentaTurnosTable from './ProduccionVsVentaTurnosTable.vue'
+import ResumenTurnosTable from './ResumenTurnosTable.vue'
 
 import logoMasasCori from '@/views/assets/LogoMasasCorir.png';
 import { useInicioSemana, getAnchorWeekday, getWeekStart as semanaGetWeekStart, getWeekLabel as semanaGetWeekLabel } from './useSemana'
@@ -182,6 +196,7 @@ const inventarioTableRef = ref(null);
 const comisionTableRef = ref(null);
 const gastosGeneralesTableRef = ref(null);
 const produccionVsVentaTableRef = ref(null);
+const produccionVsVentaTurnosTableRef = ref(null);
 
 // --- Agrupación por Semana ---
 const agruparPorSemana = ref(false)
@@ -3754,7 +3769,184 @@ const exportarPDF = async () => {
     })
     startY = doc.lastAutoTable.finalY + 10
 
+    // ===== SECCIÓN: Producción vs Venta por Turnos (versión actual) =====
+    const turnosData = data.detalleTurnos || []
+    if (turnosData.length) { try {
+      const keyOfT = (item) => `${item.idproducto}::${item.presentacion || 'Unidad'}`
+      const fmtMoneyT = (v) => `${Number(v || 0).toFixed(2)}`
+      const fmtFechaTurno = (f) => {
+        const clean = String(f).split('T')[0]
+        if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) {
+          const [y, m, d] = clean.split('-')
+          return `${d}/${m}/${y}`
+        }
+        return clean
+      }
+      const safeY = (y) => (Number.isFinite(y) ? y : 50)
+
+      const disponible = {}
+      const diasAsc = [...turnosData].sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
+      const diasConStockT = diasAsc.map(dia => {
+        const cab = (turno) => {
+          const stockInicio = {}
+          ;(turno.productos || []).forEach(p => {
+            stockInicio[keyOfT(p)] = disponible[keyOfT(p)] || 0
+          })
+          return stockInicio
+        }
+        const turn = dia.turnos || { manana: { productos: [] }, tarde: { productos: [] } }
+        const stockManana = cab(turn.manana)
+        ;(turn.manana.productos || []).forEach(p => {
+          disponible[keyOfT(p)] = (disponible[keyOfT(p)] || 0) + (p.cantidad_producida || 0) - (p.cantidad_vendida_total || 0)
+        })
+        const stockTarde = cab(turn.tarde)
+        ;(turn.tarde.productos || []).forEach(p => {
+          disponible[keyOfT(p)] = (disponible[keyOfT(p)] || 0) + (p.cantidad_producida || 0) - (p.cantidad_vendida_total || 0)
+        })
+        return { ...dia, stockManana, stockTarde }
+      })
+      const diasTurnos = [...diasConStockT].sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
+
+      startY = safeY(startY)
+      if (startY > 250) { doc.addPage(); startY = 50 }
+      doc.setFontSize(13)
+      doc.setTextColor(0)
+      doc.setFont(undefined, 'bold')
+      doc.text('Producción vs Venta por Turnos', 14, startY)
+      doc.setFontSize(7.5)
+      doc.setTextColor(100)
+      doc.setFont(undefined, 'normal')
+      doc.text('Día comercial de 12:00 PM a 12:00 PM. La venta de la tarde pertenece al día siguiente; la de la mañana al mismo día. Restante = stock heredado + producido - vendido.', 14, startY + 5)
+      startY += 15
+
+      diasTurnos.forEach((dia, di) => {
+        ;['manana', 'tarde'].forEach((turnoName) => {
+          const turno = (dia.turnos || {})[turnoName] || { productos: [], total_producido: 0, total_vendido: 0 }
+          const stockIni = turnoName === 'manana' ? (dia.stockManana || {}) : (dia.stockTarde || {})
+          const tituloTurno = turnoName === 'manana' ? 'Mañana (12 AM - 12 PM)' : 'Tarde (12 PM - 12 AM)'
+          const stockIniTotal = Object.values(stockIni).reduce((s, v) => s + (Number(v) || 0), 0)
+          const restT = stockIniTotal + (turno.total_producido || 0) - (turno.total_vendido || 0)
+
+          startY = safeY(startY)
+          if (startY > 250) { doc.addPage(); startY = 50 }
+          if (turnoName === 'manana') { doc.setFillColor(239, 246, 255) } else { doc.setFillColor(255, 247, 237) }
+          doc.rect(14, startY - 4, pageW - 28, 9, 'F')
+          doc.setFontSize(10)
+          doc.setTextColor(0)
+          doc.setFont(undefined, 'bold')
+          doc.text(`${fmtFechaTurno(dia.fecha)} · ${tituloTurno}`, 18, startY)
+          doc.setTextColor(22, 163, 74)
+          doc.setFontSize(9)
+          doc.text(`Prod: ${turno.total_producido || 0}`, pageW - 125, startY)
+          doc.setTextColor(37, 99, 235)
+          doc.text(`Vend: ${turno.total_vendido || 0}`, pageW - 70, startY)
+          doc.setTextColor(194, 65, 12)
+          doc.text(`Rest: ${restT}`, pageW - 32, startY)
+          doc.setTextColor(0)
+          startY += 7
+
+          const tRows = (turno.productos || []).map(item => {
+            const inicio = stockIni[keyOfT(item)] || 0
+            const rest = inicio + (item.cantidad_producida || 0) - (item.cantidad_vendida_total || 0)
+            return [
+              item.producto || '',
+              item.presentacion || 'Unidad',
+              String(inicio),
+              String(item.cantidad_producida || 0),
+              String(item.cantidad_vendida_tienda || 0),
+              fmtMoneyT(item.total_venta_tienda),
+              String(item.cantidad_vendida_revendedor || 0),
+              fmtMoneyT(item.total_venta_revendedor),
+              String(item.cantidad_vendida_total || 0),
+              String(rest)
+            ]
+          })
+          const totTienda = (turno.productos || []).reduce((s, p) => s + (p.cantidad_vendida_tienda || 0), 0)
+          const totIngTienda = (turno.productos || []).reduce((s, p) => s + (p.total_venta_tienda || 0), 0)
+          const totRev = (turno.productos || []).reduce((s, p) => s + (p.cantidad_vendida_revendedor || 0), 0)
+          const totIngRev = (turno.productos || []).reduce((s, p) => s + (p.total_venta_revendedor || 0), 0)
+          const totStyle = (content) => ({ content, styles: { fontStyle: 'bold', fillColor: [249, 250, 251], halign: 'center' } })
+          tRows.push([
+            { content: 'TOTALES', colSpan: 2, styles: { fontStyle: 'bold', fillColor: [249, 250, 251] } },
+            totStyle(String(stockIniTotal)),
+            totStyle(String(turno.total_producido || 0)),
+            totStyle(String(totTienda)),
+            totStyle(fmtMoneyT(totIngTienda)),
+            totStyle(String(totRev)),
+            totStyle(fmtMoneyT(totIngRev)),
+            totStyle(String(turno.total_vendido || 0)),
+            totStyle(String(restT))
+          ])
+          autoTable(doc, {
+            head: [['Producto', 'Presentación', 'Inicio', 'Producido', 'Vend. Tienda', 'Ing. Tienda', 'Vend. Rev.', 'Ing. Rev.', 'Total Vend.', 'Restante']],
+            body: tRows, startY, styles: { fontSize: 6.5 }, headStyles: { fontSize: 6.5 }
+          })
+          startY = safeY(doc.lastAutoTable.finalY + 5)
+        })
+        if (di < diasTurnos.length - 1 && startY > 250) { doc.addPage(); startY = 50 }
+      })
+
+      // Resumen consolidado por producto y turno
+      startY = safeY(startY)
+      if (startY > 250) { doc.addPage(); startY = 50 }
+      doc.setFontSize(12)
+      doc.setTextColor(0)
+      doc.setFont(undefined, 'bold')
+      doc.text('Resumen General por Producto y Turno', 14, startY)
+      startY += 8
+
+      const keyOfR = (p) => `${p.idproducto}::${p.presentacion || 'Unidad'}`
+      const mapaRes = {}
+      turnosData.forEach(dia => {
+        ;['manana', 'tarde'].forEach(turnoName => {
+          const turno = (dia.turnos || {})[turnoName] || { productos: [] }
+          ;(turno.productos || []).forEach(p => {
+            const key = keyOfR(p)
+            if (!mapaRes[key]) mapaRes[key] = { key, producto: p.producto || 'Sin nombre', presentacion: p.presentacion || 'Unidad', prodM: 0, vendM: 0, prodT: 0, vendT: 0 }
+            const r = mapaRes[key]
+            const prod = p.cantidad_producida || 0
+            const vend = p.cantidad_vendida_total || 0
+            if (turnoName === 'manana') { r.prodM += prod; r.vendM += vend } else { r.prodT += prod; r.vendT += vend }
+          })
+        })
+      })
+      let inicioAcum = {}
+      const resumenRows = Object.values(mapaRes).map(r => {
+        const inicioM = inicioAcum[r.key] || 0
+        const restM = inicioM + r.prodM - r.vendM
+        const restT = restM + r.prodT - r.vendT
+        inicioAcum[r.key] = restT
+        return [
+          r.producto, r.presentacion, String(inicioM),
+          String(r.prodM), String(r.vendM), String(restM),
+          String(r.prodT), String(r.vendT), String(restT),
+          String(r.prodM + r.prodT), String(r.vendM + r.vendT), String(restT)
+        ]
+      })
+      resumenRows.sort((a, b) => Number(b[9]) - Number(a[9]))
+      const tRes = resumenRows.reduce((acc, row) => {
+        ;[2, 3, 4, 5, 6, 7, 8, 9, 10, 11].forEach(i => { acc[i] += Number(row[i]) })
+        return acc
+      }, [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+      const totResStyle = (content) => ({ content, styles: { fontStyle: 'bold', fillColor: [255, 247, 237], halign: 'center' } })
+      resumenRows.push([
+        { content: 'TOTALES', colSpan: 2, styles: { fontStyle: 'bold', fillColor: [255, 247, 237] } },
+        totResStyle(String(tRes[2])), totResStyle(String(tRes[3])), totResStyle(String(tRes[4])), totResStyle(String(tRes[5])),
+        totResStyle(String(tRes[6])), totResStyle(String(tRes[7])), totResStyle(String(tRes[8])),
+        totResStyle(String(tRes[9])), totResStyle(String(tRes[10])), totResStyle(String(tRes[11]))
+      ])
+      autoTable(doc, {
+        head: [['Producto', 'Presentación', 'Inicio', 'M. Prod.', 'M. Vend.', 'M. Rest.', 'T. Prod.', 'T. Vend.', 'T. Rest.', 'Total Prod.', 'Total Vend.', 'Rest. Final']],
+        body: resumenRows, startY, styles: { fontSize: 5.5 }, headStyles: { fontSize: 5.5 }
+      })
+      startY = safeY(doc.lastAutoTable.finalY + 10)
+      } catch (e) {
+        console.error('Sección turnos en PDF (Prod vs Venta):', e)
+      }
+    }
+
     const gan = data.ganancias || {}
+    if (!Number.isFinite(startY)) startY = 50
     if (startY > 250) { doc.addPage(); startY = 50 }
     doc.setFontSize(12)
     doc.setTextColor(0)

@@ -871,18 +871,24 @@ export const actualizarProduccion = async (req: Request, res: Response) => {
           const cantidadAReducir = Math.abs(diferencia);
           if (!detalleExistente) throw new Error(`No existe registro del producto ${IdProducto} para reducir`);
 
-          // Reducir inventario
-          const lote = await queryRunner.manager.findOne(Inventario, {
-            where: { IdReferencia: id, Producto: { IdProducto }, Estado: 1 }
+          // Reducir inventario descontando de todos los lotes activos de esta producción
+          const lotes = await queryRunner.manager.find(Inventario, {
+            where: { IdReferencia: id, Producto: { IdProducto }, Estado: 1 },
+            order: { FechaIngreso: 'ASC' }
           });
-          if (lote) {
-            lote.Stock = Number(lote.Stock) - cantidadAReducir;
+          let restante = cantidadAReducir;
+          for (const lote of lotes) {
+            if (restante <= 0) break;
+            const disponible = Number(lote.Stock);
+            const aDescontar = Math.min(disponible, restante);
+            lote.Stock = disponible - aDescontar;
             if (lote.Stock <= 0) {
               lote.Estado = 0;
               lote.Stock = 0;
             }
             await queryRunner.manager.save(lote);
-            await registrarMovimientoSalida(queryRunner, lote, 'AJUSTE_PRODUCCION', cantidadAReducir, id);
+            await registrarMovimientoSalida(queryRunner, lote, 'AJUSTE_PRODUCCION', aDescontar, id);
+            restante -= aDescontar;
           }
 
           // Actualizar detalle
@@ -892,6 +898,10 @@ export const actualizarProduccion = async (req: Request, res: Response) => {
           }
           detalleExistente.CantidadPresentacion = IdProductoMedida ? cantidadPresentacion : 0;
           detalleExistente.CantidadUnidades = IdProductoMedida ? cantidadUnidades : Number(CantidadParaCostos);
+          // 🔥 Guardar/cambiar la presentación (antes no se actualizaba en este flujo)
+          if (IdProductoMedida && productoMedida) {
+            detalleExistente.ProductoMedida = productoMedida;
+          }
           // Recalcular costo proporcionalmente
           const proporcionReducir = cantidadAReducir / (cantidadActual || 1);
           detalleExistente.CostoTotal = Number(detalleExistente.CostoTotal) * (1 - proporcionReducir);
@@ -900,10 +910,15 @@ export const actualizarProduccion = async (req: Request, res: Response) => {
         } else {
           // diferencia === 0 → misma cantidad total, pero puede cambiar presentación/encargado
           if (detalleExistente && (IdProductoMedida || IdEmpleado)) {
-            if (productoMedida) detalleExistente.ProductoMedida = productoMedida;
+            if (IdProductoMedida && productoMedida) detalleExistente.ProductoMedida = productoMedida;
             detalleExistente.CantidadPresentacion = cantidadPresentacion;
             detalleExistente.CantidadUnidades = cantidadUnidades;
             if (IdEmpleado) detalleExistente.Empleado = await verifyEmpleado(IdEmpleado);
+            await queryRunner.manager.save(detalleExistente);
+          } else if (detalleExistente && !IdProductoMedida && !IdEmpleado) {
+            // Sólo se quitó la presentación/cantidad sin otros cambios
+            detalleExistente.CantidadPresentacion = 0;
+            detalleExistente.CantidadUnidades = Number(CantidadParaCostos);
             await queryRunner.manager.save(detalleExistente);
           }
         }

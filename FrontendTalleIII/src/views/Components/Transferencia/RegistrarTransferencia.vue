@@ -778,14 +778,21 @@ const cargarDatosEdicion = () => {
 
   // Fecha (formatear a YYYY-MM-DD para input type="date")
   if (trans.fecha) {
-    const d = new Date(trans.fecha);
-    if (!isNaN(d.getTime())) {
-      const anio = d.getUTCFullYear();
-      const mes = String(d.getUTCMonth() + 1).padStart(2, '0');
-      const dia = String(d.getUTCDate()).padStart(2, '0');
-      fechaTransferencia.value = `${anio}-${mes}-${dia}`;
+    const fechaStr = String(trans.fecha);
+    // Si ya viene como fecha sola (YYYY-MM-DD), usarla directo para evitar desfase de zona horaria
+    const match = fechaStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (match) {
+      fechaTransferencia.value = `${match[1]}-${match[2]}-${match[3]}`;
     } else {
-      fechaTransferencia.value = trans.fecha;
+      const d = new Date(fechaStr);
+      if (!isNaN(d.getTime())) {
+        const anio = d.getUTCFullYear();
+        const mes = String(d.getUTCMonth() + 1).padStart(2, '0');
+        const dia = String(d.getUTCDate()).padStart(2, '0');
+        fechaTransferencia.value = `${anio}-${mes}-${dia}`;
+      } else {
+        fechaTransferencia.value = trans.fecha;
+      }
     }
   }
 

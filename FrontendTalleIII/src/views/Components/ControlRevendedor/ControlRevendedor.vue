@@ -524,7 +524,7 @@ const exportarPDF = async () => {
       body: data.map(c => [
         c.idrevendedorcontrol,
         `${c.Persona?.Nombre || ''} ${c.Persona?.ApellidoPaterno || ''}`.trim(),
-        c.hora || '-',
+        (c.hora || '').slice(0, 5) || '-',
         c.Sucursal?.Nombre || '-',
         formatoBs(c.TotalVenta),
         formatoBs(c.TotalComision),
@@ -545,7 +545,7 @@ const exportarPDF = async () => {
       doc.setFontSize(10);
       doc.setFont(undefined, 'bold');
       doc.setTextColor(194, 65, 12);
-      doc.text(`Detalle ${c.idrevendedorcontrol} - ${c.Persona?.Nombre || ''} ${c.Persona?.ApellidoPaterno || ''}`.trim(), 14, startY);
+      doc.text(`Detalle ${c.idrevendedorcontrol} - ${c.Persona?.Nombre || ''} ${c.Persona?.ApellidoPaterno || ''}  |  Registro: ${(c.hora || '').slice(0, 5) || '-:-'}`.trim(), 14, startY);
       doc.setTextColor(0);
       startY += 5;
 
@@ -569,6 +569,15 @@ const exportarPDF = async () => {
         theme: 'striped'
       });
       startY = doc.lastAutoTable.finalY + 8;
+      const netoControl = Number(c.TotalLiquidoPanaderia || 0) - Number(c.GastoExtra || 0);
+      const netoY = doc.lastAutoTable.finalY + 6;
+      if (netoY + 6 > pageH - 20) { doc.addPage(); }
+      doc.setFontSize(8.5);
+      doc.setFont(undefined, 'bold');
+      doc.setTextColor(194, 65, 12);
+      doc.text(`Neto a Entregar: ${formatoBs(netoControl)}`, pageW - 14, netoY > pageH - 20 ? 24 : netoY, { align: 'right' });
+      doc.setTextColor(0);
+      startY = doc.lastAutoTable.finalY + 14;
     });
 
     const totalVenta = data.reduce((a, c) => a + Number(c.TotalVenta || 0), 0);
@@ -598,7 +607,7 @@ const exportarPDF = async () => {
     doc.setTextColor(255);
     doc.setFontSize(10);
     doc.setFont(undefined, 'bold');
-    doc.text(`TOTAL LÍQUIDO A ENTREGAR EN GENERAL`, pageW / 2, boxY + 9, { align: 'center' });
+    doc.text(`TOTAL NETO A ENTREGAR EN GENERAL`, pageW / 2, boxY + 9, { align: 'center' });
     doc.setFontSize(16);
     doc.text(formatoBs(totalNeto), pageW / 2, boxY + 18, { align: 'center' });
 

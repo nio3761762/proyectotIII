@@ -23,8 +23,8 @@
                     <span class="font-black text-gray-800 text-lg leading-none">{{ c.Persona?.Nombre }} {{ c.Persona?.ApellidoPaterno }}</span>
                     <div class="flex items-center gap-2 mt-2">
                        <span class="text-[9px] font-black text-orange-600 px-2 py-0.5 bg-orange-50 rounded-lg">#{{ c.idrevendedorcontrol }}</span>
-                       <span class="text-[9px] text-gray-400 font-bold uppercase">{{ formatDate(c.fecha) }}</span>
-                       <span class="text-[9px] text-gray-400 font-bold">{{ c.hora }}</span>
+                       <span class="text-[9px] text-gray-400 font-bold uppercase" title="{{ c.hora }}">{{ formatDate(c.fecha) }}</span>
+                       <span class="text-[9px] text-gray-400 font-bold">{{ formatHora(c.hora) }}</span>
                     </div>
                     <div class="flex items-center gap-1 mt-1 text-[9px] text-gray-500 font-bold uppercase tracking-tight">
                       <Building2 class="h-3 w-3 text-orange-400" />
@@ -153,11 +153,18 @@ const getAjustes = (d) => {
 
 const formatDate = (date) => {
   if (!date) return 'N/A';
+  const m = String(date).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return `${m[3]}/${m[2]}/${m[1]}`;
   return new Date(date).toLocaleDateString('es-BO', { 
     day: '2-digit', 
     month: 'short', 
     year: 'numeric' 
   });
+};
+
+const formatHora = (hora) => {
+  if (!hora) return '--:--';
+  return String(hora).slice(0, 5);
 };
 
 const calcNetoFinal = (c) => {
