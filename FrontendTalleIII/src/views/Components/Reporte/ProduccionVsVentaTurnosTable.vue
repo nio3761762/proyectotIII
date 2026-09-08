@@ -59,7 +59,7 @@
     </div>
 
     <div v-else class="space-y-4">
-      <div v-for="dia in diasConStock" :key="dia.fecha" class="bg-white rounded-3xl border border-gray-200 shadow-sm overflow-hidden">
+      <div v-for="dia in diasVisibles" :key="dia.fecha" class="bg-white rounded-3xl border border-gray-200 shadow-sm overflow-hidden">
         <div class="px-6 py-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-100 flex items-center justify-between cursor-pointer" @click="toggleDia(dia.fecha)">
           <div class="flex items-center gap-3">
             <svg :class="['w-4 h-4 text-gray-400 transition-transform', expandedDias[dia.fecha] ? 'rotate-180' : '']" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
@@ -77,6 +77,9 @@
           <TurnoBloque :turno="dia.turnos.manana" :stock-inicio-por-producto="dia.stockManana" titulo="Mañana (12:00 AM - 12:00 PM)" :format-money="formatMoney" />
           <TurnoBloque :turno="dia.turnos.tarde" :stock-inicio-por-producto="dia.stockTarde" titulo="Tarde (12:00 PM - 12:00 AM)" :format-money="formatMoney" />
         </div>
+      </div>
+      <div v-if="diasOcultos > 0" class="text-center pt-2">
+        <button @click="mostrarMasDias" class="px-4 py-2 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors">Mostrar más días ({{ diasOcultos }} restantes)</button>
       </div>
     </div>
   </div>
@@ -153,6 +156,11 @@ const diasConStock = computed(() => {
   return result.sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
 })
 
+const diasVisiblesLimite = ref(15)
+const diasVisibles = computed(() => diasConStock.value.slice(0, diasVisiblesLimite.value))
+const mostrarMasDias = () => { diasVisiblesLimite.value += 15 }
+const diasOcultos = computed(() => Math.max(0, diasConStock.value.length - diasVisibles.value.length))
+
 const totales = computed(() => {
   let globalProduccion = 0, globalVendido = 0, mananaProduccion = 0, mananaVendido = 0, tardeProduccion = 0, tardeVendido = 0
   props.detalleTurnos.forEach(dia => {
@@ -182,13 +190,14 @@ const vistaSemanal = computed(() => props.agruparPorSemana && semanaGroups.value
 
 const expandedDias = ref({})
 const toggleDia = (fecha) => { expandedDias.value[fecha] = !expandedDias.value[fecha] }
-const expandAll = () => { diasConStock.value.forEach(d => { expandedDias.value[d.fecha] = true }) }
+const expandAll = () => { diasVisibles.value.forEach(d => { expandedDias.value[d.fecha] = true }) }
 const collapseAll = () => { Object.keys(expandedDias.value).forEach(k => { expandedDias.value[k] = false }) }
 
 const expandedSemanas = ref({})
 const toggleSemana = (key) => { expandedSemanas.value[key] = !expandedSemanas.value[key] }
 
 watch(() => props.detalleTurnos, () => {
+  diasVisiblesLimite.value = 15
   diasConStock.value.forEach(d => { if (expandedDias.value[d.fecha] === undefined) expandedDias.value[d.fecha] = false })
 })
 

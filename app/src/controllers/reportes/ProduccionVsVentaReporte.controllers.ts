@@ -603,28 +603,6 @@ CASE WHEN dp.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE
       });
     }
 
-    // Asegura que aparezcan TODOS los días del rango (calendario), aunque no tengan datos.
-    const toDiaStr = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    const normRango = (v: any) => {
-      const s = String(v || "").split('T')[0];
-      if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
-      const dd = new Date(s + 'T12:00:00');
-      return isNaN(dd.getTime()) ? null : toDiaStr(dd);
-    };
-    const d0 = normRango(fechadesde);
-    const d1 = normRango(fechahasta);
-    const porDia = new Map<string, any>(detalleTurnos.map(d => [d.fecha, d]));
-    if (d0 && d1) {
-      const cur = new Date(d0 + 'T12:00:00');
-      const fin = new Date(d1 + 'T12:00:00');
-      while (cur.getTime() <= fin.getTime()) {
-        const f = toDiaStr(cur);
-        if (!porDia.has(f)) porDia.set(f, { fecha: f, turnos: { manana: { productos: [], total_producido: 0, total_vendido: 0 }, tarde: { productos: [], total_producido: 0, total_vendido: 0 } }, total_producido: 0, total_vendido: 0 });
-        cur.setDate(cur.getDate() + 1);
-      }
-      detalleTurnos.length = 0;
-      detalleTurnos.push(...Array.from(porDia.values()));
-    }
     detalleTurnos.sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
 
     const presKey = (row: any) => `prod:${row.idproducto || ""}:${row.presentacion || "S/N"}`;

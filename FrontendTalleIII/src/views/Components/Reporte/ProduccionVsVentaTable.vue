@@ -309,7 +309,7 @@
       </div>
 
       <div v-else class="space-y-4">
-        <div v-for="dia in sortedDiario" :key="dia.fecha" class="bg-white rounded-3xl border border-gray-200 shadow-sm overflow-hidden">
+        <div v-for="dia in diasVisibles" :key="dia.fecha" class="bg-white rounded-3xl border border-gray-200 shadow-sm overflow-hidden">
           <div class="px-6 py-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-100 flex items-center justify-between cursor-pointer" @click="toggleDia(dia.fecha)">
             <div class="flex items-center gap-3">
               <svg :class="['w-4 h-4 text-gray-400 transition-transform', expandedDias[dia.fecha] ? 'rotate-180' : '']" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
@@ -349,6 +349,9 @@
               </tbody>
             </table>
           </div>
+        </div>
+        <div v-if="diasOcultos > 0" class="text-center pt-2">
+          <button @click="mostrarMasDias" class="px-4 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-colors">Mostrar más días ({{ diasOcultos }} restantes)</button>
         </div>
       </div>
     </div>
@@ -431,6 +434,11 @@ const getWeekLabel = (weekStartStr) => sharedWeekLabel(weekStartStr)
 const sortedDiario = computed(() => {
   return [...props.detalleDiario].sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
 })
+
+const diasVisiblesLimite = ref(15)
+const diasVisibles = computed(() => sortedDiario.value.slice(0, diasVisiblesLimite.value))
+const mostrarMasDias = () => { diasVisiblesLimite.value += 15 }
+const diasOcultos = computed(() => Math.max(0, sortedDiario.value.length - diasVisibles.value.length))
 
 const weeklyGroups = computed(() => {
   const weeks = {}
@@ -574,8 +582,10 @@ onBeforeUnmount(() => { if (chartInstance) chartInstance.destroy() })
 
 const expandedDias = ref({})
 const toggleDia = (fecha) => { expandedDias.value[fecha] = !expandedDias.value[fecha] }
-const expandAllDias = () => { props.detalleDiario.forEach(d => { expandedDias.value[d.fecha] = true }) }
+const expandAllDias = () => { diasVisibles.value.forEach(d => { expandedDias.value[d.fecha] = true }) }
 const collapseAllDias = () => { Object.keys(expandedDias.value).forEach(k => { expandedDias.value[k] = false }) }
+
+watch(() => props.detalleDiario, () => { diasVisiblesLimite.value = 15 })
 
 const getWeeklyProductRows = (dias) => {
   const map = {}
