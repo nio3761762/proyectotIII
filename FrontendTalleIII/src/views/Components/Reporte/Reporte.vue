@@ -864,6 +864,7 @@ const addChartDataToWorkbook = (wb, sheetName, labels, datasets) => {
 };
 
 watch(activeTab, () => {
+    clearTimeout(filtrosTimer);
     filtros.value.vendedor = "";
     filtros.value.cliente = "";
     filtros.value.metodoPago = 0;
@@ -879,9 +880,13 @@ watch(activeTab, () => {
     cargarReporteActivo();
 });
 
-watch(filtros, async () => {
-  await generarReporte();
-}, { deep: true });
+let filtrosTimer = null;
+const aplicarFiltrosDebounced = () => {
+  clearTimeout(filtrosTimer);
+  filtrosTimer = setTimeout(() => generarReporte(), 500);
+};
+
+watch(filtros, aplicarFiltrosDebounced, { deep: true });
 
 watch(filtroCategoria, async (newVal) => {
   filtros.value.subcategorias = '';
