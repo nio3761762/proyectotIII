@@ -23,138 +23,6 @@ export const getReporteProduccionVsVenta = async (req: Request, res: Response) =
       params.push(idsucursal);
     }
 
-    const sqlProduccion = `
-      SELECT
-        dp.idproducto,
-        pr.nombre as producto,
-        SUM(CASE WHEN COALESCE(dp.cantidadpresentacion, 0) > 0 THEN dp.cantidadpresentacion ELSE COALESCE(dp.cantidadunidades, 0) END) as cantidad_producida
-      FROM detalle_produccion dp
-      INNER JOIN produccion prod ON dp.idproduccion = prod.idproduccion
-      INNER JOIN producto pr ON dp.idproducto = pr.idproducto
-      WHERE prod.fechaproduccion BETWEEN $1 AND $2 AND prod.estado = 1 ${sucursalCondProd}
-      GROUP BY dp.idproducto, pr.nombre
-      ORDER BY pr.nombre
-    `;
-
-    const sqlVenta = `
-      SELECT
-        COALESCE(pm.idproducto, dv.idproducto) as idproducto,
-        COALESCE(pr.nombre, pr2.nombre) as producto,
-        SUM(dv.cantidad) as cantidad_vendida,
-        SUM(dv.cantidad * dv.precio) as total_venta
-      FROM detalleventa dv
-      INNER JOIN venta v ON dv.idventa = v.idventa
-      LEFT JOIN productomedida pm ON dv.idproductomedida = pm.idproductomedida
-      LEFT JOIN producto pr ON pm.idproducto = pr.idproducto
-      LEFT JOIN producto pr2 ON dv.idproducto = pr2.idproducto
-      WHERE v.fechaventa BETWEEN $1 AND $2 AND v.estado = 1 ${sucursalCondVenta}
-        AND dv.idpromocion IS NULL
-      GROUP BY COALESCE(pm.idproducto, dv.idproducto), COALESCE(pr.nombre, pr2.nombre)
-      ORDER BY COALESCE(pr.nombre, pr2.nombre)
-    `;
-
-    const sqlRevendedor = `
-      SELECT
-        pm.idproducto,
-        pr.nombre as producto,
-        SUM(rcd.cantidadentregada - rcd.cantidaddevuelta) as cantidad_vendida,
-        SUM(((rcd.cantidadentregada - rcd.cantidaddevuelta) * COALESCE(pm.cantidad, 1)) * COALESCE(pm.preciomayor, rcd.precioventa)) as total_venta
-      FROM revendedorcontroldetalle rcd
-      INNER JOIN revendedorcontrol rc ON rcd.idrevendedorcontrol = rc.idrevendedorcontrol
-      INNER JOIN productomedida pm ON rcd.idproductomedida = pm.idproductomedida
-      INNER JOIN producto pr ON pm.idproducto = pr.idproducto
-      WHERE rc.fecha BETWEEN $1 AND $2 AND rc.estado = 1 ${sucursalCondRev}
-      GROUP BY pm.idproducto, pr.nombre
-      ORDER BY pr.nombre
-    `;
-
-    const sqlProduccionDiario = `
-      SELECT
-        prod.fechaproduccion as fecha,
-        dp.idproducto,
-        pr.nombre as producto,
-        SUM(CASE WHEN COALESCE(dp.cantidadpresentacion, 0) > 0 THEN dp.cantidadpresentacion ELSE COALESCE(dp.cantidadunidades, 0) END) as cantidad_producida
-      FROM detalle_produccion dp
-      INNER JOIN produccion prod ON dp.idproduccion = prod.idproduccion
-      INNER JOIN producto pr ON dp.idproducto = pr.idproducto
-      WHERE prod.fechaproduccion BETWEEN $1 AND $2 AND prod.estado = 1 ${sucursalCondProd}
-      GROUP BY prod.fechaproduccion, dp.idproducto, pr.nombre
-      ORDER BY prod.fechaproduccion, pr.nombre
-    `;
-
-    const sqlVentaDiario = `
-      SELECT
-        v.fechaventa as fecha,
-        COALESCE(pm.idproducto, dv.idproducto) as idproducto,
-        COALESCE(pr.nombre, pr2.nombre) as producto,
-        SUM(dv.cantidad) as cantidad_vendida,
-        SUM(dv.cantidad * dv.precio) as total_venta
-      FROM detalleventa dv
-      INNER JOIN venta v ON dv.idventa = v.idventa
-      LEFT JOIN productomedida pm ON dv.idproductomedida = pm.idproductomedida
-      LEFT JOIN producto pr ON pm.idproducto = pr.idproducto
-      LEFT JOIN producto pr2 ON dv.idproducto = pr2.idproducto
-      WHERE v.fechaventa BETWEEN $1 AND $2 AND v.estado = 1 ${sucursalCondVenta}
-        AND dv.idpromocion IS NULL
-      GROUP BY v.fechaventa, COALESCE(pm.idproducto, dv.idproducto), COALESCE(pr.nombre, pr2.nombre)
-      ORDER BY v.fechaventa, COALESCE(pr.nombre, pr2.nombre)
-    `;
-
-    const sqlRevendedorDiario = `
-      SELECT
-        rc.fecha,
-        pm.idproducto,
-        pr.nombre as producto,
-        SUM(rcd.cantidadentregada - rcd.cantidaddevuelta) as cantidad_vendida,
-        SUM(((rcd.cantidadentregada - rcd.cantidaddevuelta) * COALESCE(pm.cantidad, 1)) * COALESCE(pm.preciomayor, rcd.precioventa)) as total_venta
-      FROM revendedorcontroldetalle rcd
-      INNER JOIN revendedorcontrol rc ON rcd.idrevendedorcontrol = rc.idrevendedorcontrol
-      INNER JOIN productomedida pm ON rcd.idproductomedida = pm.idproductomedida
-      INNER JOIN producto pr ON pm.idproducto = pr.idproducto
-      WHERE rc.fecha BETWEEN $1 AND $2 AND rc.estado = 1 ${sucursalCondRev}
-      GROUP BY rc.fecha, pm.idproducto, pr.nombre
-      ORDER BY rc.fecha, pr.nombre
-    `;
-
-    const sqlProduccionPres = `
-      SELECT
-        dp.idproducto,
-        pr.nombre as producto,
-        dp.idproductomedida,
-        COALESCE(pm2.idpresentacion, dp.idpresentacion) as idpresentacion,
-        CASE WHEN dp.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE 'Unidad' END as presentacion,
-        SUM(CASE WHEN COALESCE(dp.cantidadpresentacion, 0) > 0 THEN dp.cantidadpresentacion ELSE COALESCE(dp.cantidadunidades, 0) END) as cantidad_producida,
-        SUM(CASE WHEN dp.idproductomedida IS NOT NULL THEN dp.cantidadmala / NULLIF(pm2.cantidad, 0) ELSE dp.cantidadmala END) as cantidad_descartada
-      FROM detalle_produccion dp
-      INNER JOIN produccion prod ON dp.idproduccion = prod.idproduccion
-      INNER JOIN producto pr ON dp.idproducto = pr.idproducto
-      LEFT JOIN productomedida pm2 ON dp.idproductomedida = pm2.idproductomedida
-      LEFT JOIN presentacion pres ON COALESCE(pm2.idpresentacion, dp.idpresentacion) = pres.idpresentacion
-      WHERE prod.fechaproduccion BETWEEN $1 AND $2 AND prod.estado = 1 ${sucursalCondProd}
-      GROUP BY dp.idproducto, pr.nombre, dp.idproductomedida, COALESCE(pm2.idpresentacion, dp.idpresentacion), CASE WHEN dp.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE 'Unidad' END
-      ORDER BY pr.nombre, CASE WHEN dp.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE 'Unidad' END
-    `;
-
-    const sqlVentaPres = `
-      SELECT
-        COALESCE(pm.idproducto, dv.idproducto) as idproducto,
-        COALESCE(pr.nombre, pr2.nombre) as producto,
-        dv.idproductomedida,
-        CASE WHEN dv.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE 'Unidad' END as presentacion,
-        SUM(dv.cantidad) as cantidad_vendida,
-        SUM(dv.cantidad * dv.precio) as total_venta
-      FROM detalleventa dv
-      INNER JOIN venta v ON dv.idventa = v.idventa
-      LEFT JOIN productomedida pm ON dv.idproductomedida = pm.idproductomedida
-      LEFT JOIN producto pr ON pm.idproducto = pr.idproducto
-      LEFT JOIN producto pr2 ON dv.idproducto = pr2.idproducto
-      LEFT JOIN presentacion pres ON pm.idpresentacion = pres.idpresentacion
-      WHERE v.fechaventa BETWEEN $1 AND $2 AND v.estado = 1 ${sucursalCondVenta}
-        AND dv.idpromocion IS NULL
-      GROUP BY COALESCE(pm.idproducto, dv.idproducto), COALESCE(pr.nombre, pr2.nombre), dv.idproductomedida, CASE WHEN dv.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE 'Unidad' END
-      ORDER BY COALESCE(pr.nombre, pr2.nombre), CASE WHEN dv.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE 'Unidad' END
-    `;
-
     const sqlRevendedorPres = `
       WITH d AS (
         SELECT
@@ -249,7 +117,8 @@ export const getReporteProduccionVsVenta = async (req: Request, res: Response) =
         COALESCE(pm2.idpresentacion, dp.idpresentacion) as idpresentacion,
 CASE WHEN dp.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE 'Unidad' END as presentacion,
         COALESCE(pm2.cantidad, 1) as presentacion_factor,
-        SUM(CASE WHEN COALESCE(dp.cantidadpresentacion, 0) > 0 THEN dp.cantidadpresentacion ELSE COALESCE(dp.cantidadunidades, 0) END) as cantidad_producida
+        SUM(CASE WHEN COALESCE(dp.cantidadpresentacion, 0) > 0 THEN dp.cantidadpresentacion ELSE COALESCE(dp.cantidadunidades, 0) END) as cantidad_producida,
+        SUM(CASE WHEN dp.idproductomedida IS NOT NULL THEN dp.cantidadmala / NULLIF(pm2.cantidad, 0) ELSE dp.cantidadmala END) as cantidad_descartada
       FROM detalle_produccion dp
       INNER JOIN produccion prod ON dp.idproduccion = prod.idproduccion
       INNER JOIN producto pr ON dp.idproducto = pr.idproducto
@@ -304,52 +173,43 @@ CASE WHEN dp.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE
       ORDER BY dia_comercial, turno, pr.nombre, COALESCE(pres.nombre, 'S/N')
     `;
 
-    const [produccion, venta, revendedor, prodDiario, ventaDiario, revDiario, produccionPres, ventaPres, revendedorPres, gananciasRes, liquidoRes, turnosProd, turnosVenta, turnosRev] = await Promise.all([
-      AppDataSource.query(sqlProduccion, params),
-      AppDataSource.query(sqlVenta, params),
-      AppDataSource.query(sqlRevendedor, params),
-      AppDataSource.query(sqlProduccionDiario, params),
-      AppDataSource.query(sqlVentaDiario, params),
-      AppDataSource.query(sqlRevendedorDiario, params),
-      AppDataSource.query(sqlProduccionPres, params),
-      AppDataSource.query(sqlVentaPres, params),
-      AppDataSource.query(sqlRevendedorPres, params),
-      AppDataSource.query(sqlGanancias, params),
-      AppDataSource.query(sqlLiquido, params),
+    const [turnosProd, turnosVenta, turnosRev, revendedorPres, gananciasRes, liquidoRes] = await Promise.all([
       AppDataSource.query(sqlTurnosProd, params),
       AppDataSource.query(sqlTurnosVenta, params),
-      AppDataSource.query(sqlTurnosRev, params)
+      AppDataSource.query(sqlTurnosRev, params),
+      AppDataSource.query(sqlRevendedorPres, params),
+      AppDataSource.query(sqlGanancias, params),
+      AppDataSource.query(sqlLiquido, params)
     ]);
 
     const prodMap = new Map<string, any>();
-    for (const row of produccion as any[]) {
-      prodMap.set(row.idproducto, {
-        idproducto: row.idproducto,
-        producto: row.producto,
-        cantidad_producida: Number(row.cantidad_producida) || 0
-      });
+    for (const row of turnosProd as any[]) {
+      const prev = prodMap.get(String(row.idproducto)) || { idproducto: row.idproducto, producto: row.producto || "", cantidad_producida: 0 };
+      if (!prev.producto) prev.producto = row.producto || "";
+      prev.cantidad_producida += Number(row.cantidad_producida) || 0;
+      prodMap.set(String(row.idproducto), prev);
     }
 
     const ventaMap = new Map<string, any>();
-    for (const row of venta as any[]) {
-      ventaMap.set(row.idproducto, {
-        cantidad_vendida_tienda: Number(row.cantidad_vendida) || 0,
-        total_venta_tienda: Number(row.total_venta) || 0
-      });
+    for (const row of turnosVenta as any[]) {
+      const prev = ventaMap.get(String(row.idproducto)) || { cantidad_vendida_tienda: 0, total_venta_tienda: 0 };
+      prev.cantidad_vendida_tienda += Number(row.cantidad_vendida) || 0;
+      prev.total_venta_tienda += Number(row.total_venta) || 0;
+      ventaMap.set(String(row.idproducto), prev);
     }
 
     const revMap = new Map<string, any>();
-    for (const row of revendedor as any[]) {
-      revMap.set(row.idproducto, {
-        cantidad_vendida_revendedor: Number(row.cantidad_vendida) || 0,
-        total_venta_revendedor: Number(row.total_venta) || 0
-      });
+    for (const row of turnosRev as any[]) {
+      const prev = revMap.get(String(row.idproducto)) || { cantidad_vendida_revendedor: 0, total_venta_revendedor: 0 };
+      prev.cantidad_vendida_revendedor += Number(row.cantidad_vendida) || 0;
+      prev.total_venta_revendedor += Number(row.total_venta) || 0;
+      revMap.set(String(row.idproducto), prev);
     }
 
     const allProductIds = new Set<string>();
-    for (const row of produccion as any[]) allProductIds.add(row.idproducto);
-    for (const row of venta as any[]) allProductIds.add(row.idproducto);
-    for (const row of revendedor as any[]) allProductIds.add(row.idproducto);
+    for (const row of turnosProd as any[]) allProductIds.add(String(row.idproducto));
+    for (const row of turnosVenta as any[]) allProductIds.add(String(row.idproducto));
+    for (const row of turnosRev as any[]) allProductIds.add(String(row.idproducto));
 
     const detalle: any[] = [];
     let totalProducido = 0;
@@ -362,8 +222,8 @@ CASE WHEN dp.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE
       const r = revMap.get(id) || { cantidad_vendida_revendedor: 0, total_venta_revendedor: 0 };
 
       if (!p.producto) {
-        const ventaRow = venta.find((r: any) => r.idproducto === id);
-        const revRow = revendedor.find((r: any) => r.idproducto === id);
+        const ventaRow = (turnosVenta as any[]).find((x: any) => String(x.idproducto) === id);
+        const revRow = (turnosRev as any[]).find((x: any) => String(x.idproducto) === id);
         p.producto = ventaRow?.producto || revRow?.producto || "Sin nombre";
       }
 
@@ -392,37 +252,46 @@ CASE WHEN dp.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE
 
     detalle.sort((a, b) => b.cantidad_producida - a.cantidad_producida);
 
+    const diaKey = (v: any) => {
+      const d = v instanceof Date ? v : new Date(String(v).split('T')[0] + 'T12:00:00');
+      return isNaN(d.getTime()) ? String(v) : `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    };
+
     const prodDiarioMap = new Map<string, Map<string, any>>();
-    const nombreProductos = new Map<string, string>();
-    for (const row of prodDiario as any[]) {
-      const fecha = row.fecha instanceof Date ? row.fecha.toISOString().split('T')[0] : String(row.fecha).split('T')[0];
-      if (!prodDiarioMap.has(fecha)) prodDiarioMap.set(fecha, new Map());
-      prodDiarioMap.get(fecha)!.set(String(row.idproducto), {
-        cantidad_producida: Number(row.cantidad_producida) || 0
-      });
-      if (!nombreProductos.has(String(row.idproducto))) nombreProductos.set(String(row.idproducto), row.producto);
-    }
-
     const ventaDiarioMap = new Map<string, Map<string, any>>();
-    for (const row of ventaDiario as any[]) {
-      const fecha = row.fecha instanceof Date ? row.fecha.toISOString().split('T')[0] : String(row.fecha).split('T')[0];
-      if (!ventaDiarioMap.has(fecha)) ventaDiarioMap.set(fecha, new Map());
-      ventaDiarioMap.get(fecha)!.set(String(row.idproducto), {
-        cantidad_vendida: Number(row.cantidad_vendida) || 0,
-        total_venta: Number(row.total_venta) || 0
-      });
-      if (!nombreProductos.has(String(row.idproducto))) nombreProductos.set(String(row.idproducto), row.producto);
+    const revDiarioMap = new Map<string, Map<string, any>>();
+    const nombreProductos = new Map<string, string>();
+
+    for (const row of turnosProd as any[]) {
+      const fecha = diaKey(row.dia_comercial);
+      const fid = String(row.idproducto);
+      if (!prodDiarioMap.has(fecha)) prodDiarioMap.set(fecha, new Map());
+      const prev = prodDiarioMap.get(fecha)!.get(fid) || { cantidad_producida: 0 };
+      prev.cantidad_producida += Number(row.cantidad_producida) || 0;
+      prodDiarioMap.get(fecha)!.set(fid, prev);
+      if (!nombreProductos.has(fid)) nombreProductos.set(fid, row.producto);
     }
 
-    const revDiarioMap = new Map<string, Map<string, any>>();
-    for (const row of revDiario as any[]) {
-      const fecha = row.fecha instanceof Date ? row.fecha.toISOString().split('T')[0] : String(row.fecha).split('T')[0];
+    for (const row of turnosVenta as any[]) {
+      const fecha = diaKey(row.dia_comercial);
+      const fid = String(row.idproducto);
+      if (!ventaDiarioMap.has(fecha)) ventaDiarioMap.set(fecha, new Map());
+      const prev = ventaDiarioMap.get(fecha)!.get(fid) || { cantidad_vendida: 0, total_venta: 0 };
+      prev.cantidad_vendida += Number(row.cantidad_vendida) || 0;
+      prev.total_venta += Number(row.total_venta) || 0;
+      ventaDiarioMap.get(fecha)!.set(fid, prev);
+      if (!nombreProductos.has(fid)) nombreProductos.set(fid, row.producto);
+    }
+
+    for (const row of turnosRev as any[]) {
+      const fecha = diaKey(row.dia_comercial);
+      const fid = String(row.idproducto);
       if (!revDiarioMap.has(fecha)) revDiarioMap.set(fecha, new Map());
-      revDiarioMap.get(fecha)!.set(String(row.idproducto), {
-        cantidad_vendida: Number(row.cantidad_vendida) || 0,
-        total_venta: Number(row.total_venta) || 0
-      });
-      if (!nombreProductos.has(String(row.idproducto))) nombreProductos.set(String(row.idproducto), row.producto);
+      const prev = revDiarioMap.get(fecha)!.get(fid) || { cantidad_vendida: 0, total_venta: 0 };
+      prev.cantidad_vendida += Number(row.cantidad_vendida) || 0;
+      prev.total_venta += Number(row.total_venta) || 0;
+      revDiarioMap.get(fecha)!.set(fid, prev);
+      if (!nombreProductos.has(fid)) nombreProductos.set(fid, row.producto);
     }
 
     const allDates = new Set<string>();
@@ -612,7 +481,7 @@ CASE WHEN dp.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE
     const presVentaMap = new Map<string, any>();
     const presRevMap = new Map<string, any>();
 
-    for (const row of produccionPres as any[]) {
+    for (const row of turnosProd as any[]) {
       const key = presKey(row);
       if (!presMeta.has(key)) presMeta.set(key, {
         idproductomedida: row.idproductomedida || null,
@@ -626,7 +495,7 @@ CASE WHEN dp.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE
       presProdMap.set(key, prev);
     }
 
-    for (const row of ventaPres as any[]) {
+    for (const row of turnosVenta as any[]) {
       const key = presKey(row);
       if (!presMeta.has(key)) presMeta.set(key, {
         idproductomedida: row.idproductomedida || null,

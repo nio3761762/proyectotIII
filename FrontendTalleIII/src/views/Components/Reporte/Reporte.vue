@@ -114,24 +114,11 @@
       </div>
 
       <div v-if="activeTab === 'produccion-vs-venta'">
-        <ProduccionVsVentaTable ref="produccionVsVentaTableRef"
-          :detalle="reporteProduccionVsVenta?.detalle || []"
-          :detalle-diario="reporteProduccionVsVenta?.detalleDiario || []"
-          :resumen="reporteProduccionVsVenta?.resumen || {}"
-          :por-presentacion="reporteProduccionVsVenta?.porPresentacion || []"
-          :ganancias="reporteProduccionVsVenta?.ganancias || {}"
-          :resumen-por-presentacion="reporteProduccionVsVenta?.resumenPorPresentacion || {}"
+        <ProduccionVsVentaTurnosTable ref="produccionVsVentaTurnosTableRef"
+          :detalle-turnos="reporteProduccionVsVenta?.detalleTurnos || []"
           :format-fecha="formatFecha"
           :agrupar-por-semana="agruparPorSemana"
         />
-
-        <div class="mt-8 border-t-2 border-dashed border-gray-200 pt-8">
-          <ProduccionVsVentaTurnosTable ref="produccionVsVentaTurnosTableRef"
-            :detalle-turnos="reporteProduccionVsVenta?.detalleTurnos || []"
-            :format-fecha="formatFecha"
-            :agrupar-por-semana="agruparPorSemana"
-          />
-        </div>
 
         <div class="mt-8">
           <ResumenTurnosTable :detalle-turnos="reporteProduccionVsVenta?.detalleTurnos || []" />
@@ -175,7 +162,6 @@ import KardexTable from './KardexTable.vue'
 import FinancieroTable from './FinancieroTable.vue'
 import ComisionTable from './ComisionTable.vue'
 import GastosGeneralesTable from './GastosGeneralesTable.vue'
-import ProduccionVsVentaTable from './ProduccionVsVentaTable.vue'
 import ProduccionVsVentaTurnosTable from './ProduccionVsVentaTurnosTable.vue'
 import ResumenTurnosTable from './ResumenTurnosTable.vue'
 
