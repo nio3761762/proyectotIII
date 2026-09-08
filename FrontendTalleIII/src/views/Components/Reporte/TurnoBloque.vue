@@ -38,8 +38,10 @@
             <td class="p-3 text-center font-medium text-purple-600">{{ item.cantidad_vendida_revendedor }}</td>
             <td class="p-3 text-center font-medium text-gray-700">{{ formatMoney(item.total_venta_revendedor) }}</td>
             <td class="p-3 text-center font-black text-gray-700">{{ item.cantidad_vendida_total }}</td>
-            <td class="p-3 text-center font-black" :class="restante(item) >= 0 ? 'text-amber-600' : 'text-red-600'">
-              {{ restante(item) }}
+            <td class="p-3 text-center">
+              <div class="font-black" :class="restante(item) >= 0 ? 'text-amber-600' : 'text-red-600'">{{ restante(item) }}</div>
+              <div v-if="detalleAbsorcion(item)" class="text-[8.5px] text-gray-400 font-medium leading-tight mt-0.5">{{ detalleAbsorcion(item) }}</div>
+              <div v-else-if="item.consumida" class="text-[8.5px] text-gray-400 font-medium leading-tight mt-0.5">absorbido en otra presentación</div>
             </td>
           </tr>
           <tr v-if="!turno.productos || turno.productos.length === 0">
@@ -78,16 +80,32 @@ const props = defineProps({
 
 const esTarde = computed(() => String(props.titulo).toLowerCase().includes('tarde'))
 
-const keyOf = (item) => `${item.idproducto}::${item.presentacion || 'Unidad'}`
+const keyOf = (item) => String(item.idproducto) + '::' + (item.presentacion || 'Unidad')
 
 const stockInicio = (item) => props.stockInicioPorProducto[keyOf(item)] || 0
 
+const factorDe = (item) => Math.max(1, Number(item.presentacion_factor) || 1)
+
+const consumido = (item) => ((item.consumo_eq_unidades || 0) / factorDe(item))
+
 const restante = (item) => {
+  if (item.consumida) return 0
   const inicio = stockInicio(item)
-  return inicio + (item.cantidad_producida || 0) - (item.cantidad_vendida_total || 0)
+  return inicio + (item.cantidad_producida || 0) - (item.cantidad_vendida_total || 0) - consumido(item)
 }
 
-const restanteTotal = computed(() => stockInicioTotal.value + (props.turno.total_producido || 0) - (props.turno.total_vendido || 0))
+const restanteTotal = computed(() => (props.turno.productos || []).reduce((s, p) => s + restante(p), 0))
+
+const detalleAbsorcion = (item) => {
+  const det = item.consumo_detalle || []
+  if (!det.length) return ''
+  const bits = []
+  if (stockInicio(item)) bits.push(`${stockInicio(item)}`)
+  if (item.cantidad_producida) bits.push(`${item.cantidad_producida}`)
+  if (item.cantidad_vendida_total) bits.push(`-${item.cantidad_vendida_total}`)
+  det.forEach(b => bits.push(`-${(Number(b.qty) || 0) * (Number(b.factor) || 1)} (${b.qty} ${String(b.pres).toLowerCase()} x ${b.factor})`))
+  return `${bits.join(' ')} = ${restante(item)}`
+}
 
 const stockInicioTotal = computed(() => Object.values(props.stockInicioPorProducto).reduce((s, v) => s + (Number(v) || 0), 0))
 

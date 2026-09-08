@@ -3772,7 +3772,7 @@ const exportarPDF = async () => {
     // ===== SECCIÓN: Producción vs Venta por Turnos (versión actual) =====
     const turnosData = data.detalleTurnos || []
     if (turnosData.length) { try {
-      const keyOfT = (item) => `${item.idproducto}::${item.presentacion || 'Unidad'}`
+      const keyOfT = (item) => String(item.idproducto) + '::' + (item.presentacion || 'Unidad')
       const fmtMoneyT = (v) => `${Number(v || 0).toFixed(2)}`
       const fmtFechaTurno = (f) => {
         const clean = String(f).split('T')[0]
@@ -3785,25 +3785,49 @@ const exportarPDF = async () => {
       const safeY = (y) => (Number.isFinite(y) ? y : 50)
 
       const disponible = {}
+      const meta = {}
       const diasAsc = [...turnosData].sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
-      const diasConStockT = diasAsc.map(dia => {
-        const cab = (turno) => {
-          const stockInicio = {}
-          ;(turno.productos || []).forEach(p => {
-            stockInicio[keyOfT(p)] = disponible[keyOfT(p)] || 0
+      const factorDeT = (p) => Math.max(1, Number(p.presentacion_factor) || 1)
+      const esUnidadDeT = (p) => { const pr = String(p.presentacion || 'Unidad'); return pr === 'Unidad' || pr === 'S/N' || pr === '' }
+      const snapshot = () => Object.fromEntries(Object.entries(disponible).filter(([, v]) => Number(v) > 0))
+      const calcularRestT = (p) => (p.consumida ? 0 : (p._inicio || 0) + (p.cantidad_producida || 0) - (p.cantidad_vendida_total || 0) - ((p.consumo_eq_unidades || 0) / factorDeT(p)))
+      const absorberT = (rows) => {
+        const groups = new Map()
+        rows.forEach(p => { if (!groups.has(p.idproducto)) groups.set(p.idproducto, []); groups.get(p.idproducto).push(p) })
+        groups.forEach(group => {
+          group.forEach(p => { p.consumida = false; p.consumo_eq_unidades = 0; p.consumo_detalle = [] })
+          const couriers = group.filter(p => !(p.cantidad_producida || 0) && (p.cantidad_vendida_total || 0) > 0)
+          const targets = group.filter(p => (p.cantidad_producida || 0) > 0 || (p._inicio || 0) > 0)
+          const target = targets.find(p => esUnidadDeT(p)) || targets.sort((a, b) => ((b.cantidad_producida || 0) + (b._inicio || 0)) - ((a.cantidad_producida || 0) + (a._inicio || 0)))[0]
+          couriers.forEach(c => {
+            if ((c._inicio || 0) > 0 || !target) return
+            c.consumida = true
+            target.consumo_eq_unidades = (target.consumo_eq_unidades || 0) + (c.cantidad_vendida_total || 0) * factorDeT(c)
+            target.consumo_detalle.push({ pres: c.presentacion || 'Unidad', qty: c.cantidad_vendida_total || 0, factor: factorDeT(c) })
           })
-          return stockInicio
-        }
+        })
+      }
+      const cabLeftover = (turno, snap) => {
+        const stockInicio = {}
+        const prods = [...(turno.productos || [])]
+        const keys = new Set(prods.map(p => keyOfT(p)))
+        Object.entries(snap).forEach(([k, v]) => {
+          if (!keys.has(k)) {
+            prods.push({ idproducto: k.split('::')[0], ...(meta[k] || { producto: 'Stock anterior', presentacion: 'Unidad' }), presentacion: (meta[k] || {}).presentacion || k.split('::')[1] || 'Unidad', presentacion_factor: 1, cantidad_producida: 0, cantidad_vendida_tienda: 0, total_venta_tienda: 0, cantidad_vendida_revendedor: 0, total_venta_revendedor: 0, cantidad_vendida_total: 0, consumo_eq_unidades: 0, consumo_detalle: [], consumida: false })
+          }
+        })
+        prods.forEach(p => { p._inicio = disponible[keyOfT(p)] || 0; stockInicio[keyOfT(p)] = p._inicio })
+        absorberT(prods)
+        prods.forEach(p => { disponible[keyOfT(p)] = calcularRestT(p) })
+        return { stockInicio, productos: prods }
+      }
+      const diasConStockT = diasAsc.map(dia => {
         const turn = dia.turnos || { manana: { productos: [] }, tarde: { productos: [] } }
-        const stockManana = cab(turn.manana)
-        ;(turn.manana.productos || []).forEach(p => {
-          disponible[keyOfT(p)] = (disponible[keyOfT(p)] || 0) + (p.cantidad_producida || 0) - (p.cantidad_vendida_total || 0)
-        })
-        const stockTarde = cab(turn.tarde)
-        ;(turn.tarde.productos || []).forEach(p => {
-          disponible[keyOfT(p)] = (disponible[keyOfT(p)] || 0) + (p.cantidad_producida || 0) - (p.cantidad_vendida_total || 0)
-        })
-        return { ...dia, stockManana, stockTarde }
+        ;(turn.manana.productos || []).forEach(p => { const k = keyOfT(p); if (!meta[k]) meta[k] = { producto: p.producto || 'Sin nombre', presentacion: p.presentacion || 'Unidad' } })
+        ;(turn.tarde.productos || []).forEach(p => { const k = keyOfT(p); if (!meta[k]) meta[k] = { producto: p.producto || 'Sin nombre', presentacion: p.presentacion || 'Unidad' } })
+        const manana = cabLeftover(turn.manana, snapshot())
+        const tarde = cabLeftover(turn.tarde, snapshot())
+        return { ...dia, turnos: { manana: { ...turn.manana, productos: manana.productos }, tarde: { ...turn.tarde, productos: tarde.productos } }, stockManana: manana.stockInicio, stockTarde: tarde.stockInicio }
       })
       const diasTurnos = [...diasConStockT].sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
 
@@ -3816,7 +3840,7 @@ const exportarPDF = async () => {
       doc.setFontSize(7.5)
       doc.setTextColor(100)
       doc.setFont(undefined, 'normal')
-      doc.text('Día comercial de 12:00 PM a 12:00 PM. La venta de la tarde pertenece al día siguiente; la de la mañana al mismo día. Restante = stock heredado + producido - vendido.', 14, startY + 5)
+      doc.text('Cada día se divide en dos turnos por la hora: Mañana (12:00 AM - 12:00 PM) y Tarde (12:00 PM - 12:00 AM) del mismo día. Todo se muestra en su propia fecha y presentación como se registró. Restante = stock heredado + producido - vendido.', 14, startY + 5)
       startY += 15
 
       diasTurnos.forEach((dia, di) => {
@@ -3824,8 +3848,24 @@ const exportarPDF = async () => {
           const turno = (dia.turnos || {})[turnoName] || { productos: [], total_producido: 0, total_vendido: 0 }
           const stockIni = turnoName === 'manana' ? (dia.stockManana || {}) : (dia.stockTarde || {})
           const tituloTurno = turnoName === 'manana' ? 'Mañana (12 AM - 12 PM)' : 'Tarde (12 PM - 12 AM)'
+          const restDe = (item) => {
+            const inicio = stockIni[keyOfT(item)] || 0
+            if (item.consumida) return 0
+            return inicio + (item.cantidad_producida || 0) - (item.cantidad_vendida_total || 0) - ((item.consumo_eq_unidades || 0) / factorDeT(item))
+          }
+          const detalleAbsorcionT = (item) => {
+            const det = item.consumo_detalle || []
+            if (!det.length) return ''
+            const ini = stockIni[keyOfT(item)] || 0
+            const bits = []
+            if (ini) bits.push(`${ini}`)
+            if (item.cantidad_producida) bits.push(`${item.cantidad_producida}`)
+            if (item.cantidad_vendida_total) bits.push(`-${item.cantidad_vendida_total}`)
+            det.forEach(b => bits.push(`-${(Number(b.qty) || 0) * (Number(b.factor) || 1)} (${b.qty} ${String(b.pres).toLowerCase()} x ${b.factor})`))
+            return `${bits.join(' ')} = ${restDe(item)}`
+          }
           const stockIniTotal = Object.values(stockIni).reduce((s, v) => s + (Number(v) || 0), 0)
-          const restT = stockIniTotal + (turno.total_producido || 0) - (turno.total_vendido || 0)
+          const restT = (turno.productos || []).reduce((s, p) => s + restDe(p), 0)
 
           startY = safeY(startY)
           if (startY > 250) { doc.addPage(); startY = 50 }
@@ -3847,7 +3887,8 @@ const exportarPDF = async () => {
 
           const tRows = (turno.productos || []).map(item => {
             const inicio = stockIni[keyOfT(item)] || 0
-            const rest = inicio + (item.cantidad_producida || 0) - (item.cantidad_vendida_total || 0)
+            const detT = detalleAbsorcionT(item)
+            const restCell = detT ? { content: `${restDe(item)}\n${detT}`, styles: { fontSize: 5 } } : String(restDe(item))
             return [
               item.producto || '',
               item.presentacion || 'Unidad',
@@ -3858,30 +3899,34 @@ const exportarPDF = async () => {
               String(item.cantidad_vendida_revendedor || 0),
               fmtMoneyT(item.total_venta_revendedor),
               String(item.cantidad_vendida_total || 0),
-              String(rest)
+              restCell
             ]
           })
-          const totTienda = (turno.productos || []).reduce((s, p) => s + (p.cantidad_vendida_tienda || 0), 0)
-          const totIngTienda = (turno.productos || []).reduce((s, p) => s + (p.total_venta_tienda || 0), 0)
-          const totRev = (turno.productos || []).reduce((s, p) => s + (p.cantidad_vendida_revendedor || 0), 0)
-          const totIngRev = (turno.productos || []).reduce((s, p) => s + (p.total_venta_revendedor || 0), 0)
-          const totStyle = (content) => ({ content, styles: { fontStyle: 'bold', fillColor: [249, 250, 251], halign: 'center' } })
-          tRows.push([
-            { content: 'TOTALES', colSpan: 2, styles: { fontStyle: 'bold', fillColor: [249, 250, 251] } },
-            totStyle(String(stockIniTotal)),
-            totStyle(String(turno.total_producido || 0)),
-            totStyle(String(totTienda)),
-            totStyle(fmtMoneyT(totIngTienda)),
-            totStyle(String(totRev)),
-            totStyle(fmtMoneyT(totIngRev)),
-            totStyle(String(turno.total_vendido || 0)),
-            totStyle(String(restT))
-          ])
-          autoTable(doc, {
-            head: [['Producto', 'Presentación', 'Inicio', 'Producido', 'Vend. Tienda', 'Ing. Tienda', 'Vend. Rev.', 'Ing. Rev.', 'Total Vend.', 'Restante']],
-            body: tRows, startY, styles: { fontSize: 6.5 }, headStyles: { fontSize: 6.5 }
-          })
-          startY = safeY(doc.lastAutoTable.finalY + 5)
+          if ((turno.productos || []).length || (turno.total_producido || 0) || (turno.total_vendido || 0)) {
+            const totTienda = (turno.productos || []).reduce((s, p) => s + (p.cantidad_vendida_tienda || 0), 0)
+            const totIngTienda = (turno.productos || []).reduce((s, p) => s + (p.total_venta_tienda || 0), 0)
+            const totRev = (turno.productos || []).reduce((s, p) => s + (p.cantidad_vendida_revendedor || 0), 0)
+            const totIngRev = (turno.productos || []).reduce((s, p) => s + (p.total_venta_revendedor || 0), 0)
+            const totStyle = (content) => ({ content, styles: { fontStyle: 'bold', fillColor: [249, 250, 251], halign: 'center' } })
+            tRows.push([
+              { content: 'TOTALES', colSpan: 2, styles: { fontStyle: 'bold', fillColor: [249, 250, 251] } },
+              totStyle(String(stockIniTotal)),
+              totStyle(String(turno.total_producido || 0)),
+              totStyle(String(totTienda)),
+              totStyle(fmtMoneyT(totIngTienda)),
+              totStyle(String(totRev)),
+              totStyle(fmtMoneyT(totIngRev)),
+              totStyle(String(turno.total_vendido || 0)),
+              totStyle(String(restT))
+            ])
+            autoTable(doc, {
+              head: [['Producto', 'Presentación', 'Inicio', 'Producido', 'Vend. Tienda', 'Ing. Tienda', 'Vend. Rev.', 'Ing. Rev.', 'Total Vend.', 'Restante']],
+              body: tRows, startY, styles: { fontSize: 6.5 }, headStyles: { fontSize: 6.5 }
+            })
+            startY = safeY(doc.lastAutoTable.finalY + 5)
+          } else {
+            startY = safeY(startY + 4)
+          }
         })
         if (di < diasTurnos.length - 1 && startY > 250) { doc.addPage(); startY = 50 }
       })
@@ -3895,37 +3940,70 @@ const exportarPDF = async () => {
       doc.text('Resumen General por Producto y Turno', 14, startY)
       startY += 8
 
-      const keyOfR = (p) => `${p.idproducto}::${p.presentacion || 'Unidad'}`
+      const keyOfR = (p) => String(p.idproducto) + '::' + (p.presentacion || 'Unidad')
+      const factorDeR = (p) => Math.max(1, Number(p.presentacion_factor) || 1)
+      const esUnidadDeR = (p) => { const pr = String(p.presentacion || 'Unidad'); return pr === 'Unidad' || pr === 'S/N' || pr === '' }
       const mapaRes = {}
-      turnosData.forEach(dia => {
+      const inicioAcum = {}
+      const curMap = {}
+      const curFinal = {}
+      const diasAscR = [...turnosData].sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
+      diasAscR.forEach(dia => {
         ;['manana', 'tarde'].forEach(turnoName => {
           const turno = (dia.turnos || {})[turnoName] || { productos: [] }
-          ;(turno.productos || []).forEach(p => {
-            const key = keyOfR(p)
-            if (!mapaRes[key]) mapaRes[key] = { key, producto: p.producto || 'Sin nombre', presentacion: p.presentacion || 'Unidad', prodM: 0, vendM: 0, prodT: 0, vendT: 0 }
-            const r = mapaRes[key]
-            const prod = p.cantidad_producida || 0
-            const vend = p.cantidad_vendida_total || 0
-            if (turnoName === 'manana') { r.prodM += prod; r.vendM += vend } else { r.prodT += prod; r.vendT += vend }
+          const rowsTurno = turno.productos || []
+          const groups = new Map()
+          rowsTurno.forEach(p => { if (!groups.has(p.idproducto)) groups.set(p.idproducto, []); groups.get(p.idproducto).push(p) })
+          groups.forEach(group => {
+            const inicioOf = (k) => curMap[k] != null ? curMap[k] : 0
+            group.forEach(p => { p._inicioRes = inicioOf(keyOfR(p)); p.consumida = false; p.consumo_eq_unidades = 0; p.consumo_detalle = [] })
+            const couriers = group.filter(p => !(p.cantidad_producida || 0) && (p.cantidad_vendida_total || 0) > 0)
+            const targets = group.filter(p => (p.cantidad_producida || 0) > 0 || (p._inicioRes || 0) > 0)
+            const target = targets.find(p => esUnidadDeR(p)) || targets.sort((a, b) => ((b.cantidad_producida || 0) + (b._inicioRes || 0)) - ((a.cantidad_producida || 0) + (a._inicioRes || 0)))[0]
+            couriers.forEach(c => {
+              if ((c._inicioRes || 0) > 0 || !target) return
+              c.consumida = true
+              target.consumo_eq_unidades = (target.consumo_eq_unidades || 0) + (c.cantidad_vendida_total || 0) * factorDeR(c)
+              target.consumo_detalle.push({ pres: c.presentacion || 'Unidad', qty: c.cantidad_vendida_total || 0, factor: factorDeR(c) })
+            })
+            group.forEach(p => {
+              const key = keyOfR(p)
+              let r = mapaRes[key]
+              if (!r) {
+                r = { key, producto: p.producto || 'Sin nombre', presentacion: p.presentacion || 'Unidad', inicioM: inicioAcum[key] || 0, prodM: 0, vendM: 0, restM: 0, prodT: 0, vendT: 0, restT: 0 }
+                mapaRes[key] = r
+                curMap[key] = r.inicioM
+              }
+              const prod = p.cantidad_producida || 0
+              const vend = p.cantidad_vendida_total || 0
+              const rest = p.consumida ? 0 : (p._inicioRes || 0) + prod - vend - ((p.consumo_eq_unidades || 0) / factorDeR(p))
+              if (turnoName === 'tarde') { r.prodT += prod; r.vendT += vend; r.restT = rest; if (p.consumo_detalle && p.consumo_detalle.length) r.consumoDetT = p.consumo_detalle.slice() } else { r.prodM += prod; r.vendM += vend; r.restM = rest; if (p.consumo_detalle && p.consumo_detalle.length) r.consumoDetM = p.consumo_detalle.slice() }
+              if (p.consumo_detalle && p.consumo_detalle.length) r.consumoDetalle = (r.consumoDetalle || []).concat(p.consumo_detalle)
+              if (!p.consumida) { curMap[key] = rest; curFinal[key] = rest }
+            })
           })
         })
       })
-      let inicioAcum = {}
       const resumenRows = Object.values(mapaRes).map(r => {
-        const inicioM = inicioAcum[r.key] || 0
-        const restM = inicioM + r.prodM - r.vendM
-        const restT = restM + r.prodT - r.vendT
-        inicioAcum[r.key] = restT
+        const detDe = (det) => (det || []).map(d => `-${(Number(d.qty) || 0) * (Number(d.factor) || 1)} (${d.qty} ${String(d.pres).toLowerCase()} x ${d.factor})`).join(' ')
+        const detM = detDe(r.consumoDetM)
+        const detT = detDe(r.consumoDetT)
+        const detF = detDe(r.consumoDetalle)
         return [
-          r.producto, r.presentacion, String(inicioM),
-          String(r.prodM), String(r.vendM), String(restM),
-          String(r.prodT), String(r.vendT), String(restT),
-          String(r.prodM + r.prodT), String(r.vendM + r.vendT), String(restT)
+          r.producto, r.presentacion, String(r.inicioM),
+          String(r.prodM), String(r.vendM), detM ? { content: `${r.restM}\n${detM}`, styles: { fontSize: 4.8 } } : String(r.restM),
+          String(r.prodT), String(r.vendT), detT ? { content: `${r.restT}\n${detT}`, styles: { fontSize: 4.8 } } : String(r.restT),
+          String(r.prodM + r.prodT), String(r.vendM + r.vendT),
+          { content: `${curFinal[r.key] != null ? curFinal[r.key] : r.inicioM}${detF ? `\n${detF}` : ''}`, styles: { fontSize: detF ? 4.8 : 5.5 } }
         ]
       })
       resumenRows.sort((a, b) => Number(b[9]) - Number(a[9]))
       const tRes = resumenRows.reduce((acc, row) => {
-        ;[2, 3, 4, 5, 6, 7, 8, 9, 10, 11].forEach(i => { acc[i] += Number(row[i]) })
+        ;[2, 3, 4, 5, 6, 7, 8, 9, 10, 11].forEach(i => {
+          const raw = row[i] && typeof row[i] === 'object' && row[i].content != null ? String(row[i].content).split('\n')[0] : row[i]
+          const v = Number(raw)
+          if (Number.isFinite(v)) acc[i] += v
+        })
         return acc
       }, [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
       const totResStyle = (content) => ({ content, styles: { fontStyle: 'bold', fillColor: [255, 247, 237], halign: 'center' } })

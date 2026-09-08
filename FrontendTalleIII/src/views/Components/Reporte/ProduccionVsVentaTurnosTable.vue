@@ -2,7 +2,7 @@
   <div class="space-y-8">
     <div class="bg-gradient-to-r from-indigo-500 to-violet-600 rounded-3xl p-6 text-white shadow-xl">
       <p class="text-[10px] uppercase font-bold tracking-widest opacity-80 mb-1">Producción vs Venta por Turnos</p>
-      <p class="text-xs opacity-80 mb-4">El día comercial corre de 12:00 PM a 12:00 PM. La venta de la <b>tarde</b> pertenece al día siguiente; la venta de la <b>mañana</b> al mismo día. La columna <b>Restante</b> sigue el stock que queda y pasa al siguiente turno/día.</p>
+      <p class="text-xs opacity-80 mb-4">Cada día se divide en dos turnos por la hora: <b>Mañana</b> (12:00 AM - 12:00 PM) y <b>Tarde</b> (12:00 PM - 12:00 AM) del mismo día. Todo se muestra en su propia fecha y en su presentación como se registró. La columna <b>Restante</b> sigue el stock que queda y pasa al siguiente turno/día.</p>
       <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
         <div>
           <p class="text-xl font-black">{{ totales.globalProduccion }} uds.</p>
@@ -51,7 +51,7 @@
             </div>
             <div class="p-4 space-y-4">
               <TurnoBloque :turno="dia.turnos.manana" :stock-inicio-por-producto="dia.stockManana" titulo="Mañana (12:00 AM - 12:00 PM)" :format-money="formatMoney" />
-              <TurnoBloque :turno="dia.turnos.tarde" :stock-inicio-por-producto="dia.stockTarde" titulo="Tarde (12:00 PM - 12:00 AM, del día anterior)" :format-money="formatMoney" />
+              <TurnoBloque :turno="dia.turnos.tarde" :stock-inicio-por-producto="dia.stockTarde" titulo="Tarde (12:00 PM - 12:00 AM)" :format-money="formatMoney" />
             </div>
           </div>
         </div>
@@ -75,7 +75,7 @@
         </div>
         <div v-if="expandedDias[dia.fecha]" class="p-4 space-y-4">
           <TurnoBloque :turno="dia.turnos.manana" :stock-inicio-por-producto="dia.stockManana" titulo="Mañana (12:00 AM - 12:00 PM)" :format-money="formatMoney" />
-          <TurnoBloque :turno="dia.turnos.tarde" :stock-inicio-por-producto="dia.stockTarde" titulo="Tarde (12:00 PM - 12:00 AM, del día anterior)" :format-money="formatMoney" />
+          <TurnoBloque :turno="dia.turnos.tarde" :stock-inicio-por-producto="dia.stockTarde" titulo="Tarde (12:00 PM - 12:00 AM)" :format-money="formatMoney" />
         </div>
       </div>
     </div>
@@ -99,31 +99,56 @@ const sortedDias = computed(() => {
   return [...props.detalleTurnos].sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
 })
 
-// Calcula el stock inicial (heredado) por producto para cada turno, en recorrido
-// cronológico (mañana -> tarde -> día siguiente), según el flujo: lo que no se
-// vende en la mañana pasa a la tarde, y lo que no se vende en la tarde al día siguiente.
+// Calcula el stock inicial (heredado) por producto para cada turno. Cada día se
+// divide por hora en dos turnos del mismo día: Mañana (12:00 AM - 12:00 PM) y
+// Tarde (12:00 PM - 12:00 AM). Los productos con stock sobrante de días anteriores
+// siguen apareciendo (continuación) en los turnos siguientes con su Inicio/Restante.
 const diasConStock = computed(() => {
   const disponible = {}
+  const meta = {}
   const diasAsc = [...props.detalleTurnos].sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
-  const keyOf = (p) => `${p.idproducto}::${p.presentacion || 'Unidad'}`
-  const result = diasAsc.map(dia => {
-    const cab = (turno) => {
-      const stockInicio = {}
-      ;(turno.productos || []).forEach(p => {
-        stockInicio[keyOf(p)] = disponible[keyOf(p)] || 0
+  const keyOf = (p) => String(p.idproducto) + '::' + (p.presentacion || 'Unidad')
+  const factorDe = (p) => Math.max(1, Number(p.presentacion_factor) || 1)
+  const esUnidadDe = (p) => { const pr = String(p.presentacion || 'Unidad'); return pr === 'Unidad' || pr === 'S/N' || pr === '' }
+  const snapshot = () => Object.fromEntries(Object.entries(disponible).filter(([, v]) => Number(v) > 0))
+  const calcularRest = (p) => (p.consumida ? 0 : (p._inicio || 0) + (p.cantidad_producida || 0) - (p.cantidad_vendida_total || 0) - ((p.consumo_eq_unidades || 0) / factorDe(p)))
+  const absorber = (rows) => {
+    const groups = new Map()
+    rows.forEach(p => { if (!groups.has(p.idproducto)) groups.set(p.idproducto, []); groups.get(p.idproducto).push(p) })
+    groups.forEach(group => {
+      group.forEach(p => { p.consumida = false; p.consumo_eq_unidades = 0; p.consumo_detalle = [] })
+      const couriers = group.filter(p => !(p.cantidad_producida || 0) && (p.cantidad_vendida_total || 0) > 0)
+      const targets = group.filter(p => (p.cantidad_producida || 0) > 0 || (p._inicio || 0) > 0)
+      const target = targets.find(p => esUnidadDe(p)) || targets.sort((a, b) => ((b.cantidad_producida || 0) + (b._inicio || 0)) - ((a.cantidad_producida || 0) + (a._inicio || 0)))[0]
+      couriers.forEach(c => {
+        if ((c._inicio || 0) > 0 || !target) return
+        c.consumida = true
+        target.consumo_eq_unidades = (target.consumo_eq_unidades || 0) + (c.cantidad_vendida_total || 0) * factorDe(c)
+        target.consumo_detalle.push({ pres: c.presentacion || 'Unidad', qty: c.cantidad_vendida_total || 0, factor: factorDe(c) })
       })
-      return stockInicio
-    }
+    })
+  }
+  const cabLeftover = (turno, snap) => {
+    const stockInicio = {}
+    const prods = [...(turno.productos || [])]
+    const keys = new Set(prods.map(p => keyOf(p)))
+    Object.entries(snap).forEach(([k, v]) => {
+      if (!keys.has(k)) {
+        prods.push({ idproducto: k.split('::')[0], ...(meta[k] || { producto: 'Stock anterior', presentacion: 'Unidad' }), presentacion: (meta[k] || {}).presentacion || k.split('::')[1] || 'Unidad', presentacion_factor: 1, cantidad_producida: 0, cantidad_vendida_tienda: 0, total_venta_tienda: 0, cantidad_vendida_revendedor: 0, total_venta_revendedor: 0, cantidad_vendida_total: 0, consumo_eq_unidades: 0, consumo_detalle: [], consumida: false })
+      }
+    })
+    prods.forEach(p => { p._inicio = disponible[keyOf(p)] || 0; stockInicio[keyOf(p)] = p._inicio })
+    absorber(prods)
+    prods.forEach(p => { disponible[keyOf(p)] = calcularRest(p) })
+    return { stockInicio, productos: prods }
+  }
+  const result = diasAsc.map(dia => {
     const turn = dia.turnos || { manana: { productos: [] }, tarde: { productos: [] } }
-    const stockManana = cab(turn.manana)
-    ;(turn.manana.productos || []).forEach(p => {
-      disponible[keyOf(p)] = (disponible[keyOf(p)] || 0) + (p.cantidad_producida || 0) - (p.cantidad_vendida_total || 0)
-    })
-    const stockTarde = cab(turn.tarde)
-    ;(turn.tarde.productos || []).forEach(p => {
-      disponible[keyOf(p)] = (disponible[keyOf(p)] || 0) + (p.cantidad_producida || 0) - (p.cantidad_vendida_total || 0)
-    })
-    return { ...dia, stockManana, stockTarde }
+    ;(turn.manana.productos || []).forEach(p => { const k = keyOf(p); if (!meta[k]) meta[k] = { producto: p.producto || 'Sin nombre', presentacion: p.presentacion || 'Unidad' } })
+    ;(turn.tarde.productos || []).forEach(p => { const k = keyOf(p); if (!meta[k]) meta[k] = { producto: p.producto || 'Sin nombre', presentacion: p.presentacion || 'Unidad' } })
+    const manana = cabLeftover(turn.manana, snapshot())
+    const tarde = cabLeftover(turn.tarde, snapshot())
+    return { ...dia, turnos: { manana: { ...turn.manana, productos: manana.productos }, tarde: { ...turn.tarde, productos: tarde.productos } }, stockManana: manana.stockInicio, stockTarde: tarde.stockInicio }
   })
   return result.sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
 })
