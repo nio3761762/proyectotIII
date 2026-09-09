@@ -98,62 +98,11 @@ const props = defineProps({
 
 const formatMoney = (v) => '$' + Number(v || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
-const sortedDias = computed(() => {
-  return [...props.detalleTurnos].sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
-})
-
-// Calcula el stock inicial (heredado) por producto para cada turno. Cada día se
-// divide por hora en dos turnos del mismo día: Mañana (12:00 AM - 12:00 PM) y
-// Tarde (12:00 PM - 12:00 AM). Los productos con stock sobrante de días anteriores
-// siguen apareciendo (continuación) en los turnos siguientes con su Inicio/Restante.
+// El stock heredado (Inicio/Restante) por producto y turno ya viene calculado
+// en el backend (reporte/produccion-vs-venta). Cada fila incluye inicio,
+// restante, consumida y consumo_detalle; los días incluyen stockManana/stockTarde.
 const diasConStock = computed(() => {
-  const disponible = {}
-  const meta = {}
-  const diasAsc = JSON.parse(JSON.stringify(props.detalleTurnos)).sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
-  const keyOf = (p) => String(p.idproducto) + '::' + (p.presentacion || 'Unidad')
-  const factorDe = (p) => Math.max(1, Number(p.presentacion_factor) || 1)
-  const esUnidadDe = (p) => { const pr = String(p.presentacion || 'Unidad'); return pr === 'Unidad' || pr === 'S/N' || pr === '' }
-  const snapshot = () => Object.fromEntries(Object.entries(disponible).filter(([, v]) => Number(v) > 0))
-  const calcularRest = (p) => (p.consumida ? 0 : (p._inicio || 0) + (p.cantidad_producida || 0) - (p.cantidad_vendida_total || 0) - ((p.consumo_eq_unidades || 0) / factorDe(p)))
-  const absorber = (rows) => {
-    const groups = new Map()
-    rows.forEach(p => { if (!groups.has(p.idproducto)) groups.set(p.idproducto, []); groups.get(p.idproducto).push(p) })
-    groups.forEach(group => {
-      group.forEach(p => { p.consumida = false; p.consumo_eq_unidades = 0; p.consumo_detalle = [] })
-      const couriers = group.filter(p => !(p.cantidad_producida || 0) && (p.cantidad_vendida_total || 0) > 0)
-      const targets = group.filter(p => (p.cantidad_producida || 0) > 0 || (p._inicio || 0) > 0)
-      const target = targets.find(p => esUnidadDe(p)) || targets.sort((a, b) => ((b.cantidad_producida || 0) + (b._inicio || 0)) - ((a.cantidad_producida || 0) + (a._inicio || 0)))[0]
-      couriers.forEach(c => {
-        if ((c._inicio || 0) > 0 || !target) return
-        c.consumida = true
-        target.consumo_eq_unidades = (target.consumo_eq_unidades || 0) + (c.cantidad_vendida_total || 0) * factorDe(c)
-        target.consumo_detalle.push({ pres: c.presentacion || 'Unidad', qty: c.cantidad_vendida_total || 0, factor: factorDe(c) })
-      })
-    })
-  }
-  const cabLeftover = (turno, snap) => {
-    const stockInicio = {}
-    const prods = [...(turno.productos || [])]
-    const keys = new Set(prods.map(p => keyOf(p)))
-    Object.entries(snap).forEach(([k, v]) => {
-      if (!keys.has(k)) {
-        prods.push({ idproducto: k.split('::')[0], ...(meta[k] || { producto: 'Stock anterior', presentacion: 'Unidad' }), presentacion: (meta[k] || {}).presentacion || k.split('::')[1] || 'Unidad', presentacion_factor: 1, cantidad_producida: 0, cantidad_vendida_tienda: 0, total_venta_tienda: 0, cantidad_vendida_revendedor: 0, total_venta_revendedor: 0, cantidad_vendida_total: 0, consumo_eq_unidades: 0, consumo_detalle: [], consumida: false })
-      }
-    })
-    prods.forEach(p => { p._inicio = disponible[keyOf(p)] || 0; stockInicio[keyOf(p)] = p._inicio })
-    absorber(prods)
-    prods.forEach(p => { disponible[keyOf(p)] = calcularRest(p) })
-    return { stockInicio, productos: prods }
-  }
-  const result = diasAsc.map(dia => {
-    const turn = dia.turnos || { manana: { productos: [] }, tarde: { productos: [] } }
-    ;(turn.manana.productos || []).forEach(p => { const k = keyOf(p); if (!meta[k]) meta[k] = { producto: p.producto || 'Sin nombre', presentacion: p.presentacion || 'Unidad' } })
-    ;(turn.tarde.productos || []).forEach(p => { const k = keyOf(p); if (!meta[k]) meta[k] = { producto: p.producto || 'Sin nombre', presentacion: p.presentacion || 'Unidad' } })
-    const manana = cabLeftover(turn.manana, snapshot())
-    const tarde = cabLeftover(turn.tarde, snapshot())
-    return { ...dia, turnos: { manana: { ...turn.manana, productos: manana.productos }, tarde: { ...turn.tarde, productos: tarde.productos } }, stockManana: manana.stockInicio, stockTarde: tarde.stockInicio }
-  })
-  return result.sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
+  return [...props.detalleTurnos].sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
 })
 
 const diasVisiblesLimite = ref(15)

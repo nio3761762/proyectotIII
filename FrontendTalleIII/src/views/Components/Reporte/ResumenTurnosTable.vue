@@ -85,69 +85,46 @@ const props = defineProps({
 
 const keyOf = (p) => String(p.idproducto) + '::' + (p.presentacion || 'Unidad')
 
-const factorDe = (p) => Math.max(1, Number(p.presentacion_factor) || 1)
-
-const esUnidadDe = (p) => { const pr = String(p.presentacion || 'Unidad'); return pr === 'Unidad' || pr === 'S/N' || pr === '' }
-
 const rows = computed(() => {
   const map = {}
-  const curMap = {}
   const curFinal = {}
   ;JSON.parse(JSON.stringify(props.detalleTurnos)).sort((a, b) => new Date(a.fecha) - new Date(b.fecha)).forEach(dia => {
     ;['manana', 'tarde'].forEach(turnoName => {
       const turno = (dia.turnos || {})[turnoName] || { productos: [] }
-      const rowsTurno = turno.productos || []
-      const groups = new Map()
-      rowsTurno.forEach(p => { if (!groups.has(p.idproducto)) groups.set(p.idproducto, []); groups.get(p.idproducto).push(p) })
-      groups.forEach(group => {
-        const inicioOf = (k) => curMap[k] != null ? curMap[k] : 0
-        group.forEach(p => { p._inicioRes = inicioOf(keyOf(p)); p.consumida = false; p.consumo_eq_unidades = 0; p.consumo_detalle = [] })
-        const couriers = group.filter(p => !(p.cantidad_producida || 0) && (p.cantidad_vendida_total || 0) > 0)
-        const targets = group.filter(p => (p.cantidad_producida || 0) > 0 || (p._inicioRes || 0) > 0)
-        const target = targets.find(p => esUnidadDe(p)) || targets.sort((a, b) => ((b.cantidad_producida || 0) + (b._inicioRes || 0)) - ((a.cantidad_producida || 0) + (a._inicioRes || 0)))[0]
-        couriers.forEach(c => {
-          if ((c._inicioRes || 0) > 0 || !target) return
-          c.consumida = true
-          target.consumo_eq_unidades = (target.consumo_eq_unidades || 0) + (c.cantidad_vendida_total || 0) * factorDe(c)
-          target.consumo_detalle.push({ pres: c.presentacion || 'Unidad', qty: c.cantidad_vendida_total || 0, factor: factorDe(c) })
-        })
-        group.forEach(p => {
-          const key = keyOf(p)
-          let r = map[key]
-          if (!r) {
-            r = { key, idproducto: p.idproducto, producto: p.producto || 'Sin nombre', presentacion: p.presentacion || 'Unidad', producidoManana: 0, vendidoManana: 0, restanteManana: 0, producidoTarde: 0, vendidoTarde: 0, restanteTarde: 0, inicioManana: 0 }
-            map[key] = r
-            curMap[key] = r.inicioManana
-          }
-          const prod = p.cantidad_producida || 0
-          const vend = p.cantidad_vendida_total || 0
-          const rest = p.consumida ? 0 : (p._inicioRes || 0) + prod - vend - ((p.consumo_eq_unidades || 0) / factorDe(p))
-          if (turnoName === 'tarde') {
-            r.producidoTarde += prod
-            r.vendidoTarde += vend
-            r.restanteTarde = rest
-            if (p.consumo_detalle && p.consumo_detalle.length) r.consumoDetT = p.consumo_detalle.slice()
-          } else {
-            r.producidoManana += prod
-            r.vendidoManana += vend
-            r.restanteManana = rest
-            if (p.consumo_detalle && p.consumo_detalle.length) r.consumoDetM = p.consumo_detalle.slice()
-          }
-          if (p.consumo_detalle && p.consumo_detalle.length) r.consumoDetalle = (r.consumoDetalle || []).concat(p.consumo_detalle)
-          if (!p.consumida) {
-            curMap[key] = turnoName === 'tarde' ? r.restanteTarde : r.restanteManana
-            curFinal[key] = curMap[key]
-          }
-        })
+      ;(turno.productos || []).forEach(p => {
+        const key = keyOf(p)
+        let r = map[key]
+        if (!r) {
+          r = { key, idproducto: p.idproducto, producto: p.producto || 'Sin nombre', presentacion: p.presentacion || 'Unidad', producidoManana: 0, vendidoManana: 0, restanteManana: 0, producidoTarde: 0, vendidoTarde: 0, restanteTarde: 0, inicioManana: null }
+          map[key] = r
+        }
+        const prod = Number(p.cantidad_producida) || 0
+        const vend = Number(p.cantidad_vendida_total) || 0
+        const rest = p.consumida ? 0 : (Number(p.restante) || 0)
+        if (turnoName === 'tarde') {
+          r.producidoTarde += prod
+          r.vendidoTarde += vend
+          r.restanteTarde = rest
+          if (p.consumo_detalle && p.consumo_detalle.length) r.consumoDetT = p.consumo_detalle.slice()
+        } else {
+          if (r.inicioManana === null) r.inicioManana = Number(p.inicio) || 0
+          r.producidoManana += prod
+          r.vendidoManana += vend
+          r.restanteManana = rest
+          if (p.consumo_detalle && p.consumo_detalle.length) r.consumoDetM = p.consumo_detalle.slice()
+        }
+        if (p.consumo_detalle && p.consumo_detalle.length) r.consumoDetalle = (r.consumoDetalle || []).concat(p.consumo_detalle)
+        if (!p.consumida) curFinal[key] = rest
       })
     })
   })
 
   const out = Object.values(map).map(row => ({
     ...row,
-    totalProducido: row.producidoManana + row.producidoTarde,
-    totalVendido: row.vendidoManana + row.vendidoTarde,
-    restanteFinal: curFinal[row.key] != null ? curFinal[row.key] : row.inicioManana
+    inicioManana: row.inicioManana == null ? 0 : row.inicioManana,
+    totalProducido: (row.producidoManana || 0) + (row.producidoTarde || 0),
+    totalVendido: (row.vendidoManana || 0) + (row.vendidoTarde || 0),
+    restanteFinal: curFinal[row.key] != null ? curFinal[row.key] : 0
   }))
 
   out.sort((a, b) => b.totalProducido - a.totalProducido)

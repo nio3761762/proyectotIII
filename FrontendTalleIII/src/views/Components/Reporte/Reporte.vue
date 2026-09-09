@@ -123,6 +123,14 @@
         <div class="mt-8">
           <ResumenTurnosTable :detalle-turnos="reporteProduccionVsVenta?.detalleTurnos || []" />
         </div>
+
+        <div class="mt-8">
+          <ResumenGananciasDiarias
+            :ganancias-diarias="reporteProduccionVsVenta?.ganancias_diarias || []"
+            :format-money="formatMoneyReporte"
+            :format-fecha="formatFecha"
+          />
+        </div>
       </div>
 
     </div>
@@ -164,6 +172,7 @@ import ComisionTable from './ComisionTable.vue'
 import GastosGeneralesTable from './GastosGeneralesTable.vue'
 import ProduccionVsVentaTurnosTable from './ProduccionVsVentaTurnosTable.vue'
 import ResumenTurnosTable from './ResumenTurnosTable.vue'
+import ResumenGananciasDiarias from './ResumenGananciasDiarias.vue'
 
 import logoMasasCori from '@/views/assets/LogoMasasCorir.png';
 import { useInicioSemana, getAnchorWeekday, getWeekStart as semanaGetWeekStart, getWeekLabel as semanaGetWeekLabel } from './useSemana'
@@ -750,6 +759,8 @@ const formatFecha = (fecha) => {
   }
   return clean;
 };
+
+const formatMoneyReporte = (v) => '$' + Number(v || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 const formatFechaHora = () => {
   const now = new Date();
@@ -3775,52 +3786,8 @@ const exportarPDF = async () => {
       }
       const safeY = (y) => (Number.isFinite(y) ? y : 50)
 
-      const disponible = {}
-      const meta = {}
-      const diasAsc = [...turnosData].sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
       const factorDeT = (p) => Math.max(1, Number(p.presentacion_factor) || 1)
-      const esUnidadDeT = (p) => { const pr = String(p.presentacion || 'Unidad'); return pr === 'Unidad' || pr === 'S/N' || pr === '' }
-      const snapshot = () => Object.fromEntries(Object.entries(disponible).filter(([, v]) => Number(v) > 0))
-      const calcularRestT = (p) => (p.consumida ? 0 : (p._inicio || 0) + (p.cantidad_producida || 0) - (p.cantidad_vendida_total || 0) - ((p.consumo_eq_unidades || 0) / factorDeT(p)))
-      const absorberT = (rows) => {
-        const groups = new Map()
-        rows.forEach(p => { if (!groups.has(p.idproducto)) groups.set(p.idproducto, []); groups.get(p.idproducto).push(p) })
-        groups.forEach(group => {
-          group.forEach(p => { p.consumida = false; p.consumo_eq_unidades = 0; p.consumo_detalle = [] })
-          const couriers = group.filter(p => !(p.cantidad_producida || 0) && (p.cantidad_vendida_total || 0) > 0)
-          const targets = group.filter(p => (p.cantidad_producida || 0) > 0 || (p._inicio || 0) > 0)
-          const target = targets.find(p => esUnidadDeT(p)) || targets.sort((a, b) => ((b.cantidad_producida || 0) + (b._inicio || 0)) - ((a.cantidad_producida || 0) + (a._inicio || 0)))[0]
-          couriers.forEach(c => {
-            if ((c._inicio || 0) > 0 || !target) return
-            c.consumida = true
-            target.consumo_eq_unidades = (target.consumo_eq_unidades || 0) + (c.cantidad_vendida_total || 0) * factorDeT(c)
-            target.consumo_detalle.push({ pres: c.presentacion || 'Unidad', qty: c.cantidad_vendida_total || 0, factor: factorDeT(c) })
-          })
-        })
-      }
-      const cabLeftover = (turno, snap) => {
-        const stockInicio = {}
-        const prods = [...(turno.productos || [])]
-        const keys = new Set(prods.map(p => keyOfT(p)))
-        Object.entries(snap).forEach(([k, v]) => {
-          if (!keys.has(k)) {
-            prods.push({ idproducto: k.split('::')[0], ...(meta[k] || { producto: 'Stock anterior', presentacion: 'Unidad' }), presentacion: (meta[k] || {}).presentacion || k.split('::')[1] || 'Unidad', presentacion_factor: 1, cantidad_producida: 0, cantidad_vendida_tienda: 0, total_venta_tienda: 0, cantidad_vendida_revendedor: 0, total_venta_revendedor: 0, cantidad_vendida_total: 0, consumo_eq_unidades: 0, consumo_detalle: [], consumida: false })
-          }
-        })
-        prods.forEach(p => { p._inicio = disponible[keyOfT(p)] || 0; stockInicio[keyOfT(p)] = p._inicio })
-        absorberT(prods)
-        prods.forEach(p => { disponible[keyOfT(p)] = calcularRestT(p) })
-        return { stockInicio, productos: prods }
-      }
-      const diasConStockT = diasAsc.map(dia => {
-        const turn = dia.turnos || { manana: { productos: [] }, tarde: { productos: [] } }
-        ;(turn.manana.productos || []).forEach(p => { const k = keyOfT(p); if (!meta[k]) meta[k] = { producto: p.producto || 'Sin nombre', presentacion: p.presentacion || 'Unidad' } })
-        ;(turn.tarde.productos || []).forEach(p => { const k = keyOfT(p); if (!meta[k]) meta[k] = { producto: p.producto || 'Sin nombre', presentacion: p.presentacion || 'Unidad' } })
-        const manana = cabLeftover(turn.manana, snapshot())
-        const tarde = cabLeftover(turn.tarde, snapshot())
-        return { ...dia, turnos: { manana: { ...turn.manana, productos: manana.productos }, tarde: { ...turn.tarde, productos: tarde.productos } }, stockManana: manana.stockInicio, stockTarde: tarde.stockInicio }
-      })
-      const diasTurnos = [...diasConStockT].sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
+      const diasTurnos = [...turnosData].sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
 
       startY = safeY(startY)
       if (startY > 250) { doc.addPage(); startY = 50 }
@@ -3840,14 +3807,15 @@ const exportarPDF = async () => {
           const stockIni = turnoName === 'manana' ? (dia.stockManana || {}) : (dia.stockTarde || {})
           const tituloTurno = turnoName === 'manana' ? 'Mañana (12 AM - 12 PM)' : 'Tarde (12 PM - 12 AM)'
           const restDe = (item) => {
-            const inicio = stockIni[keyOfT(item)] || 0
             if (item.consumida) return 0
+            if (item.restante != null) return item.restante
+            const inicio = (item.inicio != null ? item.inicio : (stockIni[keyOfT(item)] || 0))
             return inicio + (item.cantidad_producida || 0) - (item.cantidad_vendida_total || 0) - ((item.consumo_eq_unidades || 0) / factorDeT(item))
           }
           const detalleAbsorcionT = (item) => {
             const det = item.consumo_detalle || []
             if (!det.length) return ''
-            const ini = stockIni[keyOfT(item)] || 0
+            const ini = item.inicio != null ? item.inicio : (stockIni[keyOfT(item)] || 0)
             const bits = []
             if (ini) bits.push(`${ini}`)
             if (item.cantidad_producida) bits.push(`${item.cantidad_producida}`)
@@ -3877,7 +3845,7 @@ const exportarPDF = async () => {
           startY += 7
 
           const tRows = (turno.productos || []).map(item => {
-            const inicio = stockIni[keyOfT(item)] || 0
+            const inicio = item.inicio != null ? item.inicio : (stockIni[keyOfT(item)] || 0)
             const detT = detalleAbsorcionT(item)
             const restCell = detT ? { content: `${restDe(item)}\n${detT}`, styles: { fontSize: 5 } } : String(restDe(item))
             return [
@@ -3932,46 +3900,25 @@ const exportarPDF = async () => {
       startY += 8
 
       const keyOfR = (p) => String(p.idproducto) + '::' + (p.presentacion || 'Unidad')
-      const factorDeR = (p) => Math.max(1, Number(p.presentacion_factor) || 1)
-      const esUnidadDeR = (p) => { const pr = String(p.presentacion || 'Unidad'); return pr === 'Unidad' || pr === 'S/N' || pr === '' }
       const mapaRes = {}
-      const inicioAcum = {}
-      const curMap = {}
       const curFinal = {}
       const diasAscR = [...turnosData].sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
       diasAscR.forEach(dia => {
         ;['manana', 'tarde'].forEach(turnoName => {
           const turno = (dia.turnos || {})[turnoName] || { productos: [] }
-          const rowsTurno = turno.productos || []
-          const groups = new Map()
-          rowsTurno.forEach(p => { if (!groups.has(p.idproducto)) groups.set(p.idproducto, []); groups.get(p.idproducto).push(p) })
-          groups.forEach(group => {
-            const inicioOf = (k) => curMap[k] != null ? curMap[k] : 0
-            group.forEach(p => { p._inicioRes = inicioOf(keyOfR(p)); p.consumida = false; p.consumo_eq_unidades = 0; p.consumo_detalle = [] })
-            const couriers = group.filter(p => !(p.cantidad_producida || 0) && (p.cantidad_vendida_total || 0) > 0)
-            const targets = group.filter(p => (p.cantidad_producida || 0) > 0 || (p._inicioRes || 0) > 0)
-            const target = targets.find(p => esUnidadDeR(p)) || targets.sort((a, b) => ((b.cantidad_producida || 0) + (b._inicioRes || 0)) - ((a.cantidad_producida || 0) + (a._inicioRes || 0)))[0]
-            couriers.forEach(c => {
-              if ((c._inicioRes || 0) > 0 || !target) return
-              c.consumida = true
-              target.consumo_eq_unidades = (target.consumo_eq_unidades || 0) + (c.cantidad_vendida_total || 0) * factorDeR(c)
-              target.consumo_detalle.push({ pres: c.presentacion || 'Unidad', qty: c.cantidad_vendida_total || 0, factor: factorDeR(c) })
-            })
-            group.forEach(p => {
-              const key = keyOfR(p)
-              let r = mapaRes[key]
-              if (!r) {
-                r = { key, producto: p.producto || 'Sin nombre', presentacion: p.presentacion || 'Unidad', inicioM: inicioAcum[key] || 0, prodM: 0, vendM: 0, restM: 0, prodT: 0, vendT: 0, restT: 0 }
-                mapaRes[key] = r
-                curMap[key] = r.inicioM
-              }
-              const prod = p.cantidad_producida || 0
-              const vend = p.cantidad_vendida_total || 0
-              const rest = p.consumida ? 0 : (p._inicioRes || 0) + prod - vend - ((p.consumo_eq_unidades || 0) / factorDeR(p))
-              if (turnoName === 'tarde') { r.prodT += prod; r.vendT += vend; r.restT = rest; if (p.consumo_detalle && p.consumo_detalle.length) r.consumoDetT = p.consumo_detalle.slice() } else { r.prodM += prod; r.vendM += vend; r.restM = rest; if (p.consumo_detalle && p.consumo_detalle.length) r.consumoDetM = p.consumo_detalle.slice() }
-              if (p.consumo_detalle && p.consumo_detalle.length) r.consumoDetalle = (r.consumoDetalle || []).concat(p.consumo_detalle)
-              if (!p.consumida) { curMap[key] = rest; curFinal[key] = rest }
-            })
+          ;(turno.productos || []).forEach(p => {
+            const key = keyOfR(p)
+            let r = mapaRes[key]
+            if (!r) {
+              r = { key, producto: p.producto || 'Sin nombre', presentacion: p.presentacion || 'Unidad', inicioM: null, prodM: 0, vendM: 0, restM: 0, prodT: 0, vendT: 0, restT: 0 }
+              mapaRes[key] = r
+            }
+            const prod = Number(p.cantidad_producida) || 0
+            const vend = Number(p.cantidad_vendida_total) || 0
+            const rest = p.consumida ? 0 : (Number(p.restante) || 0)
+            if (turnoName === 'tarde') { r.prodT += prod; r.vendT += vend; r.restT = rest; if (p.consumo_detalle && p.consumo_detalle.length) r.consumoDetT = p.consumo_detalle.slice() } else { if (r.inicioM === null) r.inicioM = Number(p.inicio) || 0; r.prodM += prod; r.vendM += vend; r.restM = rest; if (p.consumo_detalle && p.consumo_detalle.length) r.consumoDetM = p.consumo_detalle.slice() }
+            if (p.consumo_detalle && p.consumo_detalle.length) r.consumoDetalle = (r.consumoDetalle || []).concat(p.consumo_detalle)
+            if (!p.consumida) curFinal[key] = rest
           })
         })
       })
@@ -3981,11 +3928,11 @@ const exportarPDF = async () => {
         const detT = detDe(r.consumoDetT)
         const detF = detDe(r.consumoDetalle)
         return [
-          r.producto, r.presentacion, String(r.inicioM),
+          r.producto, r.presentacion, String(r.inicioM != null ? r.inicioM : 0),
           String(r.prodM), String(r.vendM), detM ? { content: `${r.restM}\n${detM}`, styles: { fontSize: 4.8 } } : String(r.restM),
           String(r.prodT), String(r.vendT), detT ? { content: `${r.restT}\n${detT}`, styles: { fontSize: 4.8 } } : String(r.restT),
           String(r.prodM + r.prodT), String(r.vendM + r.vendT),
-          { content: `${curFinal[r.key] != null ? curFinal[r.key] : r.inicioM}${detF ? `\n${detF}` : ''}`, styles: { fontSize: detF ? 4.8 : 5.5 } }
+          { content: `${curFinal[r.key] != null ? curFinal[r.key] : (r.inicioM || 0)}${detF ? `\n${detF}` : ''}`, styles: { fontSize: detF ? 4.8 : 5.5 } }
         ]
       })
       resumenRows.sort((a, b) => Number(b[9]) - Number(a[9]))
@@ -4054,6 +4001,53 @@ const exportarPDF = async () => {
       theme: 'plain'
     })
     startY = doc.lastAutoTable.finalY + 10
+
+    const gd = data.ganancias_diarias || []
+    if (gd.length) {
+      if (!Number.isFinite(startY)) startY = 50
+      if (startY > 250) { doc.addPage(); startY = 50 }
+      doc.setFontSize(12)
+      doc.setTextColor(0)
+      doc.setFont(undefined, 'bold')
+      doc.text('Ganancias por Día', 14, startY)
+      startY += 8
+
+      const gdRows = [...gd].sort((a, b) => new Date(a.fecha) - new Date(b.fecha)).map(d => [
+        formatFecha(d.fecha),
+        `${Number(d.ingreso_tienda || 0).toFixed(2)}`,
+        `(${Number(d.gasto_extra || 0).toFixed(2)})`,
+        `${Number(d.neto_tienda || 0).toFixed(2)}`,
+        `${Number(d.liquido_revendedor || 0).toFixed(2)}`,
+        `(${Number(d.gasto_extra_revendedor || 0).toFixed(2)})`,
+        `${Number(d.neto_revendedor || 0).toFixed(2)}`,
+        { content: `${Number(d.ganancia_total || 0).toFixed(2)}`, styles: { fontStyle: 'bold', textColor: d.ganancia_total >= 0 ? [5, 122, 85] : [185, 28, 28] } }
+      ])
+      const gdTot = gd.reduce((acc, d) => {
+        acc.ingreso_tienda += d.ingreso_tienda || 0
+        acc.gasto_extra += d.gasto_extra || 0
+        acc.neto_tienda += d.neto_tienda || 0
+        acc.liquido_revendedor += d.liquido_revendedor || 0
+        acc.gasto_extra_revendedor += d.gasto_extra_revendedor || 0
+        acc.neto_revendedor += d.neto_revendedor || 0
+        acc.ganancia_total += d.ganancia_total || 0
+        return acc
+      }, { ingreso_tienda: 0, gasto_extra: 0, neto_tienda: 0, liquido_revendedor: 0, gasto_extra_revendedor: 0, neto_revendedor: 0, ganancia_total: 0 })
+      gdRows.push([
+        { content: 'TOTALES', styles: { fontStyle: 'bold', fillColor: [255, 247, 237] } },
+        { content: gdTot.ingreso_tienda.toFixed(2), styles: { fontStyle: 'bold', fillColor: [255, 247, 237] } },
+        { content: `(${gdTot.gasto_extra.toFixed(2)})`, styles: { fontStyle: 'bold', fillColor: [255, 247, 237] } },
+        { content: gdTot.neto_tienda.toFixed(2), styles: { fontStyle: 'bold', fillColor: [255, 247, 237] } },
+        { content: gdTot.liquido_revendedor.toFixed(2), styles: { fontStyle: 'bold', fillColor: [255, 247, 237] } },
+        { content: `(${gdTot.gasto_extra_revendedor.toFixed(2)})`, styles: { fontStyle: 'bold', fillColor: [255, 247, 237] } },
+        { content: gdTot.neto_revendedor.toFixed(2), styles: { fontStyle: 'bold', fillColor: [255, 247, 237] } },
+        { content: gdTot.ganancia_total.toFixed(2), styles: { fontStyle: 'bold', fillColor: [255, 247, 237], textColor: gdTot.ganancia_total >= 0 ? [5, 122, 85] : [185, 28, 28] } }
+      ])
+      autoTable(doc, {
+        head: [['Fecha', 'Ing. Tienda', 'Gasto Extra Tienda', 'Neto Tienda', 'Líq. Revendedor', 'Gast. Extra Rev.', 'Neto Revendedor', 'Ganancia']],
+        body: gdRows, startY, styles: { fontSize: 7 }, headStyles: { fontSize: 7 }
+      })
+      startY = doc.lastAutoTable.finalY + 10
+    }
 
     doc.save(`reporte_produccion_vs_venta${agruparPorSemana.value ? '_semanal' : ''}_${new Date().toISOString().slice(0, 10)}.pdf`);
   } else if (activeTab.value === 'resumen-semanal') {
@@ -5430,6 +5424,23 @@ const exportarExcel = () => {
       { Concepto: 'GANANCIA TOTAL', Monto: gan.ganancia_total }
     ])
     XLSX.utils.book_append_sheet(workbook, wsGan, "Ganancias")
+
+    const gd = data.ganancias_diarias || []
+    if (gd.length) {
+      const noSig = (v) => Math.abs(v) < 0.000001 ? 0 : v
+      const wsGd = XLSX.utils.json_to_sheet(gd.map(d => ({
+        Fecha: d.fecha,
+        'Ingreso Tienda (Bs.)': noSig(d.ingreso_tienda),
+        'Gasto Extra Tienda (Bs.)': (-1 * noSig(d.gasto_extra)),
+        'Neto Tienda (Bs.)': noSig(d.neto_tienda),
+        'Líquido Revendedor (Bs.)': noSig(d.liquido_revendedor),
+        'Gasto Extra Revendedor (Bs.)': (-1 * noSig(d.gasto_extra_revendedor)),
+        'Neto Revendedor (Bs.)': noSig(d.neto_revendedor),
+        'Gasto Extra Total (Bs.)': (-1 * noSig(d.gasto_extra_total)),
+        'Ganancia del Día (Bs.)': noSig(d.ganancia_total)
+      })))
+      XLSX.utils.book_append_sheet(workbook, wsGd, "Ganancias Diarias")
+    }
 
     XLSX.writeFile(workbook, `reporte_produccion_vs_venta_${new Date().toISOString().slice(0, 10)}.xlsx`);
   }

@@ -82,7 +82,7 @@ const esTarde = computed(() => String(props.titulo).toLowerCase().includes('tard
 
 const keyOf = (item) => String(item.idproducto) + '::' + (item.presentacion || 'Unidad')
 
-const stockInicio = (item) => props.stockInicioPorProducto[keyOf(item)] || 0
+const stockInicio = (item) => (item.inicio != null ? item.inicio : (props.stockInicioPorProducto[keyOf(item)] || 0))
 
 const factorDe = (item) => Math.max(1, Number(item.presentacion_factor) || 1)
 
@@ -90,6 +90,7 @@ const consumido = (item) => ((item.consumo_eq_unidades || 0) / factorDe(item))
 
 const restante = (item) => {
   if (item.consumida) return 0
+  if (item.restante != null) return item.restante
   const inicio = stockInicio(item)
   return inicio + (item.cantidad_producida || 0) - (item.cantidad_vendida_total || 0) - consumido(item)
 }
