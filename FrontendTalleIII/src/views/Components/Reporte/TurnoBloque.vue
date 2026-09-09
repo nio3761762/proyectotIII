@@ -106,6 +106,7 @@ const detalleAbsorcion = (item) => {
   const bits = []
   if (stockInicio(item)) bits.push(`${stockInicio(item)}`)
   if (item.cantidad_producida) bits.push(`${item.cantidad_producida}`)
+  if (item.cantidad_mala) bits.push(`-${item.cantidad_mala} mala`)
   if (item.cantidad_vendida_total) bits.push(`-${item.cantidad_vendida_total}`)
   det.forEach(b => bits.push(`-${(Number(b.qty) || 0) * (Number(b.factor) || 1)} (${b.qty} ${String(b.pres).toLowerCase()} x ${b.factor})`))
   return `${bits.join(' ')} = ${restante(item)}`

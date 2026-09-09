@@ -534,7 +534,7 @@ CASE WHEN dp.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE
 
     const restanteDe = (p: any) => {
       if (p.consumida) return 0;
-      return (Number(p.inicio) || 0) + (Number(p.cantidad_producida) || 0) - (Number(p.cantidad_vendida_total) || 0) - ((Number(p.consumo_eq_unidades) || 0) / factorDeRow(p));
+      return (Number(p.inicio) || 0) + (Number(p.cantidad_producida) || 0) - (Number(p.cantidad_mala) || 0) - (Number(p.cantidad_vendida_total) || 0) - ((Number(p.consumo_eq_unidades) || 0) / factorDeRow(p));
     };
 
     const procesarTurno = (turnoObj: any, productRows: any[]) => {

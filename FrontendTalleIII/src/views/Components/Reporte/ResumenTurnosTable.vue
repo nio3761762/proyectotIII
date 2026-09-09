@@ -13,17 +13,19 @@
             <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b min-w-[150px]" rowspan="2">Producto</th>
             <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b min-w-[100px]" rowspan="2">Presentación</th>
             <th class="p-2 text-[10px] font-black text-blue-500 uppercase tracking-widest border-b text-center min-w-[80px]" rowspan="2">Inicio</th>
-            <th class="p-2 bg-blue-50/50 text-[10px] font-black text-blue-600 uppercase tracking-widest border-b text-center" colspan="3">Mañana · 12:00 AM - 12:00 PM</th>
-            <th class="p-2 bg-amber-50/50 text-[10px] font-black text-orange-600 uppercase tracking-widest border-b text-center" colspan="3">Tarde · 12:00 PM - 12:00 AM</th>
+            <th class="p-2 bg-blue-50/50 text-[10px] font-black text-blue-600 uppercase tracking-widest border-b text-center" colspan="4">Mañana · 12:00 AM - 12:00 PM</th>
+            <th class="p-2 bg-amber-50/50 text-[10px] font-black text-orange-600 uppercase tracking-widest border-b text-center" colspan="4">Tarde · 12:00 PM - 12:00 AM</th>
             <th class="p-2 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-center" rowspan="2">Total Prod.</th>
             <th class="p-2 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-center" rowspan="2">Total Vend.</th>
             <th class="p-2 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-center" rowspan="2">Restante Final</th>
           </tr>
           <tr class="bg-gray-50/40">
             <th class="p-2 text-[10px] font-black text-blue-600 uppercase tracking-widest border-b text-center bg-blue-50/50">Producido</th>
+            <th class="p-2 text-[10px] font-black text-red-400 uppercase tracking-widest border-b text-center bg-blue-50/50">Mala</th>
             <th class="p-2 text-[10px] font-black text-blue-600 uppercase tracking-widest border-b text-center bg-blue-50/50">Vendido</th>
             <th class="p-2 text-[10px] font-black text-blue-600 uppercase tracking-widest border-b text-center bg-blue-50/50">Restante</th>
             <th class="p-2 text-[10px] font-black text-orange-600 uppercase tracking-widest border-b text-center bg-amber-50/50">Producido</th>
+            <th class="p-2 text-[10px] font-black text-red-400 uppercase tracking-widest border-b text-center bg-amber-50/50">Mala</th>
             <th class="p-2 text-[10px] font-black text-orange-600 uppercase tracking-widest border-b text-center bg-amber-50/50">Vendido</th>
             <th class="p-2 text-[10px] font-black text-orange-600 uppercase tracking-widest border-b text-center bg-amber-50/50">Restante</th>
           </tr>
@@ -34,26 +36,25 @@
             <td class="p-3 text-gray-500">{{ row.presentacion }}</td>
             <td class="p-3 text-center font-medium text-gray-500">{{ row.inicioManana }}</td>
             <td class="p-3 text-center font-black text-emerald-600 bg-blue-50/30">{{ row.producidoManana }}</td>
+            <td class="p-3 text-center font-medium text-red-400 bg-blue-50/30">{{ row.malaManana }}</td>
             <td class="p-3 text-center font-bold text-blue-600 bg-blue-50/30">{{ row.vendidoManana }}</td>
             <td class="p-3 text-center">
               <div class="font-black bg-blue-50/30" :class="row.restanteManana >= 0 ? 'text-amber-600' : 'text-red-600'">{{ row.restanteManana }}</div>
-              <div v-if="detDe(row.consumoDetM)" class="text-[8px] text-gray-400 font-medium leading-tight bg-blue-50/30 mt-0.5">{{ detDe(row.consumoDetM) }}</div>
             </td>
             <td class="p-3 text-center font-black text-emerald-600 bg-amber-50/30">{{ row.producidoTarde }}</td>
+            <td class="p-3 text-center font-medium text-red-400 bg-amber-50/30">{{ row.malaTarde }}</td>
             <td class="p-3 text-center font-bold text-orange-600 bg-amber-50/30">{{ row.vendidoTarde }}</td>
             <td class="p-3 text-center">
               <div class="font-black bg-amber-50/30" :class="row.restanteTarde >= 0 ? 'text-amber-600' : 'text-red-600'">{{ row.restanteTarde }}</div>
-              <div v-if="detDe(row.consumoDetT)" class="text-[8px] text-gray-400 font-medium leading-tight bg-amber-50/30 mt-0.5">{{ detDe(row.consumoDetT) }}</div>
             </td>
             <td class="p-3 text-center font-black text-gray-700">{{ row.totalProducido }}</td>
             <td class="p-3 text-center font-black text-gray-700">{{ row.totalVendido }}</td>
             <td class="p-3 text-center">
               <div class="font-black" :class="row.restanteFinal >= 0 ? 'text-green-600' : 'text-red-600'">{{ row.restanteFinal }}</div>
-              <div v-if="detDe(row.consumoDetalle)" class="text-[8px] text-gray-400 font-medium leading-tight mt-0.5">{{ detDe(row.consumoDetalle) }}</div>
             </td>
           </tr>
           <tr v-if="rows.length === 0">
-            <td colspan="12" class="p-4 text-center text-gray-400 text-sm">Sin datos para el período seleccionado.</td>
+            <td colspan="14" class="p-4 text-center text-gray-400 text-sm">Sin datos para el período seleccionado.</td>
           </tr>
         </tbody>
         <tfoot>
@@ -61,9 +62,11 @@
             <td class="p-3 font-black text-gray-600 text-xs uppercase border-t-2 border-gray-200" colspan="2">Totales</td>
             <td class="p-3 text-center font-black text-gray-500 border-t-2 border-gray-200">{{ tot.inicioManana }}</td>
             <td class="p-3 text-center font-black text-emerald-700 border-t-2 border-gray-200 bg-blue-50/30">{{ tot.producidoManana }}</td>
+            <td class="p-3 text-center font-black text-red-400 border-t-2 border-gray-200 bg-blue-50/30">{{ tot.malaManana }}</td>
             <td class="p-3 text-center font-black text-blue-700 border-t-2 border-gray-200 bg-blue-50/30">{{ tot.vendidoManana }}</td>
             <td class="p-3 text-center font-black border-t-2 border-gray-200 bg-blue-50/30" :class="tot.restanteManana >= 0 ? 'text-amber-700' : 'text-red-700'">{{ tot.restanteManana }}</td>
             <td class="p-3 text-center font-black text-emerald-700 border-t-2 border-gray-200 bg-amber-50/30">{{ tot.producidoTarde }}</td>
+            <td class="p-3 text-center font-black text-red-400 border-t-2 border-gray-200 bg-amber-50/30">{{ tot.malaTarde }}</td>
             <td class="p-3 text-center font-black text-orange-700 border-t-2 border-gray-200 bg-amber-50/30">{{ tot.vendidoTarde }}</td>
             <td class="p-3 text-center font-black border-t-2 border-gray-200 bg-amber-50/30" :class="tot.restanteTarde >= 0 ? 'text-amber-700' : 'text-red-700'">{{ tot.restanteTarde }}</td>
             <td class="p-3 text-center font-black text-gray-800 border-t-2 border-gray-200">{{ tot.totalProducido }}</td>
@@ -87,7 +90,7 @@ const keyOf = (p) => String(p.idproducto) + '::' + (p.presentacion || 'Unidad')
 
 const rows = computed(() => {
   const map = {}
-  const curFinal = {}
+  const balance = {}
   ;JSON.parse(JSON.stringify(props.detalleTurnos)).sort((a, b) => new Date(a.fecha) - new Date(b.fecha)).forEach(dia => {
     ;['manana', 'tarde'].forEach(turnoName => {
       const turno = (dia.turnos || {})[turnoName] || { productos: [] }
@@ -95,37 +98,45 @@ const rows = computed(() => {
         const key = keyOf(p)
         let r = map[key]
         if (!r) {
-          r = { key, idproducto: p.idproducto, producto: p.producto || 'Sin nombre', presentacion: p.presentacion || 'Unidad', producidoManana: 0, vendidoManana: 0, restanteManana: 0, producidoTarde: 0, vendidoTarde: 0, restanteTarde: 0, inicioManana: null }
+          r = { key, idproducto: p.idproducto, producto: p.producto || 'Sin nombre', presentacion: p.presentacion || 'Unidad', inicioManana: null, producidoManana: 0, malaManana: 0, vendidoManana: 0, restanteManana: null, producidoTarde: 0, malaTarde: 0, vendidoTarde: 0, restanteTarde: null }
           map[key] = r
         }
+        const ini = Number(p.inicio)
+        const inicio = isNaN(ini) ? 0 : ini
+        if (r.inicioManana === null) r.inicioManana = inicio
         const prod = Number(p.cantidad_producida) || 0
+        const mala = Number(p.cantidad_mala) || 0
         const vend = Number(p.cantidad_vendida_total) || 0
-        const rest = p.consumida ? 0 : (Number(p.restante) || 0)
+        let bal = balance[key] != null ? balance[key] : inicio
+        bal = bal + prod - mala - vend
+        balance[key] = bal
         if (turnoName === 'tarde') {
           r.producidoTarde += prod
+          r.malaTarde += mala
           r.vendidoTarde += vend
-          r.restanteTarde = rest
-          if (p.consumo_detalle && p.consumo_detalle.length) r.consumoDetT = p.consumo_detalle.slice()
+          r.restanteTarde = p.consumida ? 0 : bal
         } else {
-          if (r.inicioManana === null) r.inicioManana = Number(p.inicio) || 0
           r.producidoManana += prod
+          r.malaManana += mala
           r.vendidoManana += vend
-          r.restanteManana = rest
-          if (p.consumo_detalle && p.consumo_detalle.length) r.consumoDetM = p.consumo_detalle.slice()
+          r.restanteManana = p.consumida ? 0 : bal
         }
-        if (p.consumo_detalle && p.consumo_detalle.length) r.consumoDetalle = (r.consumoDetalle || []).concat(p.consumo_detalle)
-        if (!p.consumida) curFinal[key] = rest
       })
     })
   })
 
-  const out = Object.values(map).map(row => ({
-    ...row,
-    inicioManana: row.inicioManana == null ? 0 : row.inicioManana,
-    totalProducido: (row.producidoManana || 0) + (row.producidoTarde || 0),
-    totalVendido: (row.vendidoManana || 0) + (row.vendidoTarde || 0),
-    restanteFinal: curFinal[row.key] != null ? curFinal[row.key] : 0
-  }))
+  const out = Object.values(map).map(row => {
+    const clamp = (v) => Math.max(0, v)
+    return {
+      ...row,
+      inicioManana: row.inicioManana == null ? 0 : row.inicioManana,
+      totalProducido: (row.producidoManana || 0) + (row.producidoTarde || 0),
+      totalVendido: (row.vendidoManana || 0) + (row.vendidoTarde || 0),
+      restanteManana: clamp(row.restanteManana == null ? 0 : row.restanteManana),
+      restanteTarde: clamp(row.restanteTarde != null ? row.restanteTarde : (row.restanteManana != null ? row.restanteManana : 0)),
+      restanteFinal: clamp(balance[row.key] != null ? balance[row.key] : 0)
+    }
+  })
 
   out.sort((a, b) => b.totalProducido - a.totalProducido)
   return out
@@ -135,17 +146,18 @@ const tot = computed(() => {
   return rows.value.reduce((acc, r) => {
     acc.inicioManana += r.inicioManana
     acc.producidoManana += r.producidoManana
+    acc.malaManana += r.malaManana
     acc.vendidoManana += r.vendidoManana
     acc.restanteManana += r.restanteManana
     acc.producidoTarde += r.producidoTarde
+    acc.malaTarde += r.malaTarde
     acc.vendidoTarde += r.vendidoTarde
     acc.restanteTarde += r.restanteTarde
     acc.totalProducido += r.totalProducido
     acc.totalVendido += r.totalVendido
     acc.restanteFinal += r.restanteFinal
     return acc
-  }, { inicioManana: 0, producidoManana: 0, vendidoManana: 0, restanteManana: 0, producidoTarde: 0, vendidoTarde: 0, restanteTarde: 0, totalProducido: 0, totalVendido: 0, restanteFinal: 0 })
+  }, { inicioManana: 0, producidoManana: 0, malaManana: 0, vendidoManana: 0, restanteManana: 0, producidoTarde: 0, malaTarde: 0, vendidoTarde: 0, restanteTarde: 0, totalProducido: 0, totalVendido: 0, restanteFinal: 0 })
 })
 
-const detDe = (det) => (det || []).map(d => `-${(Number(d.qty) || 0) * (Number(d.factor) || 1)} (${d.qty} ${String(d.pres).toLowerCase()} x ${d.factor})`).join(' ')
 </script>
