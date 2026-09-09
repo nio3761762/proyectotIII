@@ -109,7 +109,7 @@ const sortedDias = computed(() => {
 const diasConStock = computed(() => {
   const disponible = {}
   const meta = {}
-  const diasAsc = [...props.detalleTurnos].sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
+  const diasAsc = JSON.parse(JSON.stringify(props.detalleTurnos)).sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
   const keyOf = (p) => String(p.idproducto) + '::' + (p.presentacion || 'Unidad')
   const factorDe = (p) => Math.max(1, Number(p.presentacion_factor) || 1)
   const esUnidadDe = (p) => { const pr = String(p.presentacion || 'Unidad'); return pr === 'Unidad' || pr === 'S/N' || pr === '' }

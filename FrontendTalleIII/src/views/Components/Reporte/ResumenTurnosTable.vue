@@ -93,7 +93,7 @@ const rows = computed(() => {
   const map = {}
   const curMap = {}
   const curFinal = {}
-  ;[...props.detalleTurnos].sort((a, b) => new Date(a.fecha) - new Date(b.fecha)).forEach(dia => {
+  ;JSON.parse(JSON.stringify(props.detalleTurnos)).sort((a, b) => new Date(a.fecha) - new Date(b.fecha)).forEach(dia => {
     ;['manana', 'tarde'].forEach(turnoName => {
       const turno = (dia.turnos || {})[turnoName] || { productos: [] }
       const rowsTurno = turno.productos || []
