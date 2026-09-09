@@ -173,6 +173,18 @@ export const getReporteProduccionVsVenta = async (req: Request, res: Response) =
       ORDER BY fecha
     `;
 
+    const sqlProduccionMalaDiaria = `
+      SELECT
+        to_char(prod.fechaproduccion, 'YYYY-MM-DD') as fecha,
+        COALESCE(SUM(CASE WHEN dp.idproductomedida IS NOT NULL THEN dp.cantidadmala / NULLIF(pm2.cantidad, 0) ELSE dp.cantidadmala END), 0) as cantidad_mala
+      FROM detalle_produccion dp
+      INNER JOIN produccion prod ON dp.idproduccion = prod.idproduccion
+      LEFT JOIN productomedida pm2 ON dp.idproductomedida = pm2.idproductomedida
+      WHERE prod.fechaproduccion BETWEEN $1 AND $2 AND prod.estado = 1 ${sucursalCondProd}
+      GROUP BY to_char(prod.fechaproduccion, 'YYYY-MM-DD')
+      ORDER BY fecha
+    `;
+
     // ====== Consultas por TURNO (día comercial 12pm -> 12pm) ======
     // Regla: si la hora de registro es >= 12:00 (tarde) el registro pertenece al día siguiente (dia_comercial + 1).
     //        si la hora es < 12:00 (mañana) pertenece al mismo día calendario.
@@ -242,7 +254,7 @@ CASE WHEN dp.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE
       ORDER BY dia_comercial, turno, pr.nombre, COALESCE(pres.nombre, 'S/N')
     `;
 
-    const [turnosProd, turnosVenta, turnosRev, revendedorPres, gananciasRes, liquidoRes, gananciasDiariasRes, liquidoDiarioRes] = await Promise.all([
+    const [turnosProd, turnosVenta, turnosRev, revendedorPres, gananciasRes, liquidoRes, gananciasDiariasRes, liquidoDiarioRes, produccionMalaDiariaRes] = await Promise.all([
       AppDataSource.query(sqlTurnosProd, params),
       AppDataSource.query(sqlTurnosVenta, params),
       AppDataSource.query(sqlTurnosRev, params),
@@ -250,7 +262,8 @@ CASE WHEN dp.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE
       AppDataSource.query(sqlGanancias, params),
       AppDataSource.query(sqlLiquido, params),
       AppDataSource.query(sqlGananciasDiarias, params),
-      AppDataSource.query(sqlLiquidoDiario, params)
+      AppDataSource.query(sqlLiquidoDiario, params),
+      AppDataSource.query(sqlProduccionMalaDiaria, params)
     ]);
 
     const prodMap = new Map<string, any>();
@@ -337,8 +350,9 @@ CASE WHEN dp.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE
       const fecha = diaKey(row.dia_comercial);
       const fid = String(row.idproducto);
       if (!prodDiarioMap.has(fecha)) prodDiarioMap.set(fecha, new Map());
-      const prev = prodDiarioMap.get(fecha)!.get(fid) || { cantidad_producida: 0 };
+      const prev = prodDiarioMap.get(fecha)!.get(fid) || { cantidad_producida: 0, cantidad_mala: 0 };
       prev.cantidad_producida += Number(row.cantidad_producida) || 0;
+      prev.cantidad_mala += Number(row.cantidad_descartada) || 0;
       prodDiarioMap.get(fecha)!.set(fid, prev);
       if (!nombreProductos.has(fid)) nombreProductos.set(fid, row.producto);
     }
@@ -399,6 +413,7 @@ CASE WHEN dp.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE
           idproducto: id,
           producto: nombre,
           cantidad_producida: prodCant,
+          cantidad_mala: Number(p.cantidad_mala) || 0,
           cantidad_vendida_tienda: v.cantidad_vendida,
           total_venta_tienda: v.total_venta,
           cantidad_vendida_revendedor: r.cantidad_vendida,
@@ -439,7 +454,7 @@ CASE WHEN dp.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE
       if (!prods) { prods = new Map(); turnos.set(turno, prods); }
       let r = prods.get(id);
       if (!r) {
-        r = { idproducto: row.idproducto, producto: "", presentacion: row.presentacion || "Unidad", esUnidad: presUnidad(row.presentacion), presentacion_factor: 1, cantidad_producida: 0, cantidad_vendida_tienda: 0, total_venta_tienda: 0, cantidad_vendida_revendedor: 0, total_venta_revendedor: 0 };
+        r = { idproducto: row.idproducto, producto: "", presentacion: row.presentacion || "Unidad", esUnidad: presUnidad(row.presentacion), presentacion_factor: 1, cantidad_producida: 0, cantidad_mala: 0, cantidad_vendida_tienda: 0, total_venta_tienda: 0, cantidad_vendida_revendedor: 0, total_venta_revendedor: 0 };
         prods.set(id, r);
       }
       return r;
@@ -458,6 +473,7 @@ CASE WHEN dp.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE
       const id = String(row.idproducto) + '::' + (presUnidad(row.presentacion) ? '__unidad__' : String(row.presentacion).trim());
       const r = ensureTurno(turnoProdMap, dia, row.turno, id, row);
       r.cantidad_producida += Number(row.cantidad_producida) || 0;
+      r.cantidad_mala += Number(row.cantidad_descartada) || 0;
       mergeMeta(r, row);
     }
     for (const row of turnosVenta as any[]) {
@@ -536,6 +552,7 @@ CASE WHEN dp.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE
           presentacion: m.presentacion || presRaw || "Unidad",
           presentacion_factor: 1,
           cantidad_producida: 0,
+          cantidad_mala: 0,
           cantidad_vendida_tienda: 0,
           total_venta_tienda: 0,
           cantidad_vendida_revendedor: 0,
@@ -600,6 +617,7 @@ CASE WHEN dp.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE
             presentacion_factor: factor,
             esUnidad,
             cantidad_producida: prodCant,
+            cantidad_mala: Number(base.cantidad_mala) || 0,
             cantidad_vendida_tienda: cantTienda,
             total_venta_tienda: ingTienda,
             cantidad_vendida_revendedor: cantRev,
@@ -758,16 +776,22 @@ CASE WHEN dp.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE
     const gdByDate = new Map<string, any>();
     for (const row of gananciasDiariasRes as any[]) {
       const fecha = String(row.fecha || "").split("T")[0];
-      const cur = gdByDate.get(fecha) || { fecha, ingreso_tienda: 0, gasto_extra: 0, liquido_revendedor: 0, gasto_extra_revendedor: 0 };
+      const cur = gdByDate.get(fecha) || { fecha, ingreso_tienda: 0, gasto_extra: 0, liquido_revendedor: 0, gasto_extra_revendedor: 0, cantidad_mala: 0 };
       cur.ingreso_tienda += Number(row.ingreso_tienda) || 0;
       cur.gasto_extra += Number(row.gasto_extra) || 0;
       gdByDate.set(fecha, cur);
     }
     for (const row of liquidoDiarioRes as any[]) {
       const fecha = String(row.fecha || "").split("T")[0];
-      const cur = gdByDate.get(fecha) || { fecha, ingreso_tienda: 0, gasto_extra: 0, liquido_revendedor: 0, gasto_extra_revendedor: 0 };
+      const cur = gdByDate.get(fecha) || { fecha, ingreso_tienda: 0, gasto_extra: 0, liquido_revendedor: 0, gasto_extra_revendedor: 0, cantidad_mala: 0 };
       cur.liquido_revendedor += Number(row.liquido_revendedor) || 0;
       cur.gasto_extra_revendedor += Number(row.gasto_extra_revendedor) || 0;
+      gdByDate.set(fecha, cur);
+    }
+    for (const row of produccionMalaDiariaRes as any[]) {
+      const fecha = String(row.fecha || "").split("T")[0];
+      const cur = gdByDate.get(fecha) || { fecha, ingreso_tienda: 0, gasto_extra: 0, liquido_revendedor: 0, gasto_extra_revendedor: 0, cantidad_mala: 0 };
+      cur.cantidad_mala += Number(row.cantidad_mala) || 0;
       gdByDate.set(fecha, cur);
     }
     const ganancias_diarias: any[] = [...gdByDate.values()].map(d => {
@@ -775,6 +799,7 @@ CASE WHEN dp.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE
       const neto_revendedor = d.liquido_revendedor - d.gasto_extra_revendedor;
       return {
         fecha: d.fecha,
+        cantidad_mala: d.cantidad_mala,
         ingreso_tienda: d.ingreso_tienda,
         gasto_extra: d.gasto_extra,
         neto_tienda: neto_tienda,
@@ -786,6 +811,7 @@ CASE WHEN dp.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE
       };
     }).sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
     const totalDiario = ganancias_diarias.reduce((acc, d) => {
+      acc.cantidad_mala += d.cantidad_mala;
       acc.ingreso_tienda += d.ingreso_tienda;
       acc.gasto_extra += d.gasto_extra;
       acc.neto_tienda += d.neto_tienda;
@@ -795,7 +821,7 @@ CASE WHEN dp.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE
       acc.gasto_extra_total += d.gasto_extra_total;
       acc.ganancia_total += d.ganancia_total;
       return acc;
-    }, { ingreso_tienda: 0, gasto_extra: 0, neto_tienda: 0, liquido_revendedor: 0, gasto_extra_revendedor: 0, neto_revendedor: 0, gasto_extra_total: 0, ganancia_total: 0 });
+    }, { ingreso_tienda: 0, gasto_extra: 0, neto_tienda: 0, liquido_revendedor: 0, gasto_extra_revendedor: 0, neto_revendedor: 0, gasto_extra_total: 0, ganancia_total: 0, cantidad_mala: 0 });
 
     return res.json({
       metadatos: { desde: fechadesde, hasta: fechahasta, sucursal: idsucursal || "TODAS" },

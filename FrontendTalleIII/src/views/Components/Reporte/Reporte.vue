@@ -3853,6 +3853,7 @@ const exportarPDF = async () => {
               item.presentacion || 'Unidad',
               String(inicio),
               String(item.cantidad_producida || 0),
+              String(item.cantidad_mala || 0),
               String(item.cantidad_vendida_tienda || 0),
               fmtMoneyT(item.total_venta_tienda),
               String(item.cantidad_vendida_revendedor || 0),
@@ -3866,11 +3867,13 @@ const exportarPDF = async () => {
             const totIngTienda = (turno.productos || []).reduce((s, p) => s + (p.total_venta_tienda || 0), 0)
             const totRev = (turno.productos || []).reduce((s, p) => s + (p.cantidad_vendida_revendedor || 0), 0)
             const totIngRev = (turno.productos || []).reduce((s, p) => s + (p.total_venta_revendedor || 0), 0)
+            const totMala = (turno.productos || []).reduce((s, p) => s + (p.cantidad_mala || 0), 0)
             const totStyle = (content) => ({ content, styles: { fontStyle: 'bold', fillColor: [249, 250, 251], halign: 'center' } })
             tRows.push([
               { content: 'TOTALES', colSpan: 2, styles: { fontStyle: 'bold', fillColor: [249, 250, 251] } },
               totStyle(String(stockIniTotal)),
               totStyle(String(turno.total_producido || 0)),
+              totStyle(String(totMala)),
               totStyle(String(totTienda)),
               totStyle(fmtMoneyT(totIngTienda)),
               totStyle(String(totRev)),
@@ -3879,7 +3882,7 @@ const exportarPDF = async () => {
               totStyle(String(restT))
             ])
             autoTable(doc, {
-              head: [['Producto', 'Presentación', 'Inicio', 'Producido', 'Vend. Tienda', 'Ing. Tienda', 'Vend. Rev.', 'Ing. Rev.', 'Total Vend.', 'Restante']],
+              head: [['Producto', 'Presentación', 'Inicio', 'Producido', 'Cant. Mala', 'Vend. Tienda', 'Ing. Tienda', 'Vend. Rev.', 'Ing. Rev.', 'Total Vend.', 'Restante']],
               body: tRows, startY, styles: { fontSize: 6.5 }, headStyles: { fontSize: 6.5 }
             })
             startY = safeY(doc.lastAutoTable.finalY + 5)
@@ -5370,6 +5373,7 @@ const exportarExcel = () => {
             Fecha: dia.fecha,
             Producto: item.producto,
             Producido: item.cantidad_producida,
+            'Cant. Mala': item.cantidad_mala ?? 0,
             'Vendido Tienda': item.cantidad_vendida_tienda,
             'Vendido Revendedor': item.cantidad_vendida_revendedor,
             'Total Vendido': item.cantidad_vendida_total,

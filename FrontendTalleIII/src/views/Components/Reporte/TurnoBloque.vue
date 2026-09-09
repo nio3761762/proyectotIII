@@ -19,6 +19,7 @@
             <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b min-w-[100px]">Presentación</th>
             <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-center min-w-[70px]">Inicio</th>
             <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-center min-w-[80px]">Producido</th>
+            <th class="p-3 text-[10px] font-black text-red-400 uppercase tracking-widest border-b text-center min-w-[70px]">Cant. Mala</th>
             <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-center min-w-[90px]">Vend. Tienda</th>
             <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-center min-w-[80px]">Ing. Tienda</th>
             <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-center min-w-[90px]">Vend. Rev.</th>
@@ -33,6 +34,7 @@
             <td class="p-3 text-gray-500">{{ item.presentacion }}</td>
             <td class="p-3 text-center font-medium text-gray-500">{{ stockInicio(item) }}</td>
             <td class="p-3 text-center font-black text-emerald-600">{{ item.cantidad_producida }}</td>
+            <td class="p-3 text-center font-medium text-red-400">{{ item.cantidad_mala ?? 0 }}</td>
             <td class="p-3 text-center font-medium text-blue-600">{{ item.cantidad_vendida_tienda }}</td>
             <td class="p-3 text-center font-medium text-gray-700">{{ formatMoney(item.total_venta_tienda) }}</td>
             <td class="p-3 text-center font-medium text-purple-600">{{ item.cantidad_vendida_revendedor }}</td>
@@ -45,7 +47,7 @@
             </td>
           </tr>
           <tr v-if="!turno.productos || turno.productos.length === 0">
-            <td colspan="10" class="p-3 text-center text-gray-400 text-sm">Sin registros en este turno.</td>
+            <td colspan="11" class="p-3 text-center text-gray-400 text-sm">Sin registros en este turno.</td>
           </tr>
         </tbody>
         <tfoot>
@@ -53,6 +55,7 @@
             <td class="p-3 font-black text-gray-600 text-xs uppercase border-t-2 border-gray-200" colspan="2">Totales</td>
             <td class="p-3 text-center font-black text-gray-500 border-t-2 border-gray-200">{{ stockInicioTotal }}</td>
             <td class="p-3 text-center font-black text-emerald-700 border-t-2 border-gray-200">{{ turno.total_producido }}</td>
+            <td class="p-3 text-center font-black text-red-400 border-t-2 border-gray-200">{{ turnoTotalMala }}</td>
             <td class="p-3 text-center font-black text-blue-700 border-t-2 border-gray-200">{{ turnoTotalVendidoTienda }}</td>
             <td class="p-3 text-center font-black text-gray-700 border-t-2 border-gray-200">{{ formatMoney(turnoTotalIngresoTienda) }}</td>
             <td class="p-3 text-center font-black text-purple-700 border-t-2 border-gray-200">{{ turnoTotalVendidoRevendedor }}</td>
@@ -111,6 +114,7 @@ const detalleAbsorcion = (item) => {
 const stockInicioTotal = computed(() => Object.values(props.stockInicioPorProducto).reduce((s, v) => s + (Number(v) || 0), 0))
 
 const turnoTotalVendidoTienda = computed(() => (props.turno.productos || []).reduce((s, p) => s + (p.cantidad_vendida_tienda || 0), 0))
+const turnoTotalMala = computed(() => (props.turno.productos || []).reduce((s, p) => s + (p.cantidad_mala || 0), 0))
 const turnoTotalIngresoTienda = computed(() => (props.turno.productos || []).reduce((s, p) => s + (p.total_venta_tienda || 0), 0))
 const turnoTotalVendidoRevendedor = computed(() => (props.turno.productos || []).reduce((s, p) => s + (p.cantidad_vendida_revendedor || 0), 0))
 const turnoTotalIngresoRevendedor = computed(() => (props.turno.productos || []).reduce((s, p) => s + (p.total_venta_revendedor || 0), 0))
