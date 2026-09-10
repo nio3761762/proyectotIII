@@ -185,6 +185,11 @@
               <ShoppingCart class="h-5 w-5 text-orange-500" />
               Preparación: {{ currentPersonaNombre }}
             </h3>
+            <button v-if="editando && currentDetalles.length > 0" @click="showResumenRevendedorModal = true"
+              class="px-4 py-2 bg-white border-2 border-orange-200 hover:bg-orange-50 hover:border-orange-400 text-orange-600 rounded-xl font-black text-[9px] uppercase tracking-widest transition-all flex items-center gap-1.5">
+              <BarChart3 class="h-3.5 w-3.5" />
+              Resumen
+            </button>
           </div>
 
           <div class="overflow-y-auto custom-scrollbar bg-gray-50/50 rounded-2xl p-5 border border-gray-100 mb-4 lg:max-h-[calc(100vh-520px)] min-h-[100px]">
@@ -217,13 +222,22 @@
                 </div>
 
                 <div class="flex items-center justify-between border-t border-gray-50 pt-3">
-                   <div class="flex items-center gap-3">
-                      <div class="flex items-center gap-1 bg-orange-50 rounded-lg p-1.5">
-                        <button @click="updateQtyCurrent(idx, -1)" class="w-8 h-8 flex items-center justify-center bg-white rounded-md text-orange-600 text-sm font-black shadow-sm">-</button>
-                        <input v-model.number="det.cantidadEntregada" type="number" min="0" class="w-16 text-center text-sm font-black bg-white border-0 rounded-md outline-none shadow-sm py-1 [&::-webkit-inner-spin-button]:opacity-100" />
-                        <button @click="updateQtyCurrent(idx, 1)" class="w-8 h-8 flex items-center justify-center bg-white rounded-md text-orange-600 text-sm font-black shadow-sm">+</button>
+                   <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
+                      <div class="flex items-center gap-3">
+                        <div class="flex items-center gap-1 bg-orange-50 rounded-lg p-1.5">
+                          <button @click="updateQtyCurrent(idx, -1)" class="w-8 h-8 flex items-center justify-center bg-white rounded-md text-orange-600 text-sm font-black shadow-sm">-</button>
+                          <input v-model.number="det.cantidadEntregada" type="number" min="0" class="w-16 text-center text-sm font-black bg-white border-0 rounded-md outline-none shadow-sm py-1 [&::-webkit-inner-spin-button]:opacity-100" />
+                          <button @click="updateQtyCurrent(idx, 1)" class="w-8 h-8 flex items-center justify-center bg-white rounded-md text-orange-600 text-sm font-black shadow-sm">+</button>
+                        </div>
+                        <span class="text-xs font-black text-gray-400 uppercase">Entregados</span>
                       </div>
-                      <span class="text-xs font-black text-gray-400 uppercase">Entregados</span>
+                      <div class="flex items-center gap-3">
+                        <div class="flex items-center gap-1 bg-emerald-50 rounded-lg p-1.5">
+                          <span class="pl-1 text-[9px] font-black text-emerald-500 uppercase">Bs</span>
+                          <input v-model.number="det.precioNormal" type="number" step="0.01" min="0" @input="det.precioVenta = det.precioNormal" class="w-20 text-center text-sm font-black bg-white border-0 rounded-md outline-none shadow-sm py-1 [&::-webkit-inner-spin-button]:opacity-100" />
+                        </div>
+                        <span class="text-xs font-black text-gray-400 uppercase">Precio Unit.</span>
+                      </div>
                    </div>
                    <button @click="openAjusteSubModal(idx)" 
                      class="px-4 py-2 bg-orange-50 hover:bg-orange-600 hover:text-white text-orange-600 rounded-xl text-xs font-black uppercase tracking-tight flex items-center gap-1.5 transition-all">
@@ -276,6 +290,11 @@
          </div>
 
          <div class="flex items-center gap-8">
+           <button @click="showResumenRevendedorModal = true"
+             class="px-6 py-4 bg-white border-2 border-orange-200 hover:bg-orange-50 hover:border-orange-400 text-orange-600 rounded-3xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-2">
+             <BarChart3 class="h-5 w-5" />
+             Resumen por Revendedor
+           </button>
            <div class="text-right">
              <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Importe Neto Total</p>
              <p class="text-3xl font-black text-gray-800">Bs {{ totalLote.toFixed(2) }}</p>
@@ -383,7 +402,7 @@
                         </tr> 
                       </thead>
                       <tbody class="divide-y divide-orange-50">
-                        <tr v-for="(d, dIdx) in reg.detalles" :key="d.idProductoMedida" class="hover:bg-orange-50/30 transition-colors">
+                        <tr v-for="(d, dIdx) in reg.detalles" :key="d._uid || d.idProductoMedida" class="hover:bg-orange-50/30 transition-colors">
                           <td class="px-6 py-3">
                             <div class="flex items-center gap-3">
                               <div class="w-6 h-6 rounded bg-gray-50 border border-gray-100 flex items-center justify-center overflow-hidden">
@@ -400,7 +419,9 @@
                               <button @click="updateQtyInLote(idx, dIdx, 1)" class="w-5 h-5 flex items-center justify-center bg-orange-50 rounded-md text-orange-600 text-[8px] font-black hover:bg-orange-100 transition-colors">+</button>
                             </div>
                           </td>
-                          <td class="px-4 py-3 text-center font-medium">Bs {{ d.precioNormal }}</td>
+                          <td class="px-4 py-3 text-center">
+                            <input v-model.number="d.precioNormal" type="number" step="0.01" min="0" @input="d.precioVenta = d.precioNormal" class="w-20 text-center text-[10px] font-black bg-white border border-emerald-100 rounded-md outline-none py-1 [&::-webkit-inner-spin-button]:opacity-100" placeholder="0.00" />
+                          </td>
                           <td class="px-4 py-3 text-center font-medium">Bs {{ d.precioMayor }}</td>
                           <td class="px-4 py-3 text-center text-emerald-600 font-bold">Bs {{ d.comisionUnitaria }}</td>
                           <td class="px-4 py-3 text-center text-red-500 font-black">{{ d.cantidadDevuelta || 0 }}</td>
@@ -836,6 +857,119 @@
       </div>
     </Transition>
 
+    <!-- Modal Resumen por Revendedor -->
+    <Transition name="fade-backdrop">
+      <div v-if="showResumenRevendedorModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[500] flex items-center justify-center p-4">
+        <div class="bg-white rounded-[3rem] w-full max-w-5xl overflow-hidden shadow-2xl animate-scale-in flex flex-col" style="max-height: 92vh;">
+          <div class="bg-linear-to-r from-orange-600 to-red-700 p-8 text-white relative shrink-0">
+            <div class="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl"></div>
+            <div class="flex items-center justify-between relative z-10 gap-4">
+              <div>
+                <h3 class="text-2xl font-black uppercase tracking-tight flex items-center gap-3">
+                  <BarChart3 class="h-7 w-7" /> Resumen por Revendedor
+                </h3>
+                <p class="text-orange-100 text-[10px] font-bold uppercase tracking-widest mt-1">
+                  {{ resumenRevendedores.cantidadRevendedores }} revendedores · {{ resumenRevendedores.totales.registros }} registros · {{ resumenRevendedores.totales.unidades }} unidades
+                </p>
+              </div>
+              <button @click="showResumenRevendedorModal = false" class="p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors shrink-0">
+                <X class="h-5 w-5" />
+              </button>
+            </div>
+          </div>
+
+          <div class="p-8 space-y-6 overflow-y-auto custom-scrollbar">
+            <div v-if="resumenRevendedores.lista.length === 0" class="text-center py-10 text-gray-400 text-[10px] font-black uppercase tracking-widest">
+              No hay datos para resumir.
+            </div>
+
+            <div v-for="g in resumenRevendedores.lista" :key="g.personaId" class="bg-gray-50/50 rounded-3xl border border-gray-100 overflow-hidden">
+              <div class="px-6 py-4 bg-white border-b border-gray-100 flex items-center justify-between gap-4 flex-wrap">
+                <div class="flex items-center gap-4">
+                  <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-orange-500 to-red-600 shadow-lg flex items-center justify-center text-white font-black text-sm">
+                    {{ g.nombre && g.nombre !== '...' ? g.nombre[0] : '?' }}
+                  </div>
+                  <div>
+                    <p class="text-sm font-black text-gray-800 uppercase tracking-tight">{{ g.nombre }}</p>
+                    <p class="text-[9px] font-bold text-gray-400 uppercase tracking-widest">
+                      {{ g.registros }} registro(s)
+                      <template v-if="g.fechaMin && g.fechaMax && g.fechaMin !== g.fechaMax">· {{ g.fechaMin }} → {{ g.fechaMax }}</template>
+                      <template v-else-if="g.fechaMin">· {{ g.fechaMin }}</template>
+                    </p>
+                  </div>
+                </div>
+                <div class="flex items-center gap-6">
+                  <div class="text-right">
+                    <p class="text-[8px] font-black text-gray-400 uppercase tracking-widest">Unidades</p>
+                    <p class="text-sm font-black text-gray-800">{{ g.unidades }}</p>
+                  </div>
+                  <div class="text-right">
+                    <p class="text-[8px] font-black text-emerald-500 uppercase tracking-widest">Neto a Entregar</p>
+                    <p class="text-lg font-black text-emerald-600">Bs {{ g.neto.toFixed(2) }}</p>
+                  </div>
+                </div>
+              </div>
+              <div class="p-6">
+                <table class="w-full text-[10px]">
+                  <thead class="text-gray-400 uppercase tracking-wider">
+                    <tr>
+                      <th class="px-3 py-2 text-left font-black">Producto</th>
+                      <th class="px-3 py-2 text-center font-black">Entregado</th>
+                      <th class="px-3 py-2 text-center font-black text-red-500">Devuelto</th>
+                      <th class="px-3 py-2 text-center font-black text-blue-500">Ajustado</th>
+                      <th class="px-3 py-2 text-center font-black">P. Unit.</th>
+                      <th class="px-3 py-2 text-center font-black">Venta</th>
+                      <th class="px-3 py-2 text-right font-black text-orange-700">Neto</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-gray-100">
+                    <tr v-for="(pr, pri) in g.productos" :key="pri" class="hover:bg-white transition-colors">
+                      <td class="px-3 py-2.5 font-bold text-gray-800">{{ pr.nombre }} <span class="text-gray-400">({{ pr.presentacion }})</span></td>
+                      <td class="px-3 py-2.5 text-center font-black text-gray-700">{{ pr.entregado }}</td>
+                      <td class="px-3 py-2.5 text-center font-black text-red-500">{{ pr.devuelto }}</td>
+                      <td class="px-3 py-2.5 text-center font-black text-blue-500">{{ pr.ajustado }}</td>
+                      <td class="px-3 py-2.5 text-center font-black">Bs {{ pr.precio.toFixed(2) }}</td>
+                      <td class="px-3 py-2.5 text-center font-black text-gray-700">Bs {{ pr.venta.toFixed(2) }}</td>
+                      <td class="px-3 py-2.5 text-right font-black text-orange-700">Bs {{ pr.neto.toFixed(2) }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div v-if="resumenRevendedores.lista.length > 0" class="bg-gradient-to-br from-orange-500 to-red-600 rounded-3xl p-6 text-white grid grid-cols-2 md:grid-cols-5 gap-4">
+              <div class="text-center">
+                <p class="text-[9px] font-black uppercase tracking-widest opacity-70">Revendedores</p>
+                <p class="text-2xl font-black">{{ resumenRevendedores.cantidadRevendedores }}</p>
+              </div>
+              <div class="text-center">
+                <p class="text-[9px] font-black uppercase tracking-widest opacity-70">Registros</p>
+                <p class="text-2xl font-black">{{ resumenRevendedores.totales.registros }}</p>
+              </div>
+              <div class="text-center">
+                <p class="text-[9px] font-black uppercase tracking-widest opacity-70">Unidades</p>
+                <p class="text-2xl font-black">{{ resumenRevendedores.totales.unidades }}</p>
+              </div>
+              <div class="text-center">
+                <p class="text-[9px] font-black uppercase tracking-widest opacity-70">Comisión</p>
+                <p class="text-2xl font-black">Bs {{ resumenRevendedores.totales.comision.toFixed(2) }}</p>
+              </div>
+              <div class="text-center col-span-2 md:col-span-1">
+                <p class="text-[9px] font-black uppercase tracking-widest opacity-70">Neto Total</p>
+                <p class="text-2xl font-black">Bs {{ resumenRevendedores.totales.neto.toFixed(2) }}</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="p-6 border-t border-gray-100 shrink-0">
+            <button @click="showResumenRevendedorModal = false" class="w-full py-4 bg-gray-100 text-gray-500 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-200">
+              CERRAR
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
+
     <!-- Notification Overlay -->
     <Transition name="slide-up">
       <div v-if="notification"
@@ -852,7 +986,7 @@
 import { ref, reactive, computed, onMounted, watch } from 'vue';
 import { 
   Users, X, Building2, Package, Trash2, Search, Plus, Edit2, UserPlus,
-  ShoppingCart, CheckCircle, AlertTriangle, Loader2, User
+  ShoppingCart, CheckCircle, AlertTriangle, Loader2, User, BarChart3
 } from 'lucide-vue-next';
 import {
   Combobox, ComboboxInput, ComboboxButton, ComboboxOptions, ComboboxOption,
@@ -982,6 +1116,9 @@ const totalBatchAjusteForm = computed(() => {
   return batchAjusteForm.ajustes.reduce((sum, a) => sum + (a.cantidad || 0), 0);
 });
 
+// Resumen por Revendedor Modal State
+const showResumenRevendedorModal = ref(false);
+
 const openBatchAjusteModal = (regIdx, detIdx) => {
   batchAjusteRegIdx.value = regIdx;
   batchAjusteDetIdx.value = detIdx;
@@ -1065,11 +1202,9 @@ const confirmProductSelection = (closeAfter = false) => {
   const retailPrice = pm.precioventa || pm.Precio || 0;
   const wholesalePrice = pm.preciomayor || pm.PrecioMayor || retailPrice;
   const idPM = pm.idproductomedida || pm.IdProductoMedida;
-  const existing = reg.detalles.find(d => d.idProductoMedida === idPM);
-  if (existing) {
-    existing.cantidadEntregada += productQty.value;
-  } else {
-    reg.detalles.push({
+  // Cada vez que se agrega se crea una línea separada (no se fusiona)
+  // para poder entregar el mismo producto a precios distintos.
+  reg.detalles.push({
       _uid: nuevoUid(),
       idProductoMedida: idPM,
       nombre: selectedProduct.value.nombre || selectedProduct.value.Nombre,
@@ -1086,7 +1221,6 @@ const confirmProductSelection = (closeAfter = false) => {
       imagen: selectedProduct.value.imagen || selectedProduct.value.Imagen?.Url,
       ajustes: []
     });
-  }
   if (closeAfter) {
     showProductSelector.value = false;
     showNotification('Producto agregado al lote', 'success');
@@ -1366,6 +1500,99 @@ const calcDetalleNeto = (d) => calcDetalleFinanzas(d).neto;
 const calcTotalReg = (reg) => calcRowTotals(reg).neto;
 const calcNetoReg = (reg) => calcTotalReg(reg) - Number(reg.gastoExtra || 0);
 
+const fuenteRegistros = computed(() => {
+  if (loteRegistros.value.length > 0) {
+    return loteRegistros.value.map(r => ({
+      ...r,
+      personaId: r.idpersona ?? r.idEmpleado ?? 'sin-persona'
+    }));
+  }
+  if (editando.value && currentDetalles.value.length > 0) {
+    return [{
+      personaId: currentPersonaId.value || 'sin-persona',
+      detalles: currentDetalles.value,
+      fecha: fechaRegistro.value,
+      gastoExtra: gastoExtraEdicion.value || 0,
+      observacion: currentObservacion.value
+    }];
+  }
+  return [];
+});
+
+const resumenRevendedores = computed(() => {
+  const grupos = {};
+  for (const reg of fuenteRegistros.value) {
+    const pid = reg.personaId;
+    if (!grupos[pid]) {
+      grupos[pid] = {
+        personaId: pid,
+        nombre: getPersonaNombre(pid),
+        registros: 0,
+        fechas: [],
+        productos: {},
+        ventaTotal: 0,
+        comision: 0,
+        gastoExtra: 0,
+        neto: 0,
+        unidades: 0
+      };
+    }
+    const g = grupos[pid];
+    g.registros++;
+    if (reg.fecha) g.fechas.push(String(reg.fecha).split('T')[0]);
+    const rowT = calcRowTotals(reg);
+    g.ventaTotal += rowT.ventaTotal;
+    g.comision += rowT.comision;
+    g.gastoExtra += Number(reg.gastoExtra || 0);
+    g.neto += rowT.neto - Number(reg.gastoExtra || 0);
+
+    for (const d of (reg.detalles || [])) {
+      const precio = Number(d.precioNormal ?? d.precioVenta ?? 0);
+      const prodKey = `${d.nombre}||${d.presentacion}||${precio}`;
+      if (!g.productos[prodKey]) {
+        g.productos[prodKey] = {
+          nombre: d.nombre,
+          presentacion: d.presentacion,
+          precio,
+          comisionUnitaria: d.comisionUnitaria ?? 0,
+          entregado: 0,
+          devuelto: 0,
+          ajustado: 0,
+          venta: 0,
+          neto: 0
+        };
+      }
+      const pr = g.productos[prodKey];
+      const fin = calcDetalleFinanzas(d);
+      pr.entregado += Number(d.cantidadEntregada || 0);
+      pr.devuelto += Number(d.cantidadDevuelta || 0);
+      pr.ajustado += getCantidadAjustada(d);
+      pr.venta += fin.ventaBruta;
+      pr.neto += fin.neto;
+      g.unidades += Number(d.cantidadEntregada || 0);
+    }
+  }
+
+  const lista = Object.values(grupos).map(g => ({
+    ...g,
+    productos: Object.values(g.productos).sort((a, b) => b.neto - a.neto),
+    fechaMin: g.fechas.length ? [...g.fechas].sort()[0] : '',
+    fechaMax: g.fechas.length ? [...g.fechas].sort()[g.fechas.length - 1] : ''
+  })).sort((a, b) => b.neto - a.neto);
+
+  const totales = lista.reduce((acc, g) => {
+    acc.neto += g.neto;
+    acc.ventaTotal += g.ventaTotal;
+    acc.comision += g.comision;
+    acc.gastoExtra += g.gastoExtra;
+    acc.unidades += g.unidades;
+    acc.registros += g.registros;
+    return acc;
+  }, { neto: 0, ventaTotal: 0, comision: 0, gastoExtra: 0, unidades: 0, registros: 0 });
+
+  return { lista, totales, cantidadRevendedores: lista.length };
+});
+
 const getPersonaNombre = (id) => {
   const p = personas.value.find(per => (per.idpersona ?? per.idempleado ?? per.empleado?.idempleado) === id);
   return p ? `${p.nombre ?? p.Nombre} ${p.apellidopaterno ?? p.ApellidoPaterno}` : '...';
@@ -1417,37 +1644,49 @@ const agregarProductoACurrent = ({ producto, medida }) => {
   const idPM = medida.idproductomedida || medida.IdProductoMedida;
   const presentacion = (typeof medida.presentacion === 'object' ? medida.presentacion.nombre : medida.presentacion) || medida.Nombre;
 
-  // En modo edición los detalles existentes vienen de la BD (sin idProductoMedida),
-  // por lo que se emparejan por nombre + presentación para no duplicarlos.
-  const existing = editando.value
-    ? currentDetalles.value.find(d => d.nombre === (producto.nombre || producto.Nombre) && d.presentacion === presentacion)
-    : currentDetalles.value.find(d => d.idProductoMedida === idPM);
-
-  if (existing) {
-    existing.cantidadEntregada++;
-    return;
-  }
-  
-  // Use EXACT property name from backend for retail price
   const retailPrice = medida.precioventa || medida.Precio || 0;
   const wholesalePrice = medida.preciomayor || medida.PrecioMayor || retailPrice;
 
-  currentDetalles.value.push({
-    _uid: nuevoUid(),
-    idProductoMedida: idPM,
-    nombre: producto.nombre || producto.Nombre,
-    presentacion,
-    precioNormal: retailPrice,
-    precioMayor: wholesalePrice,
-    precioVenta: retailPrice, // Correct value for registration
-    comisionUnitaria: medida.comision || medida.Comision || 0,
-    cantidadEntregada: 1,
-    cantidadDevuelta: 0,
-    cantidadAjustada: 0,
-    precioAjuste: 0,
-    motivo: '',
-    imagen: producto.imagen || producto.Imagen?.Url
-  });
+  // En modo edición, si el producto ya está en la lista se reemplaza esa línea
+  // con el nuevo precio/catálogo en vez de crear otra duplicada (evita acumular
+  // cantidades de precios distintos del mismo producto).
+  const existenteIdx = currentDetalles.value.findIndex(d => d.idProductoMedida === idPM);
+
+  if (editando.value && existenteIdx !== -1) {
+    currentDetalles.value[existenteIdx] = {
+      ...currentDetalles.value[existenteIdx],
+      idProductoMedida: idPM,
+      nombre: producto.nombre || producto.Nombre,
+      presentacion,
+      precioNormal: retailPrice,
+      precioMayor: wholesalePrice,
+      precioVenta: retailPrice,
+      comisionUnitaria: medida.comision || medida.Comision || 0,
+      imagen: producto.imagen || producto.Imagen?.Url,
+      ajustes: [],
+      cantidadAjustada: 0,
+      precioAjuste: 0,
+      motivo: ''
+    };
+    showNotification('Producto actualizado con el nuevo precio', 'success');
+  } else {
+    currentDetalles.value.push({
+      _uid: nuevoUid(),
+      idProductoMedida: idPM,
+      nombre: producto.nombre || producto.Nombre,
+      presentacion,
+      precioNormal: retailPrice,
+      precioMayor: wholesalePrice,
+      precioVenta: retailPrice,
+      comisionUnitaria: medida.comision || medida.Comision || 0,
+      cantidadEntregada: 1,
+      cantidadDevuelta: 0,
+      cantidadAjustada: 0,
+      precioAjuste: 0,
+      motivo: '',
+      imagen: producto.imagen || producto.Imagen?.Url
+    });
+  }
 };
 
 const updateQtyCurrent = (idx, delta) => {

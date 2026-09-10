@@ -72,6 +72,10 @@
                   >
                     {{ c.estado === 1 ? 'Activo' : 'Anulado' }}
                   </span>
+                  <button @click="$emit('ver-detalle', c)" title="Ver detalle por unidades y precios"
+                    class="p-2.5 bg-gray-50 hover:bg-orange-50 text-gray-400 hover:text-orange-600 rounded-xl transition-all border border-gray-100 hover:border-orange-200">
+                    <Eye class="h-4 w-4" />
+                  </button>
                   <button @click="$emit('edit', c)" title="Editar registro"
                     class="p-2.5 bg-gray-50 hover:bg-orange-50 text-gray-400 hover:text-orange-600 rounded-xl transition-all border border-gray-100 hover:border-orange-200">
                     <Edit2 class="h-4 w-4" />
@@ -138,14 +142,14 @@
 </template>
 
 <script setup>
-import { Package, Building2, Edit2 } from 'lucide-vue-next';
+import { Package, Building2, Edit2, Eye } from 'lucide-vue-next';
 import { actualizarGastoExtra } from '@/Server/ControlRevendedor';
 
 const props = defineProps({
   controles: { type: Array, required: true }
 });
 
-defineEmits(['edit']);
+defineEmits(['edit', 'ver-detalle']);
 
 const getAjustes = (d) => {
   return (d.PreciosAjustados || []).filter(p => p.Estado === 'AJUSTE');

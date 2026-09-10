@@ -161,6 +161,7 @@
                     :key="c.idrevendedorcontrol" 
                     :control="c"
                     @edit-detail="abrirAjuste"
+                    @ver-detalle="verDetalleControl"
                     @edit="editarControl"
                   />
                 </div>
@@ -168,6 +169,7 @@
                   v-else 
                   :controles="controles" 
                   @edit="editarControl"
+                  @ver-detalle="verDetalleControl"
                 />
 
                 <Paginado
@@ -204,6 +206,12 @@
       @updated="cargarControles"
     />
 
+    <DetalleControlModal 
+      :isOpen="showDetalleControlModal"
+      :control="detalleControlSel"
+      @close="showDetalleControlModal = false"
+    />
+
     <!-- Toasts / Notifications -->
     <div v-if="notification" class="fixed bottom-6 right-6 z-50 animate-slide-in">
       <div :class="['px-6 py-4 rounded-2xl shadow-xl text-white font-bold flex items-center gap-3', notification.type === 'success' ? 'bg-green-500' : 'bg-red-500']">
@@ -231,6 +239,7 @@ import ControlRevendedorCard from './subcomponents/ControlRevendedorCard.vue';
 import ControlRevendedorTable from './subcomponents/ControlRevendedorTable.vue';
 import RegistrarControlRevendedor from './subcomponents/RegistrarControlRevendedor.vue';
 import AjustarDetalleModal from './subcomponents/AjustarDetalleModal.vue';
+import DetalleControlModal from './subcomponents/DetalleControlModal.vue';
 import Paginado from '@/views/Components/Modals/Paginado.vue';
 import Productocard from '../Venta/Productocard.vue';
 import FiltrosProducto from '../Venta/FiltrosProducto.vue';
@@ -306,6 +315,8 @@ const tieneSucursal = ref(false);
 // Modal State
 const showAjusteModal = ref(false);
 const selectedDetalle = ref(null);
+const showDetalleControlModal = ref(false);
+const detalleControlSel = ref(null);
 
 // Notification State
 const notification = ref(null);
@@ -433,6 +444,11 @@ const nuevoRegistro = () => {
 const abrirAjuste = (det) => {
   selectedDetalle.value = det;
   showAjusteModal.value = true;
+};
+
+const verDetalleControl = (c) => {
+  detalleControlSel.value = c;
+  showDetalleControlModal.value = true;
 };
 
 const seleccionarProductoDeCatalogo = ({ producto, medida }) => {
