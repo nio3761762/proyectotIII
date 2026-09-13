@@ -2,7 +2,7 @@
   <div class="space-y-8">
     <div class="bg-gradient-to-r from-rose-500 to-orange-500 rounded-3xl p-6 text-white shadow-xl">
       <p class="text-[10px] uppercase font-bold tracking-widest opacity-80 mb-1">Destinos de la Producción</p>
-      <p class="text-xs opacity-80 mb-4">Cada día se divide en dos turnos por la hora: <b>Mañana</b> (12:00 AM - 12:00 PM) y <b>Tarde</b> (12:00 PM - 12:00 AM), y se muestra en dos tablas. La fila <b>Producción</b> incluye el stock inicial heredado + lo producido en el turno. <b>Revendedor</b> = lo que sacó (entregado). <b>Tienda</b> = transferencias de stock enviado a la tienda. <b>Cocina</b> = solo pedidos. <b>Resta</b> = Producción − lo entregado y pasa al siguiente turno/día.</p>
+      <p class="text-xs opacity-80 mb-4">Cada día se divide en dos turnos por la hora: <b>Mañana</b> (12:00 AM - 12:00 PM) y <b>Tarde</b> (12:00 PM - 12:00 AM), y se muestra en dos tablas. La fila <b>Producción</b> incluye el stock inicial heredado + lo producido en el turno. <b>Revendedor</b> = lo que sacó (entregado). <b>Tienda</b> = transferencias de stock enviado a cada tienda (se agrupan por tienda y turno). <b>Cocina</b> = solo pedidos + ventas de la sucursal cocina. <b>Resta</b> = Producción − lo entregado y pasa al siguiente turno/día.</p>
       <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
         <div>
           <p class="text-xl font-black">{{ totales.produccion }} uds.</p>
@@ -105,8 +105,15 @@ const diasTable = computed(() => {
       if (!turnoData) return null
 
       const prodMap = sumKeys(turnoData.produccion)
-      const tiendaMap = sumKeys(turnoData.tienda)
       const cocinaMap = sumKeys(turnoData.cocina)
+      const totalTienda = {}
+      const tiendaRows = []
+      ;(turnoData.tiendas || []).forEach(td => {
+        const det = sumKeys(td.detalle)
+        Object.entries(det).forEach(([k, v]) => { totalTienda[k] = (totalTienda[k] || 0) + v })
+        const flat = flats.map(u => redondear(det[u.key] || 0))
+        tiendaRows.push({ nombre: td.tienda || 'Tienda', flat, total: redondear(flat.reduce((s, v) => s + v, 0)) })
+      })
       const totalRev = {}
       const revRows = []
       ;(turnoData.revendedores || []).forEach(r => {
@@ -121,7 +128,7 @@ const diasTable = computed(() => {
         perKey[u.key] = {
           inicio: Number(carryRest[u.key]) || 0,
           producido: prodMap[u.key] || 0,
-          ent: (totalRev[u.key] || 0) + (tiendaMap[u.key] || 0) + (cocinaMap[u.key] || 0),
+          ent: (totalRev[u.key] || 0) + (totalTienda[u.key] || 0) + (cocinaMap[u.key] || 0),
           consumo: 0,
           consumida: false
         }
@@ -154,7 +161,6 @@ const diasTable = computed(() => {
         return rest
       })
       const produccionFlat = flats.map(u => redondear(perKey[u.key].inicio + perKey[u.key].producido))
-      const tiendaFlat = flats.map(u => redondear(tiendaMap[u.key] || 0))
       const cocinaFlat = flats.map(u => redondear(cocinaMap[u.key] || 0))
       const sumF = (arr) => arr.reduce((s, v) => s + v, 0)
 
@@ -163,8 +169,8 @@ const diasTable = computed(() => {
         produccion: produccionFlat,
         produccionTotal: redondear(sumF(produccionFlat)),
         revendedores: revRows,
-        tienda: tiendaFlat,
-        tiendaTotal: redondear(sumF(tiendaFlat)),
+        tiendas: tiendaRows,
+        tiendaTotal: redondear(tiendaRows.reduce((s, r) => s + (r.total || 0), 0)),
         cocina: cocinaFlat,
         cocinaTotal: redondear(sumF(cocinaFlat)),
         resta: restaFlat,

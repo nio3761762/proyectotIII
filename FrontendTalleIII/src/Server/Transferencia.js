@@ -55,3 +55,15 @@ export const actualizarTransferencia = async (id, transferencias, detalles) => {
     throw error;
   }
 };
+
+export const actualizarHoraTransferencia = async (id, hora) => {
+  try {
+    const response = await API.put(`actualizarhoratransferencia/${id}`, {
+      hora
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error al actualizar hora de transferencia:', error.response);
+    throw error;
+  }
+};

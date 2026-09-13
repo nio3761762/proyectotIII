@@ -25,6 +25,7 @@ export const getReporteDestinos = async (req: Request, res: Response) => {
     let sucursalCondTienda = "";
     let sucursalCondCocina = "";
     let sucursalCondVendedor = "";
+    let sucursalCondVentaCocina = "";
 
     if (idsucursal && idsucursal !== "TODOS") {
       sucursalCondProd = ` AND prod.idsucursal = $3`;
@@ -32,6 +33,7 @@ export const getReporteDestinos = async (req: Request, res: Response) => {
       sucursalCondTienda = ` AND t.idsucursaldestino = $3`;
       sucursalCondCocina = ` AND pe.idsucursal = $3`;
       sucursalCondVendedor = ` AND t.idsucursalorigen = $3`;
+      sucursalCondVentaCocina = ` AND v.idsucursal = $3`;
       params.push(idsucursal);
     } else {
       // Sin sucursal seleccionada: "Tienda" son transferencias con destino a una
@@ -90,6 +92,8 @@ export const getReporteDestinos = async (req: Request, res: Response) => {
       SELECT
         t.fecha as dia_comercial,
         CASE WHEN COALESCE(t.hora, '00:00') >= '12:00' THEN 'tarde' ELSE 'manana' END as turno,
+        t.idsucursaldestino as idsucursaldestino,
+        COALESCE(sd.nombre, 'Tienda') as tienda_nombre,
         COALESCE(pm.idproducto, dt.idproducto) as idproducto,
         COALESCE(pr.nombre, pr2.nombre) as producto,
         dt.idproductomedida,
@@ -99,6 +103,7 @@ export const getReporteDestinos = async (req: Request, res: Response) => {
         SUM(dt.cantidad) as cantidad_tienda
       FROM detalle_transferencia dt
       INNER JOIN transferencia t ON dt.idtransferencia = t.idtransferencia
+      LEFT JOIN sucursal sd ON t.idsucursaldestino = sd.idsucursal
       LEFT JOIN productomedida pm ON dt.idproductomedida = pm.idproductomedida
       LEFT JOIN producto pr ON pm.idproducto = pr.idproducto
       LEFT JOIN producto pr2 ON dt.idproducto = pr2.idproducto
@@ -106,8 +111,8 @@ export const getReporteDestinos = async (req: Request, res: Response) => {
       WHERE t.fecha BETWEEN $1 AND $2 AND t.estado = 1
         AND UPPER(t.tipo) = 'SUCURSAL' AND t.idsucursaldestino IS NOT NULL
         ${sucursalCondTienda}
-      GROUP BY dia_comercial, turno, COALESCE(pm.idproducto, dt.idproducto), COALESCE(pr.nombre, pr2.nombre), dt.idproductomedida, COALESCE(pm.cantidad, 1), CASE WHEN dt.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE 'Unidad' END, COALESCE(pres.abreviatura, '')
-      ORDER BY dia_comercial, turno, COALESCE(pr.nombre, pr2.nombre), CASE WHEN dt.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE 'Unidad' END
+      GROUP BY dia_comercial, turno, t.idsucursaldestino, COALESCE(sd.nombre, 'Tienda'), COALESCE(pm.idproducto, dt.idproducto), COALESCE(pr.nombre, pr2.nombre), dt.idproductomedida, COALESCE(pm.cantidad, 1), CASE WHEN dt.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE 'Unidad' END, COALESCE(pres.abreviatura, '')
+      ORDER BY dia_comercial, turno, COALESCE(sd.nombre, 'Tienda'), COALESCE(pr.nombre, pr2.nombre), CASE WHEN dt.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE 'Unidad' END
     `;
 
     const sqlTurnosVendedorDest = `
@@ -160,17 +165,46 @@ export const getReporteDestinos = async (req: Request, res: Response) => {
       ORDER BY dia_comercial, turno, COALESCE(pr.nombre, pr2.nombre), CASE WHEN dp.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE 'Unidad' END
     `;
 
+    // Ventas registradas SOLO de sucursales tipo cocina (central = 3). Estas
+    // ventas equivalen a los pedidos de la cocina y se suman al bloque "Cocina".
+    const sqlTurnosVentaCocinaDest = `
+      SELECT
+        v.fechaventa as dia_comercial,
+        CASE WHEN COALESCE(v.horaventa, '00:00') >= '12:00' THEN 'tarde' ELSE 'manana' END as turno,
+        COALESCE(pm.idproducto, dv.idproducto) as idproducto,
+        COALESCE(pr.nombre, pr2.nombre) as producto,
+        dv.idproductomedida,
+        CASE WHEN dv.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE 'Unidad' END as presentacion,
+        COALESCE(pres.abreviatura, '') as abreviatura,
+        COALESCE(pm.cantidad, 1) as presentacion_factor,
+        SUM(dv.cantidad) as cantidad_venta
+      FROM detalleventa dv
+      INNER JOIN venta v ON dv.idventa = v.idventa
+      INNER JOIN sucursal sc ON v.idsucursal = sc.idsucursal
+      LEFT JOIN productomedida pm ON dv.idproductomedida = pm.idproductomedida
+      LEFT JOIN producto pr ON pm.idproducto = pr.idproducto
+      LEFT JOIN producto pr2 ON dv.idproducto = pr2.idproducto
+      LEFT JOIN presentacion pres ON pm.idpresentacion = pres.idpresentacion
+      WHERE v.fechaventa BETWEEN $1 AND $2 AND v.estado = 1
+        AND sc.central = 3
+        AND dv.idpromocion IS NULL
+        ${sucursalCondVentaCocina}
+      GROUP BY dia_comercial, turno, COALESCE(pm.idproducto, dv.idproducto), COALESCE(pr.nombre, pr2.nombre), dv.idproductomedida, COALESCE(pm.cantidad, 1), CASE WHEN dv.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE 'Unidad' END, COALESCE(pres.abreviatura, '')
+      ORDER BY dia_comercial, turno, COALESCE(pr.nombre, pr2.nombre), CASE WHEN dv.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE 'Unidad' END
+    `;
+
     const safeQ = async (sql: string, params: any[]) => {
       try { return await AppDataSource.query(sql, params); }
       catch (err) { console.error("DestinosReporte - consulta con error:", err); return []; }
     };
 
-    const [turnosProd, turnosRevDest, turnosVendedorDest, turnosTiendaDest, turnosCocinaDest] = await Promise.all([
+    const [turnosProd, turnosRevDest, turnosVendedorDest, turnosTiendaDest, turnosCocinaDest, turnosVentaCocinaDest] = await Promise.all([
       safeQ(sqlTurnosProd, params),
       safeQ(sqlTurnosRevDest, params),
       safeQ(sqlTurnosVendedorDest, params),
       safeQ(sqlTurnosTiendaDest, params),
-      safeQ(sqlTurnosCocinaDest, params)
+      safeQ(sqlTurnosCocinaDest, params),
+      safeQ(sqlTurnosVentaCocinaDest, params)
     ]);
 
     // ===== Construcción de la matriz de destinos por día/turno =====
@@ -186,7 +220,7 @@ export const getReporteDestinos = async (req: Request, res: Response) => {
     };
     const normKeyDest = (row: any) => String(row.idproducto) + '::' + (presUnidad(row.presentacion) ? '__unidad__' : String(row.presentacion).trim());
 
-    const destMap = new Map<string, { prod: Map<string, number>; tda: Map<string, number>; coc: Map<string, number>; rev: Map<string, Map<string, number>>; meta: Map<string, any> }>();
+    const destMap = new Map<string, { prod: Map<string, number>; tda: Map<string, Map<string, number>>; coc: Map<string, number>; rev: Map<string, Map<string, number>>; meta: Map<string, any> }>();
     const ensureDest = (dia: string, turno: string) => {
       const key = `${dia}|${turno}`;
       let e = destMap.get(key);
@@ -233,12 +267,20 @@ export const getReporteDestinos = async (req: Request, res: Response) => {
     }
     for (const row of turnosTiendaDest as any[]) {
       const e = ensureDest(normDia(row.dia_comercial), row.turno);
-      sumIn(e.tda, normKeyDest(row), Number(row.cantidad_tienda) || 0);
+      const tienda = String(row.tienda_nombre || "").trim() || "Tienda";
+      let tda = e.tda.get(tienda);
+      if (!tda) { tda = new Map(); e.tda.set(tienda, tda); }
+      sumIn(tda, normKeyDest(row), Number(row.cantidad_tienda) || 0);
       setMetaDest(e, row);
     }
     for (const row of turnosCocinaDest as any[]) {
       const e = ensureDest(normDia(row.dia_comercial), row.turno);
       sumIn(e.coc, normKeyDest(row), Number(row.cantidad_cocina) || 0);
+      setMetaDest(e, row);
+    }
+    for (const row of turnosVentaCocinaDest as any[]) {
+      const e = ensureDest(normDia(row.dia_comercial), row.turno);
+      sumIn(e.coc, normKeyDest(row), Number(row.cantidad_venta) || 0);
       setMetaDest(e, row);
     }
 
@@ -253,13 +295,16 @@ export const getReporteDestinos = async (req: Request, res: Response) => {
         const revendedores = [...e.rev.entries()]
           .map(([nombre, det]) => ({ revendedor: nombre, detalle: objOf(det) }))
           .sort((a: any, b: any) => a.revendedor.localeCompare(b.revendedor));
-        return { produccion: objOf(e.prod), tienda: objOf(e.tda), cocina: objOf(e.coc), revendedores };
+        const tiendas = [...e.tda.entries()]
+          .map(([nombre, det]) => ({ tienda: nombre, detalle: objOf(det) }))
+          .sort((a: any, b: any) => a.tienda.localeCompare(b.tienda));
+        return { produccion: objOf(e.prod), tiendas, cocina: objOf(e.coc), revendedores };
       };
       destinos.push({ fecha: dia, unidades, turnos: { manana: bTurno("manana"), tarde: bTurno("tarde") } });
     }
     destinos.sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
 
-    console.log(`[DestinosReporte] filas: prod=${turnosProd.length}, rev=${turnosRevDest.length}, vendedor=${turnosVendedorDest.length}, tienda=${turnosTiendaDest.length}, cocina=${turnosCocinaDest.length} -> dias=${destinos.length}, rango=${fechadesde}..${fechahasta}, sucursal=${idsucursal || "TODAS"}`);
+    console.log(`[DestinosReporte] filas: prod=${turnosProd.length}, rev=${turnosRevDest.length}, vendedor=${turnosVendedorDest.length}, tienda=${turnosTiendaDest.length}, cocina=${turnosCocinaDest.length}, ventaCocina=${turnosVentaCocinaDest.length} -> dias=${destinos.length}, rango=${fechadesde}..${fechahasta}, sucursal=${idsucursal || "TODAS"}`);
 
     return res.json({
       metadatos: { desde: fechadesde, hasta: fechahasta, sucursal: idsucursal || "TODAS" },

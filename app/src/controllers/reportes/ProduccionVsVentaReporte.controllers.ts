@@ -545,7 +545,7 @@ CASE WHEN dp.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE
       const stockInicio: Record<string, number> = {};
       productRows.forEach(p => {
         const key = keyOfRow(p);
-        if (!meta.has(key)) meta.set(key, { producto: p.producto || "Sin nombre", presentacion: p.presentacion || "Unidad" });
+        if (!meta.has(key)) meta.set(key, { producto: p.producto || "Sin nombre", presentacion: p.presentacion || "Unidad", abreviatura: p.abreviatura || "", factor: factorDeRow(p), esUnidad: esUnidadDeRow(p) });
         p.inicio = Number(disponible.get(key)) || 0;
         stockInicio[key] = p.inicio;
       });
@@ -610,6 +610,35 @@ CASE WHEN dp.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE
           });
         }
         productos.sort((a, b) => b.cantidad_producida - a.cantidad_producida);
+        // Arrastre de stock visible: si quedó "resto" de turnos/días previos y el
+        // producto + presentación no registra movimientos en este turno, se agrega
+        // la fila igualmente (sin producción ni venta) para controlar el stock.
+        const clavesActuales = new Set(productos.map((p) => keyOfRow(p)));
+        for (const [key, stock] of disponible) {
+          if (clavesActuales.has(key)) continue;
+          if (!(Number(stock) || 0)) continue;
+          const sep = key.lastIndexOf("::");
+          const id = key.slice(0, sep);
+          const pres = key.slice(sep + 2);
+          const m = meta.get(key);
+          productos.push({
+            idproducto: id,
+            producto: (m && m.producto) || nombreProductos.get(id) || "Sin nombre",
+            presentacion: pres,
+            abreviatura: (m && m.abreviatura) || "",
+            presentacion_factor: (m && m.factor) || 1,
+            esUnidad: presUnidad(pres),
+            cantidad_producida: 0,
+            cantidad_mala: 0,
+            cantidad_vendida_tienda: 0,
+            total_venta_tienda: 0,
+            cantidad_vendida_revendedor: 0,
+            total_venta_revendedor: 0,
+            cantidad_vendida_total: 0,
+            consumida: false,
+            diferencia: 0
+          });
+        }
         turnos[turno].productos = productos;
         turnos[turno].total_producido = totalProd;
         turnos[turno].total_vendido = totalVend;

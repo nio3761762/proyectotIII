@@ -92,8 +92,12 @@ const resumen = computed(() => {
       if (!tr) continue
 
       const prodMap = sumObj(tr.produccion)
-      const tdaMap = sumObj(tr.tienda)
       const cocMap = sumObj(tr.cocina)
+      const tdaKeyed = {}
+      ;(tr.tiendas || []).forEach(td => {
+        const d = sumObj(td.detalle)
+        Object.entries(d).forEach(([k, v]) => { tdaKeyed[k] = (tdaKeyed[k] || 0) + v })
+      })
       const revT = {}
       ;(tr.revendedores || []).forEach(r => {
         const d = sumObj(r.detalle)
@@ -105,7 +109,7 @@ const resumen = computed(() => {
         perKey[u.key] = {
           inicio: Number(carryRest[u.key]) || 0,
           producido: prodMap[u.key] || 0,
-          ent: (revT[u.key] || 0) + (tdaMap[u.key] || 0) + (cocMap[u.key] || 0),
+          ent: (revT[u.key] || 0) + (tdaKeyed[u.key] || 0) + (cocMap[u.key] || 0),
           consumo: 0,
           consumida: false
         }
@@ -142,7 +146,7 @@ const resumen = computed(() => {
         if (!a.inicioSet) { a.inicio = redondear(p.inicio); a.inicioSet = true }
         a.producido = redondear(a.producido + p.producido)
         a.rev = redondear(a.rev + (revT[u.key] || 0))
-        a.tda = redondear(a.tda + (tdaMap[u.key] || 0))
+        a.tda = redondear(a.tda + (tdaKeyed[u.key] || 0))
         a.coc = redondear(a.coc + (cocMap[u.key] || 0))
       })
     }

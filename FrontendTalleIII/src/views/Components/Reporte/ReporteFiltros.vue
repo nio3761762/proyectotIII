@@ -144,6 +144,11 @@
             <input type="date" :value="inicioSemana" @input="$emit('update:inicioSemana', $event.target.value)" class="bg-transparent text-sm font-semibold text-orange-600 outline-none" />
             <span class="text-xs font-bold text-orange-500 uppercase tracking-wide">{{ nombreDiaInicio }}</span>
           </div>
+          <div v-if="agruparPorSemana" class="flex items-center gap-2 bg-white border border-orange-200 rounded-xl px-3 py-1.5">
+            <label class="text-sm font-medium text-gray-600 whitespace-nowrap">La semana termina</label>
+            <input type="date" :value="finSemana" @input="$emit('update:finSemana', $event.target.value)" class="bg-transparent text-sm font-semibold text-orange-600 outline-none" />
+            <span class="text-xs font-bold text-orange-500 uppercase tracking-wide">{{ nombreDiaFin }}</span>
+          </div>
       </div>
       <div :class="['flex gap-3', activeTab === 'inventario' ? 'w-full justify-end' : '']">
         <button v-if="false" @click="$emit('exportarExcel')" class="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white rounded-2xl px-6 py-2 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 flex items-center gap-2">
@@ -177,6 +182,10 @@ const props = defineProps({
     default: false
   },
   inicioSemana: {
+    type: String,
+    default: ''
+  },
+  finSemana: {
     type: String,
     default: ''
   },
@@ -234,7 +243,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['update:filtroCategoria', 'update:agruparPorSemana', 'update:inicioSemana', 'aplicarFiltroRapido', 'exportarExcel', 'exportarPdf'])
+const emit = defineEmits(['update:filtroCategoria', 'update:agruparPorSemana', 'update:inicioSemana', 'update:finSemana', 'aplicarFiltroRapido', 'exportarExcel', 'exportarPdf'])
 
 const localFiltroCategoria = computed({
   get: () => props.filtroCategoria,
@@ -246,5 +255,12 @@ const nombreDiaInicio = computed(() => {
   const d = new Date(props.inicioSemana + 'T12:00:00')
   const dias = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
   return isNaN(d.getTime()) ? 'Lunes' : dias[d.getDay()]
+})
+
+const nombreDiaFin = computed(() => {
+  if (!props.finSemana) return '—'
+  const d = new Date(props.finSemana + 'T12:00:00')
+  const dias = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
+  return isNaN(d.getTime()) ? '—' : dias[d.getDay()]
 })
 </script>

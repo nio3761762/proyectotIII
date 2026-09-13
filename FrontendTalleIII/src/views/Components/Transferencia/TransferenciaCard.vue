@@ -84,6 +84,14 @@
         </button>
         <button 
           v-if="transferencia.estado === 1"
+          @click="$emit('editHora', transferencia)"
+          class="p-2 rounded-xl bg-teal-50 text-teal-600 hover:bg-teal-100 transition-colors"
+          title="Modificar Hora"
+        >
+          <Clock class="h-5 w-5" />
+        </button>
+        <button 
+          v-if="transferencia.estado === 1"
           @click="$emit('edit', transferencia)"
           class="p-2 rounded-xl bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
           title="Editar Transferencia"
@@ -120,7 +128,7 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(['view', 'anular', 'edit']);
+const emit = defineEmits(['view', 'anular', 'edit', 'editHora']);
 
 // Reloj interno para actualizar la visibilidad del botón en tiempo real
 const now = ref(new Date());

@@ -32,9 +32,13 @@ export const registrarTransferencia = async (req: Request, res: Response) => {
     const transferencia = new Transferencia();
     transferencia.IdTransferencia = nuevoIdVenta;
     
-    // 3. Manejo de Cliente (Persona)
-    const { hora } = getFechaHoraBolivia();
-    transferencia.Hora = hora;
+    // 3. Hora y Fecha (si el usuario indica hora, se respeta esa)
+    if (transferencias.Hora) {
+      transferencia.Hora = transferencias.Hora;
+    } else {
+      const { hora } = getFechaHoraBolivia();
+      transferencia.Hora = hora;
+    }
     if (transferencias.Fecha) {
       transferencia.Fecha = new Date(transferencias.Fecha + 'T00:00:00');
     } else {
@@ -230,6 +234,45 @@ export const updateTransferencia = async (req: Request, res: Response) => {
     });
   } finally {
     await queryRunner.release();
+  }
+};
+
+export const actualizarHoraTransferencia = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { hora } = req.body;
+
+  try {
+    const transferencia = await AppDataSource.getRepository(Transferencia).findOne({
+      where: { IdTransferencia: id }
+    });
+
+    if (!transferencia) {
+      throw new HttpError(404, "Transferencia no encontrada.");
+    }
+
+    if (transferencia.Estado === 0) {
+      throw new HttpError(400, "No se puede modificar la hora de una transferencia anulada.");
+    }
+
+    if (!hora) {
+      throw new HttpError(400, "La hora es requerida.");
+    }
+
+    transferencia.Hora = hora;
+    await AppDataSource.getRepository(Transferencia).save(transferencia);
+
+    return res.status(200).json({
+      message: "La hora de la transferencia se actualizó correctamente",
+      idVenta: id
+    });
+  } catch (error) {
+    if (error instanceof HttpError) {
+      return res.status(error.statusCode).json({ message: error.message });
+    }
+    return res.status(500).json({
+      message: "Error al actualizar la hora de la transferencia",
+      error: error instanceof Error ? error.message : "Error desconocido"
+    });
   }
 };
 

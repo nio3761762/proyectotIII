@@ -19,16 +19,30 @@ const defaultInicio = () => {
 
 const inicioSemana = ref(defaultInicio());
 
+const finSemana = ref('');
+
 const useInicioSemana = () => inicioSemana;
+
+const useFinSemana = () => finSemana;
 
 const setInicioSemana = (fecha) => {
   inicioSemana.value = fecha || '';
 };
 
+const setFinSemana = (fecha) => {
+  finSemana.value = fecha || '';
+};
+
 const getAnchorWeekday = () => {
-  if (!inicioSemana.value) return DEFAULT_WEEKDAY;
-  const d = new Date(inicioSemana.value + 'T12:00:00');
-  return isNaN(d.getTime()) ? DEFAULT_WEEKDAY : d.getDay();
+  if (finSemana.value) {
+    const d = new Date(String(finSemana.value).split('T')[0] + 'T12:00:00');
+    if (!isNaN(d.getTime())) return (d.getDay() + 1) % 7;
+  }
+  if (inicioSemana.value) {
+    const d = new Date(inicioSemana.value + 'T12:00:00');
+    return isNaN(d.getTime()) ? DEFAULT_WEEKDAY : d.getDay();
+  }
+  return DEFAULT_WEEKDAY;
 };
 
 const getWeekStart = (dateStr) => {
@@ -58,4 +72,4 @@ const getWeekLabel = (weekStartStr) => {
   return `${fmt(d)} - ${fmt(end)}`;
 };
 
-export { useInicioSemana, setInicioSemana, getAnchorWeekday, getWeekStart, getWeekLabel };
+export { useInicioSemana, setInicioSemana, useFinSemana, setFinSemana, getAnchorWeekday, getWeekStart, getWeekLabel };

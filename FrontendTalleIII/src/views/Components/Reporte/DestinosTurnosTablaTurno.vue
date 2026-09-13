@@ -39,11 +39,11 @@
             <td class="p-2 text-center font-black text-violet-700">{{ r.total }}</td>
           </tr>
           <!-- Tienda -->
-          <tr class="bg-blue-50/40">
-            <td class="p-2 text-[11px] font-black text-blue-700 uppercase tracking-wider">Tienda</td>
+          <tr v-for="(td, ti) in turno.tiendas" :key="'tienda-'+ti" class="bg-blue-50/40">
+            <td class="p-2 text-[11px] font-black text-blue-700 uppercase tracking-wider whitespace-nowrap">Tienda · {{ td.nombre }}</td>
             <td class="p-2 text-[10px] font-bold text-gray-400">Transferencia</td>
-            <td v-for="(v, i) in turno.tienda" :key="'dt-'+i" class="p-2 text-center font-medium text-gray-600">{{ v }}</td>
-            <td class="p-2 text-center font-black text-blue-700 bg-blue-100/60">{{ turno.tiendaTotal }}</td>
+            <td v-for="(v, i) in td.flat" :key="'dt-'+ti+'-'+i" class="p-2 text-center font-medium text-gray-600">{{ v }}</td>
+            <td class="p-2 text-center font-black text-blue-700 bg-blue-100/60">{{ td.total }}</td>
           </tr>
           <!-- Cocina -->
           <tr class="bg-amber-50/40">

@@ -65,6 +65,16 @@
               />
             </div>
 
+            <!-- Hora -->
+            <div v-if="!esEdicion">
+              <label class="text-sm font-semibold text-gray-700 mb-2 block">Hora de Transferencia</label>
+              <input
+                type="time"
+                v-model="horaTransferencia"
+                class="w-full px-4 py-3 bg-white/60 border border-orange-200 rounded-2xl shadow-md focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
+              />
+            </div>
+
             <!-- Sucursal Destino -->
             <div>
               <label class="text-sm font-semibold text-gray-700 mb-2 block">Sucursal Destino</label>
@@ -401,6 +411,7 @@ const currentUserId = ref(null);
 const selectedSucursalId = ref('');
 const sucursalFija = ref(false);
 const fechaTransferencia = ref(new Date().toLocaleDateString('en-CA'));
+const horaTransferencia = ref('');
 
 // Paginacion logic like Venta.vue
 const paginacionProd = reactive({ paginaActual: 1, totalPaginas: 1, total: 0, limite: 12 });
@@ -523,6 +534,11 @@ const onLimiteChange = (limite) => {
 // --- HELPERS ---
 const getProdId = (obj) => obj?.idproducto || obj?.IdProducto;
 const getPaqueteId = (obj) => obj?.idproductomedida || obj?.idPaquete || obj?.IdPaquete;
+
+const formatoHoraActual = () => {
+  const d = new Date();
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+};
 
 // --- STOCK LOGIC (Pattern from Venta.vue) ---
 
@@ -721,7 +737,8 @@ const procesarTransferencia = async () => {
       IdsucursalOrigen: selectedSucursalId.value,
       IdsucursalDestino: sucursalDestino.value?.idsucursal || null,
       IdempleadoDestino: empleadoDestino.value?.idempleado || null,
-      Fecha: fechaTransferencia.value
+      Fecha: fechaTransferencia.value,
+      ...(esEdicion.value ? {} : { Hora: horaTransferencia.value })
     };
 
     const detalles = {
@@ -859,8 +876,11 @@ onMounted(async () => {
   if (esEdicion.value) {
     cargarDatosEdicion();
     sucursalFija.value = false;
-  } else if (!selectedSucursalId.value && sucursalesDisponibles.value.length > 0) {
-    selectedSucursalId.value = sucursalesDisponibles.value[0].idsucursal;
+  } else {
+    horaTransferencia.value = formatoHoraActual();
+    if (!selectedSucursalId.value && sucursalesDisponibles.value.length > 0) {
+      selectedSucursalId.value = sucursalesDisponibles.value[0].idsucursal;
+    }
   }
   fetchItems();
 });

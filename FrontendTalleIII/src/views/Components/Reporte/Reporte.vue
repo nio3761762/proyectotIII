@@ -12,6 +12,7 @@
       v-model:filtro-categoria="filtroCategoria"
       v-model:agrupar-por-semana="agruparPorSemana"
       v-model:inicio-semana="inicioSemana"
+      v-model:fin-semana="finSemana"
       :active-tab="activeTab"
       :sucursales="sucursales"
       :empleados="empleados"
@@ -185,7 +186,7 @@ import ResumenTurnosTable from './ResumenTurnosTable.vue'
 import ResumenGananciasDiarias from './ResumenGananciasDiarias.vue'
 
 import logoMasasCori from '@/views/assets/LogoMasasCorir.png';
-import { useInicioSemana, getAnchorWeekday, getWeekStart as semanaGetWeekStart, getWeekLabel as semanaGetWeekLabel } from './useSemana'
+import { useInicioSemana, useFinSemana, getAnchorWeekday, getWeekStart as semanaGetWeekStart, getWeekLabel as semanaGetWeekLabel } from './useSemana'
 
 // --- Lógica de Pestañas ---
 const activeTab = ref('financiero');
@@ -206,6 +207,7 @@ const produccionVsVentaTurnosTableRef = ref(null);
 const agruparPorSemana = ref(false)
 
 const inicioSemana = useInicioSemana()
+const finSemana = useFinSemana()
 
 const getWeekStart = (dateStr) => semanaGetWeekStart(dateStr)
 const getWeekLabel = (weekStartStr) => semanaGetWeekLabel(weekStartStr)
@@ -3716,7 +3718,7 @@ const exportarPDF = async () => {
       doc.setFont(undefined, 'bold')
       doc.text('Resumen Semanal por Unidades', 14, startY)
       startY += 8
-      semanasConMatriz.forEach((sem, si) => {
+      semanasConMatriz.slice(0, 1).forEach((sem, si) => {
         if (!sem?.matrizC?.filas?.length) return
         hayDatos = true
         if (startY > pageH - 60) { doc.addPage(); startY = 50 }
@@ -4299,7 +4301,7 @@ const exportarPDF = async () => {
           dRows.push([destino, tipo, m.producto || 'Sin nombre', presDest(m), String(cant)])
         }
         Object.entries(tr.produccion || {}).forEach(([k, v]) => addD('Producción', 'Inicio + Prod.', k, v))
-        Object.entries(tr.tienda || {}).forEach(([k, v]) => addD('Tienda', 'Transferencia', k, v))
+        ;(tr.tiendas || []).forEach(td => Object.entries(td.detalle || {}).forEach(([k, v]) => addD('Tienda · ' + (td.tienda || 'Tienda'), 'Transferencia', k, v)))
         Object.entries(tr.cocina || {}).forEach(([k, v]) => addD('Cocina', 'Pedidos', k, v))
         ;(tr.revendedores || []).forEach(r => Object.entries(r.detalle || {}).forEach(([k, v]) => addD(r.revendedor || 'Revendedor', 'Entregado', k, v)))
         if (dRows.length) {
@@ -5731,7 +5733,7 @@ const exportarExcel = () => {
           destRows.push({ Fecha: dia.fecha, Turno: t === 'manana' ? 'Mañana' : 'Tarde', Destino: destino, Tipo: tipo, Producto: m.producto || 'Sin nombre', Presentación: presDestX(m), Cantidad: Number(cant) })
         }
         Object.entries(tr.produccion || {}).forEach(([k, v]) => addX('Producción', 'Inicio + Prod.', k, v))
-        Object.entries(tr.tienda || {}).forEach(([k, v]) => addX('Tienda', 'Transferencia', k, v))
+        ;(tr.tiendas || []).forEach(td => Object.entries(td.detalle || {}).forEach(([k, v]) => addX('Tienda · ' + (td.tienda || 'Tienda'), 'Transferencia', k, v)))
         Object.entries(tr.cocina || {}).forEach(([k, v]) => addX('Cocina', 'Pedidos', k, v))
         ;(tr.revendedores || []).forEach(r => Object.entries(r.detalle || {}).forEach(([k, v]) => addX(r.revendedor || 'Revendedor', 'Entregado', k, v)))
       })

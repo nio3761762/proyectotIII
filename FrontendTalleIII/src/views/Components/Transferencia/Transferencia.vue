@@ -178,6 +178,7 @@
                   @view="verDetalle"
                   @anular="confirmarAnulacion"
                   @edit="editarTransferencia"
+                  @editHora="abrirEditarHora"
                 />
               </div>
               <div v-else class="text-center py-20 bg-white/40 backdrop-blur-sm rounded-3xl border border-dashed border-gray-300 animate-fade-in">
@@ -455,6 +456,72 @@
       </div>
     </div>
 
+    <TransitionRoot appear :show="showHoraModal" as="template">
+      <Dialog as="div" @close="showHoraModal = false" class="relative z-50">
+        <TransitionChild
+          as="template"
+          enter="duration-300 ease-out"
+          enter-from="opacity-0"
+          enter-to="opacity-100"
+          leave="duration-200 ease-in"
+          leave-from="opacity-100"
+          leave-to="opacity-0"
+        >
+          <div class="fixed inset-0 bg-black/30 backdrop-blur-sm" />
+        </TransitionChild>
+
+        <div class="fixed inset-0 overflow-y-auto">
+          <div class="flex min-h-full items-center justify-center p-4 text-center">
+            <TransitionChild
+              as="template"
+              enter="duration-300 ease-out"
+              enter-from="opacity-0 scale-95"
+              enter-to="opacity-100 scale-100"
+              leave="duration-200 ease-in"
+              leave-from="opacity-100 scale-100"
+              leave-to="opacity-0 scale-95"
+            >
+              <DialogPanel class="w-full max-w-md transform overflow-hidden rounded-3xl bg-white p-8 text-left align-middle shadow-2xl transition-all">
+                <DialogTitle as="h3" class="text-2xl font-bold text-gray-900 flex items-center justify-between mb-2">
+                  Modificar Hora
+                  <button @click="showHoraModal = false" class="text-gray-400 hover:text-gray-600 transition-colors">
+                    <X class="h-6 w-6" />
+                  </button>
+                </DialogTitle>
+                <p class="text-sm text-gray-500 mb-6">
+                  Transferencia <span class="font-bold text-gray-700">{{ idHoraEdit }}</span>. Solo se actualiza la hora, sin afectar el stock transferido.
+                </p>
+
+                <div>
+                  <label class="text-sm font-semibold text-gray-700 mb-2 block">Hora de la Transferencia</label>
+                  <input
+                    v-model="horaEditValue"
+                    type="time"
+                    class="w-full px-4 py-3 bg-white/60 border border-orange-200 rounded-2xl shadow-md focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
+                  />
+                </div>
+
+                <div class="mt-8 flex gap-4">
+                  <button @click="showHoraModal = false" class="flex-1 bg-gray-100 text-gray-600 py-3 rounded-2xl font-bold hover:bg-gray-200 transition-colors">
+                    Cancelar
+                  </button>
+                  <button
+                    @click="guardarHora"
+                    :disabled="savingHora || !horaEditValue"
+                    class="flex-1 py-3 rounded-2xl bg-linear-to-r from-orange-500 to-red-600 text-white font-bold shadow-lg hover:shadow-xl transition-all duration-300 disabled:grayscale disabled:opacity-50 flex items-center justify-center gap-3"
+                  >
+                    <div v-if="savingHora" class="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                    <Clock v-else class="h-5 w-5" />
+                    <span>Guardar</span>
+                  </button>
+                </div>
+              </DialogPanel>
+            </TransitionChild>
+          </div>
+        </div>
+      </Dialog>
+    </TransitionRoot>
+
     <AnularVentaModal
       :isOpen="showAnularModal"
       :idVenta="idTransferenciaParaAnular"
@@ -473,14 +540,14 @@ import { ref, onMounted, watch, reactive } from 'vue';
 import { 
   ArrowRightLeft, Plus, Search, X, PackageOpen, 
   ChevronRight, Calendar, Info, CheckCircle, AlertTriangle,
-  Package, FlaskConical, Filter
+  Package, FlaskConical, Filter, Clock
 } from 'lucide-vue-next';
 import { 
   Dialog, DialogPanel, DialogTitle, TransitionRoot, TransitionChild 
 } from '@headlessui/vue';
 
 // Services
-import { getTransferencias, anularTransferencia } from '@/Server/Transferencia';
+import { getTransferencias, anularTransferencia, actualizarHoraTransferencia } from '@/Server/Transferencia';
 import { Listsucursal } from '@/Server/Sucural';
 import { getEmpleadosVendedores } from '@/Server/Empleado';
 import { SucursalUsuario } from '@/Server/Usuario';
@@ -530,6 +597,12 @@ const loadingAnulacion = ref(false);
 
 // Edición logic state
 const transferenciaEdit = ref(null);
+
+// Edición exclusiva de hora
+const showHoraModal = ref(false);
+const idHoraEdit = ref('');
+const horaEditValue = ref('');
+const savingHora = ref(false);
 
 // Paginación y Filtros
 const page = ref(1);
@@ -737,6 +810,27 @@ const onTransferenciaSuccess = (msg) => {
 const editarTransferencia = (trans) => {
   transferenciaEdit.value = trans;
   modoRegistro.value = true;
+};
+
+const abrirEditarHora = (trans) => {
+  idHoraEdit.value = trans.idtransferencia;
+  horaEditValue.value = trans.hora ? String(trans.hora).slice(0, 5) : '';
+  showHoraModal.value = true;
+};
+
+const guardarHora = async () => {
+  if (!horaEditValue.value) return;
+  savingHora.value = true;
+  try {
+    await actualizarHoraTransferencia(idHoraEdit.value, horaEditValue.value);
+    showHoraModal.value = false;
+    showNotification('Hora actualizada con éxito', 'success');
+    fetchTransferencias();
+  } catch (error) {
+    showNotification(error.response?.data?.message || 'Error al actualizar la hora', 'error');
+  } finally {
+    savingHora.value = false;
+  }
 };
 
 const onCancelEdit = () => {
