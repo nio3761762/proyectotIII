@@ -197,6 +197,7 @@ export const getReporteProduccionVsVenta = async (req: Request, res: Response) =
         dp.idproductomedida,
         COALESCE(pm2.idpresentacion, dp.idpresentacion) as idpresentacion,
 CASE WHEN dp.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE 'Unidad' END as presentacion,
+        COALESCE(pres.abreviatura, '') as abreviatura,
         COALESCE(pm2.cantidad, 1) as presentacion_factor,
         SUM(CASE WHEN COALESCE(dp.cantidadpresentacion, 0) > 0 THEN dp.cantidadpresentacion ELSE COALESCE(dp.cantidadunidades, 0) END) as cantidad_producida,
         SUM(CASE WHEN dp.idproductomedida IS NOT NULL THEN dp.cantidadmala / NULLIF(pm2.cantidad, 0) ELSE dp.cantidadmala END) as cantidad_descartada
@@ -206,7 +207,7 @@ CASE WHEN dp.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE
       LEFT JOIN productomedida pm2 ON dp.idproductomedida = pm2.idproductomedida
       LEFT JOIN presentacion pres ON COALESCE(pm2.idpresentacion, dp.idpresentacion) = pres.idpresentacion
       WHERE prod.fechaproduccion BETWEEN $1 AND $2 AND prod.estado = 1 ${sucursalCondProd}
-      GROUP BY dia_comercial, turno, dp.idproducto, pr.nombre, dp.idproductomedida, COALESCE(pm2.cantidad, 1), COALESCE(pm2.idpresentacion, dp.idpresentacion), CASE WHEN dp.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE 'Unidad' END
+      GROUP BY dia_comercial, turno, dp.idproducto, pr.nombre, dp.idproductomedida, COALESCE(pm2.cantidad, 1), COALESCE(pm2.idpresentacion, dp.idpresentacion), CASE WHEN dp.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE 'Unidad' END, COALESCE(pres.abreviatura, '')
       ORDER BY dia_comercial, turno, pr.nombre, CASE WHEN dp.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE 'Unidad' END
     `;
 
@@ -218,6 +219,7 @@ CASE WHEN dp.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE
         COALESCE(pr.nombre, pr2.nombre) as producto,
         dv.idproductomedida,
         CASE WHEN dv.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE 'Unidad' END as presentacion,
+        COALESCE(pres.abreviatura, '') as abreviatura,
         COALESCE(pm.cantidad, 1) as presentacion_factor,
         SUM(dv.cantidad) as cantidad_vendida,
         SUM(dv.cantidad * dv.precio) as total_venta
@@ -229,7 +231,7 @@ CASE WHEN dp.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE
       LEFT JOIN presentacion pres ON pm.idpresentacion = pres.idpresentacion
       WHERE v.fechaventa BETWEEN $1 AND $2 AND v.estado = 1 ${sucursalCondVenta}
         AND dv.idpromocion IS NULL
-      GROUP BY dia_comercial, turno, COALESCE(pm.idproducto, dv.idproducto), COALESCE(pr.nombre, pr2.nombre), dv.idproductomedida, COALESCE(pm.cantidad, 1), CASE WHEN dv.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE 'Unidad' END
+      GROUP BY dia_comercial, turno, COALESCE(pm.idproducto, dv.idproducto), COALESCE(pr.nombre, pr2.nombre), dv.idproductomedida, COALESCE(pm.cantidad, 1), CASE WHEN dv.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE 'Unidad' END, COALESCE(pres.abreviatura, '')
       ORDER BY dia_comercial, turno, COALESCE(pr.nombre, pr2.nombre), CASE WHEN dv.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE 'Unidad' END
     `;
 
@@ -241,6 +243,7 @@ CASE WHEN dp.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE
         pr.nombre as producto,
         rcd.idproductomedida,
         COALESCE(pres.nombre, 'S/N') as presentacion,
+        COALESCE(pres.abreviatura, '') as abreviatura,
         COALESCE(pm.cantidad, 1) as presentacion_factor,
         SUM(rcd.cantidadentregada - rcd.cantidaddevuelta) as cantidad_vendida,
         SUM((rcd.cantidadentregada - rcd.cantidaddevuelta) * COALESCE(pm.preciomayor, rcd.precioventa)) as total_venta
@@ -250,7 +253,7 @@ CASE WHEN dp.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE
       INNER JOIN producto pr ON pm.idproducto = pr.idproducto
       LEFT JOIN presentacion pres ON pm.idpresentacion = pres.idpresentacion
       WHERE rc.fecha BETWEEN $1 AND $2 AND rc.estado = 1 ${sucursalCondRev}
-      GROUP BY dia_comercial, turno, pm.idproducto, pr.nombre, rcd.idproductomedida, COALESCE(pm.cantidad, 1), COALESCE(pres.nombre, 'S/N')
+      GROUP BY dia_comercial, turno, pm.idproducto, pr.nombre, rcd.idproductomedida, COALESCE(pm.cantidad, 1), COALESCE(pres.nombre, 'S/N'), COALESCE(pres.abreviatura, '')
       ORDER BY dia_comercial, turno, pr.nombre, COALESCE(pres.nombre, 'S/N')
     `;
 
@@ -454,7 +457,7 @@ CASE WHEN dp.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE
       if (!prods) { prods = new Map(); turnos.set(turno, prods); }
       let r = prods.get(id);
       if (!r) {
-        r = { idproducto: row.idproducto, producto: "", presentacion: row.presentacion || "Unidad", esUnidad: presUnidad(row.presentacion), presentacion_factor: 1, cantidad_producida: 0, cantidad_mala: 0, cantidad_vendida_tienda: 0, total_venta_tienda: 0, cantidad_vendida_revendedor: 0, total_venta_revendedor: 0 };
+        r = { idproducto: row.idproducto, producto: "", presentacion: row.presentacion || "Unidad", abreviatura: row.abreviatura || "", esUnidad: presUnidad(row.presentacion), presentacion_factor: 1, cantidad_producida: 0, cantidad_mala: 0, cantidad_vendida_tienda: 0, total_venta_tienda: 0, cantidad_vendida_revendedor: 0, total_venta_revendedor: 0 };
         prods.set(id, r);
       }
       return r;
@@ -462,6 +465,7 @@ CASE WHEN dp.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE
 
     const mergeMeta = (r: any, row: any) => {
       if (row.producto && !r.producto) r.producto = row.producto;
+      if (row.abreviatura && !r.abreviatura) r.abreviatura = row.abreviatura;
       const pres = String(row.presentacion || "").trim();
       if (pres && !presUnidad(pres)) r.presentacion = pres;
       if (!presUnidad(r.presentacion)) r.esUnidad = false;
@@ -497,9 +501,9 @@ CASE WHEN dp.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE
 
     // ===== Stock heredado (Inicio/Restante) calculado en el backend =====
     // Cada día se recorre en orden ascendente y por turno (mañana → tarde).
-    // Se mantiene el saldo disponible por producto+presentación; se inyectan
-    // filas con sobrantes de turnos anteriores (para que sigan visibles) y se
-    // calculan: inicio, consumo absorbido entre presentaciones y restante.
+    // Se mantiene el saldo disponible por producto+presentación y se calculan:
+    // inicio, consumo absorbido entre presentaciones y restante. El saldo solo
+    // se arrastra para los productos que realmente aparecen en cada fecha/turno.
     const keyOfRow = (row: any) => String(row.idproducto) + "::" + (row.presentacion || "Unidad");
     const factorDeRow = (row: any) => Math.max(1, Number(row.presentacion_factor) || 1);
     const esUnidadDeRow = (row: any) => {
@@ -539,29 +543,6 @@ CASE WHEN dp.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE
 
     const procesarTurno = (turnoObj: any, productRows: any[]) => {
       const stockInicio: Record<string, number> = {};
-      const keys = new Set(productRows.map(keyOfRow));
-      const sobrantes = new Map<string, number>();
-      disponible.forEach((v, k) => { if (Number(v) > 0) sobrantes.set(k, v); });
-      sobrantes.forEach((v, k) => {
-        if (keys.has(k)) return;
-        const [idproducto, presRaw] = k.split("::");
-        const m = meta.get(k) || { producto: "Stock anterior", presentacion: presRaw || "Unidad" };
-        productRows.push({
-          idproducto,
-          producto: m.producto,
-          presentacion: m.presentacion || presRaw || "Unidad",
-          presentacion_factor: 1,
-          cantidad_producida: 0,
-          cantidad_mala: 0,
-          cantidad_vendida_tienda: 0,
-          total_venta_tienda: 0,
-          cantidad_vendida_revendedor: 0,
-          total_venta_revendedor: 0,
-          cantidad_vendida_total: 0,
-          consumida: false,
-          diferencia: 0
-        });
-      });
       productRows.forEach(p => {
         const key = keyOfRow(p);
         if (!meta.has(key)) meta.set(key, { producto: p.producto || "Sin nombre", presentacion: p.presentacion || "Unidad" });
@@ -614,6 +595,7 @@ CASE WHEN dp.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE
             idproducto: base.idproducto,
             producto: base.producto || "Sin nombre",
             presentacion: pres,
+            abreviatura: base.abreviatura || "",
             presentacion_factor: factor,
             esUnidad,
             cantidad_producida: prodCant,
@@ -662,7 +644,8 @@ CASE WHEN dp.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE
         idproductomedida: row.idproductomedida || null,
         idproducto: row.idproducto,
         producto: row.producto || "Sin nombre",
-        presentacion: row.presentacion || "S/N"
+        presentacion: row.presentacion || "S/N",
+        abreviatura: row.abreviatura || ""
       });
       const prev = presProdMap.get(key) || { cantidad_producida: 0, cantidad_descartada: 0 };
       prev.cantidad_producida += Number(row.cantidad_producida) || 0;
@@ -676,7 +659,8 @@ CASE WHEN dp.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE
         idproductomedida: row.idproductomedida || null,
         idproducto: row.idproducto,
         producto: row.producto || "Sin nombre",
-        presentacion: row.presentacion || "S/N"
+        presentacion: row.presentacion || "S/N",
+        abreviatura: row.abreviatura || ""
       });
       const prev = presVentaMap.get(key) || { cantidad_vendida: 0, total_venta: 0 };
       prev.cantidad_vendida += Number(row.cantidad_vendida) || 0;
@@ -690,7 +674,8 @@ CASE WHEN dp.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE
         idproductomedida: row.idproductomedida || null,
         idproducto: row.idproducto,
         producto: row.producto || "Sin nombre",
-        presentacion: row.presentacion || "S/N"
+        presentacion: row.presentacion || "S/N",
+        abreviatura: row.abreviatura || ""
       });
       const prev = presRevMap.get(key) || { cantidad_vendida: 0, total_venta: 0, gasto_extra: 0 };
       prev.cantidad_vendida += Number(row.cantidad_vendida) || 0;
@@ -735,6 +720,7 @@ CASE WHEN dp.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE
         idproducto: meta.idproducto,
         producto: meta.producto,
         presentacion: meta.presentacion,
+        abreviatura: meta.abreviatura || "",
         cantidad_producida: prodCant,
         cantidad_descartada: descCant,
         cantidad_vendida_tienda: vendTienda,
@@ -858,3 +844,5 @@ CASE WHEN dp.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE
     return res.status(500).json({ message: "Error al generar el reporte." });
   }
 };
+
+    

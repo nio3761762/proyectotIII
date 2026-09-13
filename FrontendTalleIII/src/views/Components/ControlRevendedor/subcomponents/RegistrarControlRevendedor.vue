@@ -210,10 +210,16 @@
                   <div class="flex-1 min-w-0">
                     <p class="text-sm font-black text-gray-800 truncate leading-tight">{{ det.nombre }}</p>
                     <p class="text-xs text-gray-400 font-bold uppercase tracking-widest">{{ det.presentacion }}</p>
-                    <div class="flex gap-3 mt-1.5">
-                      <span class="text-[11px] font-black text-gray-400 uppercase">P.Venta: <b class="text-gray-500">Bs {{ det.precioNormal }}</b></span>
-                      <span class="text-[11px] font-black text-orange-400 uppercase">P.Mayor: <b class="text-orange-600">Bs {{ det.precioMayor }}</b></span>
-                      <span class="text-[11px] font-black text-emerald-400 uppercase">Com: <b class="text-emerald-600">Bs {{ det.comisionUnitaria }}</b></span>
+                    <div class="flex gap-3 mt-1.5 flex-wrap">
+                      <span class="text-[11px] font-black text-gray-400 uppercase flex items-center gap-1">P.Venta:
+                        <input v-model.number="det.precioNormal" type="number" step="0.01" min="0" @input="det.precioVenta = det.precioNormal" class="w-16 text-center text-[11px] font-black text-gray-600 bg-gray-50 border-0 rounded-md outline-none shadow-sm py-0.5 [&::-webkit-inner-spin-button]:opacity-100" />
+                      </span>
+                      <span class="text-[11px] font-black text-orange-400 uppercase flex items-center gap-1">P.Mayor:
+                        <input v-model.number="det.precioMayor" type="number" step="0.01" min="0" class="w-16 text-center text-[11px] font-black text-orange-600 bg-orange-50 border-0 rounded-md outline-none shadow-sm py-0.5 [&::-webkit-inner-spin-button]:opacity-100" />
+                      </span>
+                      <span class="text-[11px] font-black text-emerald-400 uppercase flex items-center gap-1">Com:
+                        <input v-model.number="det.comisionUnitaria" type="number" step="0.01" min="0" class="w-16 text-center text-[11px] font-black text-emerald-600 bg-white border-0 rounded-md outline-none shadow-sm py-0.5 [&::-webkit-inner-spin-button]:opacity-100" />
+                      </span>
                     </div>
                   </div>
                   <button @click="currentDetalles.splice(idx, 1)" class="text-red-300 hover:text-red-500 transition-colors">
@@ -230,13 +236,6 @@
                           <button @click="updateQtyCurrent(idx, 1)" class="w-8 h-8 flex items-center justify-center bg-white rounded-md text-orange-600 text-sm font-black shadow-sm">+</button>
                         </div>
                         <span class="text-xs font-black text-gray-400 uppercase">Entregados</span>
-                      </div>
-                      <div class="flex items-center gap-3">
-                        <div class="flex items-center gap-1 bg-emerald-50 rounded-lg p-1.5">
-                          <span class="pl-1 text-[9px] font-black text-emerald-500 uppercase">Bs</span>
-                          <input v-model.number="det.precioNormal" type="number" step="0.01" min="0" @input="det.precioVenta = det.precioNormal" class="w-20 text-center text-sm font-black bg-white border-0 rounded-md outline-none shadow-sm py-1 [&::-webkit-inner-spin-button]:opacity-100" />
-                        </div>
-                        <span class="text-xs font-black text-gray-400 uppercase">Precio Unit.</span>
                       </div>
                    </div>
                    <button @click="openAjusteSubModal(idx)" 
@@ -422,8 +421,12 @@
                           <td class="px-4 py-3 text-center">
                             <input v-model.number="d.precioNormal" type="number" step="0.01" min="0" @input="d.precioVenta = d.precioNormal" class="w-20 text-center text-[10px] font-black bg-white border border-emerald-100 rounded-md outline-none py-1 [&::-webkit-inner-spin-button]:opacity-100" placeholder="0.00" />
                           </td>
-                          <td class="px-4 py-3 text-center font-medium">Bs {{ d.precioMayor }}</td>
-                          <td class="px-4 py-3 text-center text-emerald-600 font-bold">Bs {{ d.comisionUnitaria }}</td>
+                          <td class="px-4 py-3 text-center">
+                            <input v-model.number="d.precioMayor" type="number" step="0.01" min="0" class="w-20 text-center text-[10px] font-black bg-white border border-orange-100 rounded-md outline-none py-1 [&::-webkit-inner-spin-button]:opacity-100" placeholder="0.00" />
+                          </td>
+                          <td class="px-4 py-3 text-center">
+                            <input v-model.number="d.comisionUnitaria" type="number" step="0.01" min="0" class="w-20 text-center text-[10px] font-black bg-white border border-emerald-100 rounded-md outline-none py-1 [&::-webkit-inner-spin-button]:opacity-100" placeholder="0.00" />
+                          </td>
                           <td class="px-4 py-3 text-center text-red-500 font-black">{{ d.cantidadDevuelta || 0 }}</td>
                           <td class="px-4 py-3 text-center">
                             <template v-if="d.ajustes && d.ajustes.length > 0">
@@ -482,6 +485,24 @@
           </div>
 
           <div class="p-8 space-y-6 max-h-[80vh] overflow-y-auto custom-scrollbar">
+            <div class="grid grid-cols-3 gap-4">
+              <div class="space-y-1">
+                <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">P. Venta (Bs)</label>
+                <input v-model.number="ajusteForm.precioVenta" type="number" step="0.01" min="0"
+                  class="w-full px-3 py-2.5 bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-gray-500/20 font-black text-xs text-gray-700 outline-none shadow-inner" />
+              </div>
+              <div class="space-y-1">
+                <label class="text-[10px] font-black text-orange-400 uppercase tracking-widest ml-1">P. Mayor (Bs)</label>
+                <input v-model.number="ajusteForm.precioMayor" type="number" step="0.01" min="0"
+                  class="w-full px-3 py-2.5 bg-orange-50 border-0 rounded-xl focus:ring-2 focus:ring-orange-500/20 font-black text-xs text-orange-700 outline-none shadow-inner" />
+              </div>
+              <div class="space-y-1">
+                <label class="text-[10px] font-black text-emerald-400 uppercase tracking-widest ml-1">Comisión (Bs)</label>
+                <input v-model.number="ajusteForm.comisionUnitaria" type="number" step="0.01" min="0"
+                  class="w-full px-3 py-2.5 bg-emerald-50 border-0 rounded-xl focus:ring-2 focus:ring-emerald-500/20 font-black text-xs text-emerald-700 outline-none shadow-inner" />
+              </div>
+            </div>
+
             <div class="space-y-1.5">
               <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">No Vendidos (Retorno)</label>
               <input v-model.number="ajusteForm.cantidadDevuelta" type="number" min="0" :max="selectedDetalle?.cantidadEntregada"
@@ -569,6 +590,24 @@
           </div>
 
           <div class="p-8 space-y-6 max-h-[80vh] overflow-y-auto custom-scrollbar">
+            <div class="grid grid-cols-3 gap-4">
+              <div class="space-y-1">
+                <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">P. Venta (Bs)</label>
+                <input v-model.number="batchAjusteForm.precioVenta" type="number" step="0.01" min="0"
+                  class="w-full px-3 py-2.5 bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-gray-500/20 font-black text-xs text-gray-700 outline-none shadow-inner" />
+              </div>
+              <div class="space-y-1">
+                <label class="text-[10px] font-black text-orange-400 uppercase tracking-widest ml-1">P. Mayor (Bs)</label>
+                <input v-model.number="batchAjusteForm.precioMayor" type="number" step="0.01" min="0"
+                  class="w-full px-3 py-2.5 bg-orange-50 border-0 rounded-xl focus:ring-2 focus:ring-orange-500/20 font-black text-xs text-orange-700 outline-none shadow-inner" />
+              </div>
+              <div class="space-y-1">
+                <label class="text-[10px] font-black text-emerald-400 uppercase tracking-widest ml-1">Comisión (Bs)</label>
+                <input v-model.number="batchAjusteForm.comisionUnitaria" type="number" step="0.01" min="0"
+                  class="w-full px-3 py-2.5 bg-emerald-50 border-0 rounded-xl focus:ring-2 focus:ring-emerald-500/20 font-black text-xs text-emerald-700 outline-none shadow-inner" />
+              </div>
+            </div>
+
             <div class="space-y-1.5">
               <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">No Vendidos (Retorno)</label>
               <input v-model.number="batchAjusteForm.cantidadDevuelta" type="number" min="0" :max="batchAjusteDetalle?.cantidadEntregada"
@@ -1089,6 +1128,9 @@ const showAjusteModal = ref(false);
 const selectedDetalleIdx = ref(null);
 const selectedDetalle = computed(() => currentDetalles.value[selectedDetalleIdx.value] || null);
 const ajusteForm = reactive({
+  precioVenta: 0,
+  precioMayor: 0,
+  comisionUnitaria: 0,
   cantidadDevuelta: 0,
   motivo: '',
   ajustes: []
@@ -1107,6 +1149,9 @@ const batchAjusteDetalle = computed(() => {
   return loteRegistros.value[batchAjusteRegIdx.value]?.detalles?.[batchAjusteDetIdx.value] || null;
 });
 const batchAjusteForm = reactive({
+  precioVenta: 0,
+  precioMayor: 0,
+  comisionUnitaria: 0,
   cantidadDevuelta: 0,
   motivo: '',
   ajustes: []
@@ -1124,6 +1169,9 @@ const openBatchAjusteModal = (regIdx, detIdx) => {
   batchAjusteDetIdx.value = detIdx;
   const d = loteRegistros.value[regIdx]?.detalles?.[detIdx];
   if (!d) return;
+  batchAjusteForm.precioVenta = d.precioNormal ?? d.precioVenta ?? 0;
+  batchAjusteForm.precioMayor = d.precioMayor ?? 0;
+  batchAjusteForm.comisionUnitaria = d.comisionUnitaria ?? 0;
   batchAjusteForm.cantidadDevuelta = d.cantidadDevuelta || 0;
   batchAjusteForm.motivo = d.motivo || '';
   batchAjusteForm.ajustes = d.ajustes && d.ajustes.length > 0
@@ -1137,6 +1185,10 @@ const openBatchAjusteModal = (regIdx, detIdx) => {
 const saveBatchAjuste = () => {
   const d = loteRegistros.value[batchAjusteRegIdx.value]?.detalles?.[batchAjusteDetIdx.value];
   if (!d) return;
+  d.precioNormal = batchAjusteForm.precioVenta;
+  d.precioVenta = batchAjusteForm.precioVenta;
+  d.precioMayor = batchAjusteForm.precioMayor;
+  d.comisionUnitaria = batchAjusteForm.comisionUnitaria;
   d.cantidadDevuelta = batchAjusteForm.cantidadDevuelta || 0;
   d.motivo = batchAjusteForm.motivo;
   d.ajustes = batchAjusteForm.ajustes
@@ -1698,6 +1750,9 @@ const updateQtyCurrent = (idx, delta) => {
 const openAjusteSubModal = (idx) => {
   selectedDetalleIdx.value = idx;
   const d = currentDetalles.value[idx];
+  ajusteForm.precioVenta = d.precioNormal ?? d.precioVenta ?? 0;
+  ajusteForm.precioMayor = d.precioMayor ?? 0;
+  ajusteForm.comisionUnitaria = d.comisionUnitaria ?? 0;
   ajusteForm.cantidadDevuelta = d.cantidadDevuelta;
   ajusteForm.motivo = d.motivo;
   ajusteForm.ajustes = d.ajustes && d.ajustes.length > 0
@@ -1710,6 +1765,10 @@ const openAjusteSubModal = (idx) => {
 
 const saveAjuste = () => {
   const d = currentDetalles.value[selectedDetalleIdx.value];
+  d.precioNormal = ajusteForm.precioVenta;
+  d.precioVenta = ajusteForm.precioVenta;
+  d.precioMayor = ajusteForm.precioMayor;
+  d.comisionUnitaria = ajusteForm.comisionUnitaria;
   d.cantidadDevuelta = ajusteForm.cantidadDevuelta;
   d.motivo = ajusteForm.motivo;
   d.ajustes = ajusteForm.ajustes
@@ -1807,6 +1866,7 @@ const buildDetallePayload = (d) => {
     cantidadAjustada: qtyAjustada,
     precioAjuste: d.precioAjuste || 0,
     precioVenta: precioVentaNormal,
+    precioMayor: d.precioMayor || 0,
     comisionUnitaria: d.comisionUnitaria,
     motivo: d.motivo,
     precios: []

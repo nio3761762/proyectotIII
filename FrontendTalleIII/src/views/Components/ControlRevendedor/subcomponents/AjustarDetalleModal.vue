@@ -35,8 +35,8 @@
             </div>
           </div>
 
-          <!-- Precio Venta y Cant. Devuelta -->
-          <div class="grid grid-cols-2 gap-6">
+          <!-- Precios y Cant. Devuelta -->
+          <div class="grid grid-cols-2 gap-4">
             <div class="space-y-1.5">
               <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Precio Venta (Bs)</label>
               <div class="relative group">
@@ -46,11 +46,25 @@
               </div>
             </div>
             <div class="space-y-1.5">
-              <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Cant. Devuelta</label>
+              <label class="text-[10px] font-black text-orange-400 uppercase tracking-widest ml-1">Precio Mayor (Bs)</label>
               <div class="relative group">
-                <input v-model.number="form.cantidadDevuelta" type="number" min="0"
-                  class="w-full px-4 py-3 bg-gray-50 border-0 rounded-2xl focus:bg-white focus:ring-2 focus:ring-orange-500/20 font-black text-sm text-gray-700 outline-none transition-all shadow-inner" />
+                <span class="absolute left-4 top-1/2 -translate-y-1/2 text-orange-400 font-black text-[10px]">Bs</span>
+                <input v-model.number="form.precioMayor" type="number" step="0.01"
+                  class="w-full pl-10 pr-4 py-3 bg-orange-50 border-0 rounded-2xl focus:bg-white focus:ring-2 focus:ring-orange-500/20 font-black text-sm text-orange-700 outline-none transition-all shadow-inner" />
               </div>
+            </div>
+            <div class="space-y-1.5">
+              <label class="text-[10px] font-black text-emerald-400 uppercase tracking-widest ml-1">Comisión (Bs)</label>
+              <div class="relative group">
+                <span class="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-400 font-black text-[10px]">Bs</span>
+                <input v-model.number="form.comisionUnitaria" type="number" step="0.01"
+                  class="w-full pl-10 pr-4 py-3 bg-emerald-50 border-0 rounded-2xl focus:bg-white focus:ring-2 focus:ring-emerald-500/20 font-black text-sm text-emerald-700 outline-none transition-all shadow-inner" />
+              </div>
+            </div>
+            <div class="space-y-1.5">
+              <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Cant. Devuelta</label>
+              <input v-model.number="form.cantidadDevuelta" type="number" min="0"
+                  class="w-full px-4 py-3 bg-gray-50 border-0 rounded-2xl focus:bg-white focus:ring-2 focus:ring-orange-500/20 font-black text-sm text-gray-700 outline-none transition-all shadow-inner" />
             </div>
           </div>
 
@@ -143,6 +157,8 @@ const emit = defineEmits(['close', 'updated']);
 
 const form = reactive({
   precioVenta: 0,
+  precioMayor: 0,
+  comisionUnitaria: 0,
   cantidadDevuelta: 0,
   motivo: '',
   ajustes: []
@@ -159,6 +175,8 @@ const agregarAjuste = () => {
 watch(() => props.detalle, (newVal) => {
   if (newVal) {
     form.precioVenta = newVal.PrecioVenta;
+    form.precioMayor = newVal.PrecioMayor ?? newVal.PrecioVenta;
+    form.comisionUnitaria = newVal.ComisionUnitaria;
     form.cantidadDevuelta = newVal.CantidadDevuelta;
     form.motivo = newVal.Motivo || '';
 
@@ -188,6 +206,8 @@ const handleConfirm = async () => {
       props.detalle.IdDetalle,
       {
         precioVenta: form.precioVenta,
+        precioMayor: form.precioMayor,
+        comisionUnitaria: form.comisionUnitaria,
         cantidadDevuelta: form.cantidadDevuelta,
         motivo: form.motivo,
         precios

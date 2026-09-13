@@ -38,6 +38,9 @@ import {
 import { 
     getReporteProduccionVsVenta 
 } from "../controllers/reportes/ProduccionVsVentaReporte.controllers";
+import { 
+    getReporteDestinos 
+} from "../controllers/reportes/DestinosReporte.controllers";
 import { authMiddleware } from "../middleware/verifyToken";
 
 const router = Router();
@@ -64,6 +67,7 @@ router.get("/reporte/financiero-consolidado", getReporteFinancieroConsolidado);
 router.get("/reporte/revendedor-consolidado", getReporteRevendedorConsolidado);
 router.get("/reporte/gastos-generales", getReporteGastosGenerales);
 router.get("/reporte/produccion-vs-venta", getReporteProduccionVsVenta);
+router.get("/reporte/destinos", getReporteDestinos);
 
 export default router;
 

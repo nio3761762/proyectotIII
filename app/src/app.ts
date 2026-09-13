@@ -45,6 +45,8 @@ import empleadoSucursal from './routes/EmpleadoSucursal.routes'
 import inventario from './routes/Inventario.routes'
 import transferencia from './routes/Transferencia.routes'
 import revendedorControl from './routes/RevendedorControl.routes'
+import sabor from './routes/Sabor.routes'
+import tamanio from './routes/Tamanio.routes'
 import { errorHandler } from './middleware/error.middleware';
 
 
@@ -100,8 +102,9 @@ app.use(empleadoSucursal);
 app.use(inventario)
 app.use(transferencia)
 app.use(revendedorControl)
+app.use(sabor)
+app.use(tamanio)
 
 
- 
 
 export default app;

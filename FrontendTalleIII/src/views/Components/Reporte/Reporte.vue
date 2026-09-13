@@ -120,17 +120,25 @@
           :agrupar-por-semana="agruparPorSemana"
         />
 
-        <div class="mt-8">
+        <div v-if="!agruparPorSemana" class="mt-8">
           <ResumenTurnosTable :detalle-turnos="reporteProduccionVsVenta?.detalleTurnos || []" />
         </div>
 
-        <div class="mt-8">
+        <div v-if="!agruparPorSemana" class="mt-8">
           <ResumenGananciasDiarias
             :ganancias-diarias="reporteProduccionVsVenta?.ganancias_diarias || []"
             :format-money="formatMoneyReporte"
             :format-fecha="formatFecha"
           />
         </div>
+      </div>
+
+      <div v-if="activeTab === 'destinos'" class="mt-8 space-y-8">
+        <DestinosResumenGeneral :destinos="reporteDestinos?.destinos || []" />
+        <DestinosTurnosTable
+          :destinos="reporteDestinos?.destinos || []"
+          :format-fecha="formatFecha"
+        />
       </div>
 
     </div>
@@ -144,7 +152,7 @@ import autoTable from 'jspdf-autotable'
 import * as XLSX from 'xlsx'
 import { listarPago } from "@/Server/Pago"
 import { listarTipopedido } from "@/Server/Pedido"
-import { ReporteComisionDetallado,ReporteComisionConsolidado , ReproteFinanciero, ReporteProduccion, ReporteProduccionConsolidado, ReporteKardex, ReporteInventario, ReportePresioHistorico, ReporteCompraConsolidada, ReporteVenta, ReporteVentaConsolidada, ReporteTransferencia, ReporteTransferenciaConsolidada, ReportePedido, ReportePedidoConsolidado, ReporteGastosGenerales, ReporteSemanalGeneral, ReporteProduccionVsVenta } from "@/Server/Reporte"
+import { ReporteComisionDetallado,ReporteComisionConsolidado , ReproteFinanciero, ReporteProduccion, ReporteProduccionConsolidado, ReporteKardex, ReporteInventario, ReportePresioHistorico, ReporteCompraConsolidada, ReporteVenta, ReporteVentaConsolidada, ReporteTransferencia, ReporteTransferenciaConsolidada, ReportePedido, ReportePedidoConsolidado, ReporteGastosGenerales, ReporteSemanalGeneral, ReporteProduccionVsVenta, ReporteDestinos } from "@/Server/Reporte"
 import { getRevendedores } from "@/Server/ControlRevendedor"
 import { listarCategorias, ObtenerSubCategorias } from '@/Server/Categoria'
 import { getEmpleadosVendedores } from "@/Server/Empleado.js"
@@ -171,6 +179,8 @@ import FinancieroTable from './FinancieroTable.vue'
 import ComisionTable from './ComisionTable.vue'
 import GastosGeneralesTable from './GastosGeneralesTable.vue'
 import ProduccionVsVentaTurnosTable from './ProduccionVsVentaTurnosTable.vue'
+import DestinosTurnosTable from './DestinosTurnosTable.vue'
+import DestinosResumenGeneral from './DestinosResumenGeneral.vue'
 import ResumenTurnosTable from './ResumenTurnosTable.vue'
 import ResumenGananciasDiarias from './ResumenGananciasDiarias.vue'
 
@@ -190,7 +200,6 @@ const produccionTableRef = ref(null);
 const inventarioTableRef = ref(null);
 const comisionTableRef = ref(null);
 const gastosGeneralesTableRef = ref(null);
-const produccionVsVentaTableRef = ref(null);
 const produccionVsVentaTurnosTableRef = ref(null);
 
 // --- Agrupación por Semana ---
@@ -433,6 +442,7 @@ const comisionDetallada = ref({});
 const comisionConsolidada = ref({});
 const reporteGastosGenerales = ref({});
 const reporteProduccionVsVenta = ref({});
+const reporteDestinos = ref({});
 
 const processedTransferencias = computed(() => {
   const data = transferencias.value?.data || transferencias.value?.transferencias || (Array.isArray(transferencias.value) ? transferencias.value : []);
@@ -680,6 +690,19 @@ const cargarProduccionVsVenta = async () => {
   }
 };
 
+const cargarDestinos = async () => {
+  try {
+    const resp = await ReporteDestinos(
+      filtros.value.desde,
+      filtros.value.hasta,
+      filtros.value.tienda || null
+    );
+    reporteDestinos.value = resp.result || resp || {};
+  } catch (error) {
+    console.error('Error al cargar reporte de destinos:', error);
+  }
+};
+
 const cargarFinanciero = async () => {
   try {
     const resp = await ReproteFinanciero(
@@ -834,6 +857,122 @@ const addChartToPDF = (doc, index, x, y, w) => {
   }
 };
 
+// ===== Tabla semanal por unidades (producción vs venta) en PDF =====
+// Misma estructura que ProduccionVsVentaTurnosTable.vue (matrizC):
+// Fecha | Turno | Tipo | producto (unidades) | Total
+const unitLabelPDF = (u) => u && String(u.abreviatura || '').trim()
+  ? String(u.abreviatura).trim()
+  : (u ? (u.presentacion || 'Unidad') : '')
+
+const fmtPdfDia = (f) => {
+  const clean = String(f || '').split('T')[0]
+  if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) {
+    const [y, m, d] = clean.split('-')
+    return `${d}/${m}/${y}`
+  }
+  return clean
+}
+
+const addTablaSemanalPDF = (doc, matriz, startY) => {
+  const cols = matriz?.cols || []
+  const flats = matriz?.flats || []
+  const filas = matriz?.filas || []
+  const semana = matriz?.semana || null
+  if (!flats.length || !filas.length) return startY
+
+  const pageH = doc.internal.pageSize.getHeight()
+  if (startY > pageH - 60) { doc.addPage(); startY = 50 }
+
+  const stCab = { fontSize: 6, fontStyle: 'bold', halign: 'center', fillColor: [249, 115, 22], textColor: [255, 255, 255], cellPadding: 1.5 }
+  const stProd = { fontSize: 6, fontStyle: 'bold', halign: 'center', fillColor: [236, 253, 245], cellPadding: 1.5 }
+  const stVenta = { fontSize: 6, fontStyle: 'bold', halign: 'center', fillColor: [239, 246, 255], cellPadding: 1.5 }
+  const stResta = { fontSize: 6, fontStyle: 'bold', halign: 'center', cellPadding: 1.5 }
+
+  const head = [
+    [
+      { content: 'Fecha', rowSpan: 2, styles: stCab },
+      { content: 'Turno', rowSpan: 2, styles: stCab },
+      { content: 'Tipo', rowSpan: 2, styles: stCab },
+      ...cols.map(c => ({ content: c.producto, colSpan: c.units.length, styles: { fontSize: 6, fontStyle: 'bold', halign: 'center', fillColor: [67, 56, 202], textColor: [255, 255, 255], cellPadding: 1.5 } })),
+      { content: 'Total', rowSpan: 2, styles: { ...stCab, fillColor: [17, 24, 39] } }
+    ],
+    ...flats.length ? [flats.map(u => ({ content: unitLabelPDF(u), styles: { fontSize: 6, fontStyle: 'bold', halign: 'center', fillColor: [224, 231, 255], textColor: [67, 56, 202], cellPadding: 1.5 } }))] : []
+  ]
+
+  const body = []
+  const stLabel = { fontSize: 6, fontStyle: 'bold', halign: 'center', fillColor: [255, 255, 255], cellPadding: 1.5 }
+  filas.forEach((f, fi) => {
+    const fechaTxt = fmtPdfDia(f.fecha)
+    if (fi > 0) {
+      body.push([{ content: '', colSpan: 3 + flats.length + 1, styles: { fillColor: [255, 255, 255], cellPadding: 0 } }])
+    }
+    f.turnos.forEach((tr, ti) => {
+      const filaProd = []
+      if (ti === 0) filaProd.push({ content: fechaTxt, rowSpan: 4, styles: stLabel })
+      filaProd.push({ content: tr.label, rowSpan: 2, styles: stLabel })
+      filaProd.push({ content: 'Prod', styles: { ...stProd, fillColor: [255, 255, 255] } })
+      tr.prod.forEach(v => filaProd.push({ content: String(v), styles: stProd }))
+      filaProd.push({ content: String(tr.totalProd), styles: { ...stProd, fillColor: [209, 250, 229] } })
+      body.push(filaProd)
+      body.push([
+        { content: 'Venta', styles: { ...stVenta, fillColor: [255, 255, 255] } },
+        ...tr.venta.map(v => ({ content: String(v), styles: stVenta })),
+        { content: String(tr.totalVenta), styles: { ...stVenta, fillColor: [219, 234, 254] } }
+      ])
+    })
+    const totStyle = { fontSize: 6, fontStyle: 'bold', halign: 'center', fillColor: [255, 247, 237], cellPadding: 1.5 }
+    body.push([
+      { content: fechaTxt, rowSpan: 3, styles: totStyle },
+      { content: 'TOTAL', rowSpan: 3, styles: totStyle },
+      { content: 'Prod', styles: totStyle },
+      ...f.totals.prod.map(v => ({ content: String(v), styles: totStyle })),
+      { content: String(f.totals.totalProd), styles: totStyle }
+    ])
+    body.push([
+      { content: 'Venta', styles: totStyle },
+      ...f.totals.venta.map(v => ({ content: String(v), styles: totStyle })),
+      { content: String(f.totals.totalVenta), styles: totStyle }
+    ])
+    body.push([
+      { content: 'Resta', styles: totStyle },
+      ...f.totals.resta.map(v => ({ content: String(v), styles: totStyle })),
+      { content: String(f.totals.totalResta), styles: totStyle }
+    ])
+  })
+
+  if (semana) {
+    const semStyle = { fontSize: 6, fontStyle: 'bold', halign: 'center', fillColor: [224, 231, 255], textColor: [30, 41, 59], cellPadding: 1.5 }
+    body.push([
+      { content: 'TOTAL SEMANA', colSpan: 2, rowSpan: 3, styles: { ...semStyle, halign: 'left' } },
+      { content: 'Prod', styles: semStyle },
+      ...semana.prod.map(v => ({ content: String(v), styles: semStyle })),
+      { content: String(semana.totalProd), styles: semStyle }
+    ])
+    body.push([
+      { content: 'Venta', styles: semStyle },
+      ...semana.venta.map(v => ({ content: String(v), styles: semStyle })),
+      { content: String(semana.totalVenta), styles: semStyle }
+    ])
+    body.push([
+      { content: 'Resta', styles: semStyle },
+      ...semana.resta.map(v => ({ content: String(v), styles: semStyle })),
+      { content: String(semana.totalResta), styles: semStyle }
+    ])
+  }
+
+  autoTable(doc, {
+    head,
+    body,
+    startY,
+    styles: { fontSize: 6, cellPadding: 1.5, lineWidth: 0.1, lineColor: [120, 120, 120] },
+    theme: 'grid',
+    showHead: 'firstPage',
+    margin: { left: 14, right: 14 },
+    pageBreak: 'auto'
+  })
+  return doc.lastAutoTable.finalY + 6
+};
+
 const captureCanvasById = (doc, elementId, x, y, w) => {
   try {
     const el = document.getElementById(elementId);
@@ -908,7 +1047,8 @@ const cargarReporteActivo = async () => {
     kardex: cargarKardex,
     comision: cargarComision,
     'gastos-generales': cargarGastosGenerales,
-    'produccion-vs-venta': cargarProduccionVsVenta
+    'produccion-vs-venta': cargarProduccionVsVenta,
+    'destinos': cargarDestinos
   };
   const fn = mapa[activeTab.value];
   if (fn) await fn();
@@ -1105,6 +1245,18 @@ const generarReporte = async () => {
       indicadores.value.gananciaNeta = data.resumen.diferencia_total;
       indicadores.value.clientes = data.detalle?.length || 0;
     }
+  } else if (activeTab.value === 'destinos') {
+    const diasD = reporteDestinos.value?.destinos || [];
+    let totalProd = 0;
+    diasD.forEach(dia => {
+      ['manana', 'tarde'].forEach(t => {
+        const tr = (dia.turnos || {})[t];
+        if (!tr) return;
+        Object.values(tr.produccion || {}).forEach(v => totalProd += Number(v) || 0);
+      });
+    });
+    indicadores.value.productosVendidos = totalProd;
+    indicadores.value.clientes = diasD.length;
   }
 };
 
@@ -1124,7 +1276,7 @@ const exportarPDF = async () => {
     return Object.values(weeks).sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
   }
   // Expandir semanas para capturar gráficas semanales
-  const tableRefs = { financiero: financieroTableRef, ventas: ventasTableRef, pedidos: pedidosTableRef, transferencias: transferenciasTableRef, compras: comprasTableRef, produccion: produccionTableRef, comision: comisionTableRef, 'produccion-vs-venta': produccionVsVentaTableRef }
+  const tableRefs = { financiero: financieroTableRef, ventas: ventasTableRef, pedidos: pedidosTableRef, transferencias: transferenciasTableRef, compras: comprasTableRef, produccion: produccionTableRef, comision: comisionTableRef, 'produccion-vs-venta': produccionVsVentaTurnosTableRef }
   const curRef = tableRefs[activeTab.value]
   if (isSemanal && curRef?.value?.expandAllSemanas) {
     curRef.value.expandAllSemanas()
@@ -3520,11 +3672,13 @@ const exportarPDF = async () => {
       alert("No hay datos para exportar a PDF.");
       return;
     }
-    const doc = new jsPDF();
-    let startY = await addPDFHeader(doc, `Reporte Producción vs Venta${agruparPorSemana.value ? ' Semanal' : ''}`);
+    const doc = new jsPDF({ orientation: isSemanal ? 'landscape' : 'portrait' });
+    let startY = await addPDFHeader(doc, `Reporte Producción vs Venta${isSemanal ? ' Semanal' : ''}`);
     const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
     const res = data.resumen;
 
+    if (!isSemanal) {
     const cards = [
       { fill: [240,253,244], tc: [22,163,74], vc: [21,128,61], label: 'Total Producido', val: `${res.total_producido} uds.` },
       { fill: [239,246,255], tc: [37,99,235], vc: [29,78,216], label: 'Total Vendido', val: `${res.total_vendido} uds.` },
@@ -3544,10 +3698,48 @@ const exportarPDF = async () => {
       doc.text(c.val, x + 2, startY + 14)
     })
     startY += 22
+    }
 
-    if (isSemanal && produccionVsVentaTableRef.value?.expandAllSemanas) {
-      produccionVsVentaTableRef.value.expandAllSemanas()
+    if (isSemanal && produccionVsVentaTurnosTableRef.value?.expandAllSemanas) {
+      produccionVsVentaTurnosTableRef.value.expandAllSemanas()
       await new Promise(r => setTimeout(r, 600))
+    }
+    const semanasConMatriz = (isSemanal && produccionVsVentaTurnosTableRef.value?.getSemanasConMatriz)
+      ? produccionVsVentaTurnosTableRef.value.getSemanasConMatriz()
+      : []
+
+    if (isSemanal) {
+      let hayDatos = false
+      if (startY > pageH - 60) { doc.addPage(); startY = 50 }
+      doc.setFontSize(12)
+      doc.setTextColor(0)
+      doc.setFont(undefined, 'bold')
+      doc.text('Resumen Semanal por Unidades', 14, startY)
+      startY += 8
+      semanasConMatriz.forEach((sem, si) => {
+        if (!sem?.matrizC?.filas?.length) return
+        hayDatos = true
+        if (startY > pageH - 60) { doc.addPage(); startY = 50 }
+        doc.setFillColor(255, 247, 237)
+        doc.rect(14, startY - 5, pageW - 28, 10, 'F')
+        doc.setFontSize(11)
+        doc.setTextColor(0)
+        doc.setFont(undefined, 'bold')
+        doc.text(`Semana ${si + 1}: ${sem.label}`, 18, startY)
+        doc.setFontSize(9)
+        doc.setTextColor(22, 163, 74)
+        doc.text(`Prod: ${sem.totalProducido} uds.`, pageW - 110, startY)
+        doc.setTextColor(37, 99, 235)
+        doc.text(`Vend: ${sem.totalVendido} uds.`, pageW - 55, startY)
+        startY += 12
+        startY = addTablaSemanalPDF(doc, sem.matrizC, startY)
+      })
+      if (!hayDatos) {
+        alert("No hay datos para exportar a PDF.")
+        return
+      }
+      doc.save(`reporte_produccion_vs_venta_semanal_${new Date().toISOString().slice(0, 10)}.pdf`)
+      return
     }
 
     const chartW = pageW - 28
@@ -4055,7 +4247,74 @@ const exportarPDF = async () => {
       startY = doc.lastAutoTable.finalY + 10
     }
 
-    doc.save(`reporte_produccion_vs_venta${agruparPorSemana.value ? '_semanal' : ''}_${new Date().toISOString().slice(0, 10)}.pdf`);
+    doc.save(`reporte_produccion_vs_venta${isSemanal ? '_semanal' : ''}_${new Date().toISOString().slice(0, 10)}.pdf`);
+  } else if (activeTab.value === 'destinos') {
+    const destinos = reporteDestinos.value?.destinos || [];
+    if (!destinos.length) {
+      alert("No hay datos de destinos para exportar a PDF.");
+      return;
+    }
+    const doc = new jsPDF({ orientation: 'portrait' });
+    const pageW = doc.internal.pageSize.getWidth();
+    let startY = await addPDFHeader(doc, 'Reporte Destinos de la Producción');
+    const safeY = (y) => (Number.isFinite(y) ? y : 50);
+    const fmtFechaTurno = (f) => {
+      const clean = String(f).split('T')[0]
+      if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) {
+        const [y, m, d] = clean.split('-')
+        return `${d}/${m}/${y}`
+      }
+      return clean
+    };
+    const presDest = (u) => u && String(u.abreviatura || '').trim()
+      ? String(u.abreviatura).trim()
+      : ((u && u.presentacion) || 'Unidad')
+
+    doc.setFontSize(7.5)
+    doc.setTextColor(100)
+    doc.setFont(undefined, 'normal')
+    doc.text('Cada día en dos turnos: Mañana y Tarde. Producción = stock inicial heredado + producido. Revendedor = lo que sacó (entregado). Tienda = transferencias de stock enviado a la tienda. Cocina = solo pedidos. Resta = Producción - lo entregado.', 14, startY + 5)
+    startY += 13
+
+    ;[...destinos].sort((a, b) => new Date(a.fecha) - new Date(b.fecha)).forEach(dia => {
+      const todos = {}
+      Object.entries(dia.unidades || {}).forEach(([k, m]) => { todos[k] = m })
+      ;['manana', 'tarde'].forEach(t => {
+        const tr = (dia.turnos || {})[t]
+        if (!tr) return
+        startY = safeY(startY)
+        if (startY > 250) { doc.addPage(); startY = 50 }
+        doc.setFillColor(t === 'manana' ? [239, 246, 255] : [255, 247, 237])
+        doc.rect(14, startY - 4, pageW - 28, 9, 'F')
+        doc.setFontSize(9)
+        doc.setTextColor(0)
+        doc.setFont(undefined, 'bold')
+        doc.text(`${fmtFechaTurno(dia.fecha)} · ${t === 'manana' ? 'Mañana (12 AM - 12 PM)' : 'Tarde (12 PM - 12 AM)'}`, 18, startY)
+        startY += 7
+
+        const dRows = []
+        const addD = (destino, tipo, key, cant) => {
+          if (!Number(cant)) return
+          const m = todos[key] || { producto: 'Sin nombre', presentacion: 'Unidad' }
+          dRows.push([destino, tipo, m.producto || 'Sin nombre', presDest(m), String(cant)])
+        }
+        Object.entries(tr.produccion || {}).forEach(([k, v]) => addD('Producción', 'Inicio + Prod.', k, v))
+        Object.entries(tr.tienda || {}).forEach(([k, v]) => addD('Tienda', 'Transferencia', k, v))
+        Object.entries(tr.cocina || {}).forEach(([k, v]) => addD('Cocina', 'Pedidos', k, v))
+        ;(tr.revendedores || []).forEach(r => Object.entries(r.detalle || {}).forEach(([k, v]) => addD(r.revendedor || 'Revendedor', 'Entregado', k, v)))
+        if (dRows.length) {
+          autoTable(doc, {
+            head: [['Destino', 'Tipo', 'Producto', 'Presentación', 'Cantidad']],
+            body: dRows, startY, styles: { fontSize: 6.5 }, headStyles: { fontSize: 6.5 }
+          })
+          startY = safeY(doc.lastAutoTable.finalY + 5)
+        } else {
+          startY = safeY(startY + 4)
+        }
+      })
+    })
+
+    doc.save(`reporte_destinos_${new Date().toISOString().slice(0, 10)}.pdf`);
   } else if (activeTab.value === 'resumen-semanal') {
     await generarResumenSemanalPDF(filtros.value.fechadesde, filtros.value.fechahasta, filtros.value.idsucursal);
   }
@@ -5450,6 +5709,37 @@ const exportarExcel = () => {
     }
 
     XLSX.writeFile(workbook, `reporte_produccion_vs_venta_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  } else if (activeTab.value === 'destinos') {
+    const dests = reporteDestinos.value?.destinos || [];
+    if (!dests.length) {
+      alert("No hay datos de destinos para exportar a Excel.");
+      return;
+    }
+    const destRows = []
+    const presDestX = (u) => u && String(u.abreviatura || '').trim()
+      ? String(u.abreviatura).trim()
+      : ((u && u.presentacion) || 'Unidad')
+    dests.forEach(dia => {
+      const todos = {}
+      Object.entries(dia.unidades || {}).forEach(([k, m]) => { todos[k] = m })
+      ;['manana', 'tarde'].forEach(t => {
+        const tr = (dia.turnos || {})[t]
+        if (!tr) return
+        const addX = (destino, tipo, key, cant) => {
+          if (!Number(cant)) return
+          const m = todos[key] || { producto: 'Sin nombre', presentacion: 'Unidad' }
+          destRows.push({ Fecha: dia.fecha, Turno: t === 'manana' ? 'Mañana' : 'Tarde', Destino: destino, Tipo: tipo, Producto: m.producto || 'Sin nombre', Presentación: presDestX(m), Cantidad: Number(cant) })
+        }
+        Object.entries(tr.produccion || {}).forEach(([k, v]) => addX('Producción', 'Inicio + Prod.', k, v))
+        Object.entries(tr.tienda || {}).forEach(([k, v]) => addX('Tienda', 'Transferencia', k, v))
+        Object.entries(tr.cocina || {}).forEach(([k, v]) => addX('Cocina', 'Pedidos', k, v))
+        ;(tr.revendedores || []).forEach(r => Object.entries(r.detalle || {}).forEach(([k, v]) => addX(r.revendedor || 'Revendedor', 'Entregado', k, v)))
+      })
+    })
+    const workbook = XLSX.utils.book_new()
+    const wsDestinos = XLSX.utils.json_to_sheet(destRows)
+    XLSX.utils.book_append_sheet(workbook, wsDestinos, "Destinos")
+    XLSX.writeFile(workbook, `reporte_destinos_${new Date().toISOString().slice(0, 10)}.xlsx`);
   }
   } catch (error) {
     console.error('Error en exportarExcel:', error);

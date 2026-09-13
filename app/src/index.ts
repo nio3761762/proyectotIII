@@ -16,7 +16,7 @@ async function main() {
     app.listen(PORT);
    
   } catch (error) {
-  
+    console.error("Error al iniciar el servidor:", error);
   }
 }
 

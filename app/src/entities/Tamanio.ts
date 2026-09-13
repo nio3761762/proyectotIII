@@ -7,8 +7,10 @@ export class Tamanio extends BaseEntity {
   Idtamanio: string;
 
   @Column({ name: "nombre", type: "varchar", length: 100 })
-  Nombre: string; 
+  Nombre: string;
 
+  @Column({ name: "estado", type: "integer", default: 1 })
+  Estado: number;
 
    @OneToMany(() => Productovariante, (p) => p.Tamanio)
            Variante: Productovariante[];

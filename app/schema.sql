@@ -675,6 +675,18 @@ CREATE TABLE Usuariosucursal (
     FOREIGN KEY (idsucursal) REFERENCES Sucursal(idsucursal)
 );
 
+CREATE TABLE Sabor (
+    idsabor VARCHAR(100) PRIMARY KEY,
+    nombre VARCHAR(100),
+    estado INTEGER DEFAULT 1
+);
+
+CREATE TABLE Tamanio (
+    idtamanio VARCHAR(100) PRIMARY KEY,
+    nombre VARCHAR(100),
+    estado INTEGER DEFAULT 1
+);
+
 CREATE TABLE Venta (
     idventa VARCHAR(100) PRIMARY KEY,
     fechaventa DATE,

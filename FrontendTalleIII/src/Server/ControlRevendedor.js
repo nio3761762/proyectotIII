@@ -45,10 +45,12 @@ export const getRevendedores = async () => {
 
 export const Controldetales = async (id, payload) => {
   try {
-    const { precioVenta, cantidadDevuelta, motivo, precios } = payload;
+    const { precioVenta, precioMayor, comisionUnitaria, cantidadDevuelta, motivo, precios } = payload;
 
     const response = await API.put(`revendedorControlDetalle/${id}`, {
       precioVenta,
+      precioMayor,
+      comisionUnitaria,
       cantidadDevuelta,
       motivo,
       precios

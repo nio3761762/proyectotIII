@@ -37,6 +37,9 @@ export class Revendedorcontroldetalle extends BaseEntity {
   @Column({name: "precioventa",type: "numeric",precision: 10,scale: 2,default: 0})
   PrecioVenta: number;
 
+  @Column({name: "preciomayor",type: "numeric",precision: 10,scale: 2,default: 0})
+  PrecioMayor: number;
+
   @Column({name: "cantidadsincomision",type: "numeric",precision: 10,scale: 2,default: 0})
   CantidadSinComision: number;
 

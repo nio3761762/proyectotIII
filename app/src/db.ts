@@ -78,6 +78,9 @@ import { Revendedorcontroldetalle } from "./entities/RevendedorControlDetalle ";
 import { Revendedorcontrolprecio } from "./entities/RevendedorControlPrecio";
 import { GastoGeneral } from "./entities/GastoGeneral";
 import { BajaProducto } from "./entities/BajaProducto";
+import { Sabor } from "./entities/Sabor";
+import { Tamanio } from "./entities/Tamanio";
+import { Productovariante } from "./entities/ProductoVariante";
 export const AppDataSource = new DataSource({
     type: "postgres",
     host: process.env.DB_HOST ,
@@ -163,7 +166,10 @@ export const AppDataSource = new DataSource({
         Revendedorcontrol,
         Revendedorcontrolprecio,
         GastoGeneral,
-        BajaProducto
+        BajaProducto,
+        Sabor,
+        Tamanio
+        ,Productovariante
     ],
-    synchronize: false
+    synchronize: true
 })

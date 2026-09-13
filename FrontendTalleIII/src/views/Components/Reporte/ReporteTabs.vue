@@ -34,6 +34,7 @@ const tabs = [
   { id: 'kardex', label: 'Kardex' },
   { id: 'comision', label: 'Comisiones' },
   { id: 'gastos-generales',  label: 'Gastos Generales' },
-  { id: 'produccion-vs-venta',  label: 'Prod. vs Venta' }
+  { id: 'produccion-vs-venta',  label: 'Prod. vs Venta' },
+  { id: 'destinos',  label: 'Destinos Prod.' }
 ]
 </script>

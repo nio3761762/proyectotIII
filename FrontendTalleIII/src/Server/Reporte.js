@@ -442,6 +442,18 @@ export const ReporteProduccionVsVenta = async (fechadesde, fechahasta, idsucursa
   }
 };
 
+export const ReporteDestinos = async (fechadesde, fechahasta, idsucursal) => {
+  try {
+    const params = { fechadesde, fechahasta };
+    if (idsucursal) params.idsucursal = idsucursal;
+    const response = await API.get('reporte/destinos', { params });
+    return response.data;
+  } catch (error) {
+    console.error('Error al obtener reporte de destinos de la producción:', error);
+    throw error;
+  }
+};
+
 export const ReporteSemanalGeneral = async (fechadesde, fechahasta, idsucursal) => {
   try {
     const params = { fechadesde, fechahasta, idsucursal };

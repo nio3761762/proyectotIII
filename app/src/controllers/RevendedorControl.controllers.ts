@@ -84,6 +84,9 @@ export const registrarRevendedorControl = async (req: Request, res: Response) =>
           
           // Prioridad: 1. Precio enviado en el body, 2. Precio de la Panadería
           detalle.PrecioVenta = det.precioVenta || Number(productoMedida.PrecioVenta);
+          detalle.PrecioMayor = det.precioMayor !== undefined
+            ? det.precioMayor
+            : Number(productoMedida.PrecioMayor);
           
           // Prioridad: 1. Comisión enviada, 2. Comisión fija de la tabla ProductoMedida
           detalle.ComisionUnitaria = det.comisionUnitaria !== undefined 
@@ -224,7 +227,7 @@ export const getRevendedorControls = async (req: Request, res: Response) => {
               'VendidoTotal', dc.vendido_total,
               'VendidoNormal', dc.vendido_normal,
               'PrecioVenta', dc.precioventa,
-              'PrecioMayor', pm.preciomayor,
+              'PrecioMayor', COALESCE(dc.preciomayor, pm.preciomayor),
               'VentaTotal', dc.venta_total,
               'CantidadSinComision', COALESCE(dc.cantidadsincomision, 0),
               'ComisionUnitaria', dc.comisionunitaria,
@@ -303,7 +306,7 @@ export const actualizarAjusteDetalle = async (req: Request, res: Response) => {
 
   try {
     const { idDetalle } = req.params;
-    const { precioVenta, cantidadDevuelta, motivo, precios } = req.body;
+    const { precioVenta, precioMayor, comisionUnitaria, cantidadDevuelta, motivo, precios } = req.body;
 
     const detalle = await queryRunner.manager.findOne(Revendedorcontroldetalle, {
       where: { IdRevendedorControlDetalle: idDetalle }
@@ -314,6 +317,8 @@ export const actualizarAjusteDetalle = async (req: Request, res: Response) => {
     }
 
     if (precioVenta !== undefined) detalle.PrecioVenta = precioVenta;
+    if (precioMayor !== undefined) detalle.PrecioMayor = precioMayor;
+    if (comisionUnitaria !== undefined) detalle.ComisionUnitaria = comisionUnitaria;
     if (cantidadDevuelta !== undefined) detalle.CantidadDevuelta = cantidadDevuelta;
     if (motivo !== undefined) detalle.Motivo = motivo;
 
@@ -417,7 +422,7 @@ export const actualizarControlCompleto = async (req: Request, res: Response) => 
     const detallesAProcesar = Array.isArray(detalles) ? detalles : [];
 
     for (const det of detallesAProcesar) {
-      const { idDetalle, cantidadEntregada, cantidadDevuelta, precioVenta, motivo, precios, idProductoMedida, comisionUnitaria } = det;
+      const { idDetalle, cantidadEntregada, cantidadDevuelta, precioVenta, precioMayor, motivo, precios, idProductoMedida, comisionUnitaria } = det;
 
       const detalle = idDetalle
         ? existingDetalles.find(d => d.IdRevendedorControlDetalle === idDetalle)
@@ -436,6 +441,7 @@ export const actualizarControlCompleto = async (req: Request, res: Response) => 
         nuevoDetalle.CantidadEntregada = cantidadEntregada || 0;
         nuevoDetalle.CantidadDevuelta = cantidadDevuelta || 0;
         nuevoDetalle.PrecioVenta = precioVenta ?? Number(productoMedida.PrecioVenta);
+        nuevoDetalle.PrecioMayor = precioMayor !== undefined ? precioMayor : Number(productoMedida.PrecioMayor);
         nuevoDetalle.ComisionUnitaria = comisionUnitaria !== undefined ? comisionUnitaria : Number(productoMedida.Comision);
         nuevoDetalle.Motivo = motivo;
         nuevoDetalle.CantidadSinComision = 0;
@@ -479,6 +485,7 @@ export const actualizarControlCompleto = async (req: Request, res: Response) => 
       }
 
       if (precioVenta !== undefined) detalle.PrecioVenta = precioVenta;
+      if (precioMayor !== undefined) detalle.PrecioMayor = precioMayor;
       if (cantidadDevuelta !== undefined) detalle.CantidadDevuelta = cantidadDevuelta;
       if (motivo !== undefined) detalle.Motivo = motivo;
       if (comisionUnitaria !== undefined) detalle.ComisionUnitaria = comisionUnitaria;

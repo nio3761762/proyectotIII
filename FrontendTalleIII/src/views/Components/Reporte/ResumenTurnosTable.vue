@@ -81,12 +81,13 @@
 
 <script setup>
 import { computed } from 'vue'
+import { keyOfProducto, restanteItem } from './useStock'
 
 const props = defineProps({
   detalleTurnos: { type: Array, default: () => [] }
 })
 
-const keyOf = (p) => String(p.idproducto) + '::' + (p.presentacion || 'Unidad')
+const keyOf = keyOfProducto
 
 const rows = computed(() => {
   const map = {}
@@ -94,6 +95,7 @@ const rows = computed(() => {
   ;JSON.parse(JSON.stringify(props.detalleTurnos)).sort((a, b) => new Date(a.fecha) - new Date(b.fecha)).forEach(dia => {
     ;['manana', 'tarde'].forEach(turnoName => {
       const turno = (dia.turnos || {})[turnoName] || { productos: [] }
+      const stockIni = turnoName === 'manana' ? (dia.stockManana || {}) : (dia.stockTarde || {})
       ;(turno.productos || []).forEach(p => {
         const key = keyOf(p)
         let r = map[key]
@@ -102,24 +104,22 @@ const rows = computed(() => {
           map[key] = r
         }
         const ini = Number(p.inicio)
-        const inicio = isNaN(ini) ? 0 : ini
-        if (r.inicioManana === null) r.inicioManana = inicio
+        if (r.inicioManana === null) r.inicioManana = isNaN(ini) ? 0 : ini
         const prod = Number(p.cantidad_producida) || 0
         const mala = Number(p.cantidad_mala) || 0
         const vend = Number(p.cantidad_vendida_total) || 0
-        let bal = balance[key] != null ? balance[key] : inicio
-        bal = bal + prod - mala - vend
-        balance[key] = bal
+        const rest = restanteItem(p, stockIni, keyOf)
+        balance[key] = rest
         if (turnoName === 'tarde') {
           r.producidoTarde += prod
           r.malaTarde += mala
           r.vendidoTarde += vend
-          r.restanteTarde = p.consumida ? 0 : bal
+          r.restanteTarde = rest
         } else {
           r.producidoManana += prod
           r.malaManana += mala
           r.vendidoManana += vend
-          r.restanteManana = p.consumida ? 0 : bal
+          r.restanteManana = rest
         }
       })
     })

@@ -118,6 +118,27 @@
                       <ListIcon class="h-4 w-4" />
                     </button>
                   </div>
+
+                  <!-- Gestión de sabores y tamaños (solo Producto) -->
+                  <template v-if="selec === 'Producto'">
+                    <button
+                      @click="showSaboresModal = true"
+                      class="flex items-center gap-2 px-4 py-2 bg-white/80 rounded-2xl shadow-md border border-gray-100 text-gray-700 hover:bg-white transition-all group"
+                      title="Gestionar sabores"
+                    >
+                      <CakeSlice class="h-4 w-4 text-orange-500 group-hover:scale-110 transition-transform" />
+                      <span class="font-medium">Sabores</span>
+                    </button>
+                    <button
+                      @click="showTamaniosModal = true"
+                      class="flex items-center gap-2 px-4 py-2 bg-white/80 rounded-2xl shadow-md border border-gray-100 text-gray-700 hover:bg-white transition-all group"
+                      title="Gestionar tamaños"
+                    >
+                      <Ruler class="h-4 w-4 text-orange-500 group-hover:scale-110 transition-transform" />
+                      <span class="font-medium">Tamaños</span>
+                    </button>
+                  </template>
+
                   <button
                     @click="abrirFormularioNuevo"
                     class="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white rounded-2xl px-6 py-2 shadow-lg hover:shadow-xl transition-all flex items-center gap-2"
@@ -351,12 +372,24 @@
       @close="showPreciosMayorModal = false"
       @guardar="onGuardarPreciosMayor"
     />
+
+    <!-- Modal Gestión de Sabores -->
+    <GestionarSabores
+      :show="showSaboresModal"
+      @cerrar="showSaboresModal = false"
+    />
+
+    <!-- Modal Gestión de Tamaños -->
+    <GestionarTamanios
+      :show="showTamaniosModal"
+      @cerrar="showTamaniosModal = false"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted, onUnmounted, watch } from 'vue';
-import { Package, TrendingUp, Plus, CheckCircle, ShoppingBag, LayoutGrid, List as ListIcon, Pencil, ToggleLeft, ToggleRight, Utensils, Tag } from 'lucide-vue-next';
+import { Package, TrendingUp, Plus, CheckCircle, ShoppingBag, LayoutGrid, List as ListIcon, Pencil, ToggleLeft, ToggleRight, Utensils, Tag, CakeSlice, Ruler } from 'lucide-vue-next';
 
 import { listarInsumos, crearInsumo, actualizarInsumo, eliminarInsumo, AgregarPhotoInsumo, ListInsumo } from '@/Server/Insumo';
 import { listarProductos, DeleteProducto, addProducto, updateProducto, updateCreatePrecioProducto }    from '@/Server/Producto';
@@ -375,6 +408,8 @@ import RegistrarProducto        from './Producto/RegistrarProducto.vue';
 import ModalFotoInsumo         from './ModalFotoInsumo.vue';
 import AdministrarIngredientes   from './Producto/AdministrarIngredientes.vue';
 import AdministrarPreciosMayor from './Producto/AdministrarPreciosMayor.vue';
+import GestionarSabores        from './Producto/GestionarSabores.vue';
+import GestionarTamanios       from './Producto/GestionarTamanios.vue';
 import Paginado                from '@/views/Components/Modals/Paginado.vue';
 import ModalConfirmacion       from '@/views/Components/Modals/ModalConfirmacion.vue';
 
@@ -407,6 +442,9 @@ const guardandoIngredientes    = ref(false);
 const showPreciosMayorModal     = ref(false);
 const productoParaPrecios       = ref(null);
 const guardandoPreciosMayor     = ref(false);
+
+const showSaboresModal          = ref(false);
+const showTamaniosModal         = ref(false);
 
 // ── Estado de control de peticiones ───────────────────────────────────────────
 let requestId       = 0;
