@@ -1,6 +1,5 @@
 import { Compra } from "../entities/Compra";
 import { Detallecompra } from "../entities/DetalleCompra";
-import { Inventario } from "../entities/Inventario";
 import { HttpError } from "../utils/error.handler";
 import { generarIdSecuencial } from "../utils/idGenerator";
 import { verifyComprobante } from "./Comprobante.controllers";
@@ -8,10 +7,10 @@ import { createDetalleCompra } from "./Detallecompra.controllers";
 import { verifyProveedor } from "./Proveedor.controllers";
 import { Request, Response } from "express";
 import { AppDataSource } from "../db";
-import { anularMovimientoInventario, createLoteInventario, registrarMovimientoEntrada, registrarMovimientoSalida } from "./Inventario.controllers";
+import { anularMovimientoInventario, createLoteInventario, registrarMovimientoEntrada, registrarMovimientoSalida, buscarInventarioProducto, buscarInventarioInsumo } from "./Inventario.controllers";
+import { MovimientoInventario } from "../entities/MovimientoInventario";
 import { getFechaHoraBolivia } from "../utils/Fecha";
 import { verifyInsumoMedida } from "./Insumomedida.controllers";
-const { fecha, hora } = getFechaHoraBolivia();
 
 export const verifyCompra = async ( IdCompra: string ) => {
   const existPaquete = await Compra.findOne({ where: { IdCompra: IdCompra } });
@@ -30,6 +29,8 @@ export const registrarCompra = async (req: Request, res: Response) => {
 
   try {
     const { Compras, detalles, Destinos } = req.body;
+
+    const { fecha, hora } = getFechaHoraBolivia();
 
     const nuevoId = await generarIdSecuencial('COM');
     const compra = new Compra();
@@ -153,141 +154,167 @@ export const updateCompra = async (req: Request, res: Response) => {
     const { id } = req.params;
     const { Compras, detalles, Destinos } = req.body;
 
+    const { fecha, hora } = getFechaHoraBolivia();
+
     const compra = await queryRunner.manager.findOne(Compra, {
       where: { IdCompra: id }
     });
     if (!compra) throw new HttpError(404, `La compra con ID ${id} no existe.`);
 
-    // --- INVENTARIO: sincronizar lotes ---
-  // Obtener inventarios actuales
-const inventariosActuales = await queryRunner.manager.find(Inventario, {
-  where: {
-    IdReferencia: id,
-    TipoOrigen: "ENTRADA_COMPRA"
-  },
-  relations: ["Insumo", "Producto", "Sucursal"]
-});
+    // --- INVENTARIO: registro único por (producto|insumo, sucursal) ---
+  // Se ajusta el registro único sumando/restando la diferencia entre lo nuevo y
+  // lo anteriormente aportado por esta compra (según movimientos ENTRADA_COMPRA).
 
-const procesados = new Set<string>();
+  const movimientosCompra = await queryRunner.manager.find(MovimientoInventario, {
+    where: { IdReferencia: id, Tipo: "ENTRADA_COMPRA" },
+    relations: ["Inventario", "Inventario.Producto", "Inventario.Insumo", "Inventario.Sucursal"]
+  });
 
-for (const destino of Destinos) {
-  const medida = await verifyInsumoMedida({ PaqueteId: destino.IdMedida });
+  type Aporte = { key: string; idProducto?: string; idInsumo?: string; idSucursal: string; total: number };
+  const aportadoPorCompra = new Map<string, Aporte>();
 
-  const cantidadFinal = destino.IdInsumo
-    ? Number(destino.Cantidad) * (Number(destino.CantidadMedida) || 1)
-    : Number(destino.Cantidad);
-
-  const costoTotal = destino.IdInsumo
-    ? Number(destino.Cantidad) * Number(destino.PrecioInsumo)
-    : 0;
- 
-  const costoUnitario =
-    cantidadFinal > 0 ? costoTotal / cantidadFinal : 0;
-
-  const precioUnitario = destino.IdInsumo
-    ? Number(destino.PrecioInsumo)
-    : 0;
-
-  let inventario = null;
- 
-  if (destino.IdInventario) {
-    inventario = inventariosActuales.find(
-      i => i.IdInventario === destino.IdInventario
-    );
-   
+  for (const mov of movimientosCompra) {
+    const inv = mov.Inventario;
+    if (!inv) continue;
+    const idSucursal = inv.Sucursal?.IdSucursal || "";
+    const idProducto = inv.Producto?.IdProducto;
+    const idInsumo = inv.Insumo?.IdInsumo;
+    const key = idProducto
+      ? `P_${idProducto}_${idSucursal}`
+      : idInsumo
+        ? `I_${idInsumo}_${idSucursal}`
+        : "";
+    if (!key) continue;
+    const prev = aportadoPorCompra.get(key) || { key, idProducto, idInsumo, idSucursal, total: 0 };
+    prev.total += (Number(mov.Cantidad) || 0);
+    aportadoPorCompra.set(key, prev);
   }
 
-  if (inventario) {
+  const activos = new Set<string>();
 
-    procesados.add(inventario.IdInventario);
+  for (const destino of Destinos) {
+    const medida = await verifyInsumoMedida({ PaqueteId: destino.IdMedida });
 
-    const stockAnterior = Number(inventario.Stock);
+    const cantidadFinal = destino.IdInsumo
+      ? Number(destino.Cantidad) * (Number(destino.CantidadMedida) || 1)
+      : Number(destino.Cantidad);
 
-    if (destino.CantidadMedida > 0) {
+    const costoTotal = destino.IdInsumo ? Number(destino.Cantidad) * Number(destino.PrecioInsumo) : 0;
+    const costoUnitario = cantidadFinal > 0 ? costoTotal / cantidadFinal : 0;
+    const precioUnitario = destino.IdInsumo ? Number(destino.PrecioInsumo) : 0;
 
-      const diferencia = cantidadFinal - stockAnterior;
+    const key = destino.IdInsumo
+      ? `I_${destino.IdInsumo}_${destino.IdSucursal}`
+      : `P_${destino.IdProducto}_${destino.IdSucursal}`;
+    activos.add(key);
 
-      inventario.Stock = destino.CantidadMedida;
-      inventario.Cantidad = destino.Cantidad
-      inventario.Estado = cantidadFinal > 0 ? 1 : 0;
-      inventario.CostoUnitario = costoUnitario;
-      inventario.Preciounitario = precioUnitario;
-      await queryRunner.manager.save(inventario);
+    const registro = destino.IdInsumo
+      ? await buscarInventarioInsumo(queryRunner, destino.IdInsumo, destino.IdSucursal)
+      : await buscarInventarioProducto(queryRunner, destino.IdProducto, destino.IdSucursal);
 
-      if (diferencia > 0) {
-        await registrarMovimientoEntrada(
+    const aportado = aportadoPorCompra.get(key)?.total || 0;
+    const diferencia = cantidadFinal - aportado;
+
+    if (!registro) {
+      if (cantidadFinal > 0) {
+        await createLoteInventario(
           queryRunner,
-          inventario,
+          destino.IdProducto,
+          destino.IdInsumo,
+          cantidadFinal,
+          costoUnitario,
+          destino.IdSucursal,
           "ENTRADA_COMPRA",
           id,
-          diferencia
-        );
-      } else if (diferencia < 0) {
-        await registrarMovimientoSalida(
-          queryRunner,
-          inventario,
-          "SALIDA_AJUSTE",
-          Math.abs(diferencia),
-          id
+          precioUnitario,
+          destino.IdInsumo ? Number(destino.Cantidad) : undefined,
+          medida.Unidadmedida.IdUnidadMedida
         );
       }
+      continue;
+    }
+
+    const stockAnterior = Number(registro.Stock);
+
+    if (diferencia > 0) {
+
+      // Incremento (con costo promedio ponderado)
+      registro.Stock = stockAnterior + diferencia;
+      const costAct = Number(registro.CostoUnitario) || 0;
+      registro.CostoUnitario = (stockAnterior * costAct + diferencia * costoUnitario) / (stockAnterior + diferencia);
+      if (registro.Stock > 0) registro.Estado = 1;
+      await queryRunner.manager.save(registro);
+
+      await registrarMovimientoEntrada(
+        queryRunner,
+        registro,
+        "ENTRADA_COMPRA",
+        id,
+        diferencia
+      );
+
+    } else if (diferencia < 0) {
+
+      const aReducir = Math.abs(diferencia);
+      if (stockAnterior < aReducir) {
+        throw new HttpError(400, `No se puede reducir la compra: el stock en la sucursal es menor (Disponible: ${stockAnterior}).`);
+      }
+
+      registro.Stock = stockAnterior - aReducir;
+      if (registro.Stock <= 0) {
+        registro.Stock = 0;
+        registro.Estado = 0;
+      }
+      registro.CostoUnitario = costoUnitario;
+      registro.Preciounitario = precioUnitario;
+      await queryRunner.manager.save(registro);
+
+      await registrarMovimientoSalida(
+        queryRunner,
+        registro,
+        "SALIDA_AJUSTE",
+        aReducir,
+        id
+      );
 
     } else {
 
-      inventario.CostoUnitario = costoUnitario;
-      inventario.Preciounitario = precioUnitario;
-
-      await queryRunner.manager.save(inventario);
+      // Misma cantidad: solo actualizar costos/precio de referencia
+      registro.CostoUnitario = costoUnitario;
+      registro.Preciounitario = precioUnitario;
+      await queryRunner.manager.save(registro);
     }
-
-  } else {
-
-    await createLoteInventario(
-      queryRunner,
-      destino.IdProducto,
-      destino.IdInsumo,
-      cantidadFinal,
-      costoUnitario,
-      destino.IdSucursal,
-      "ENTRADA_COMPRA",
-      id,
-      precioUnitario,
-      destino.IdInsumo
-        ? Number(destino.Cantidad)
-        : undefined,
-      medida.Unidadmedida.IdUnidadMedida
-    );
-  }
-}
-
-// Eliminar los lotes que ya no existen
-for (const inv of inventariosActuales) {
-
-  if (procesados.has(inv.IdInventario))
-    continue;
-
-  if (Number(inv.Stock) > 0) {
-    await registrarMovimientoSalida(
-      queryRunner,
-      inv,
-      "SALIDA_AJUSTE",
-      Number(inv.Stock),
-      id
-    );
   }
 
-await queryRunner.manager.query(
-  `DELETE FROM movimiento_inventario
-   WHERE idinventario = $1`,
-  [inv.IdInventario]
-);
+// Destinos eliminados de la compra: revertir lo que esa compra había aportado
+for (const aporte of aportadoPorCompra.values()) {
+  if (activos.has(aporte.key)) continue;
+  if (aporte.total <= 0) continue;
 
-// Luego eliminar el inventario
-await queryRunner.manager.query(
-  `DELETE FROM inventario
-   WHERE idinventario = $1`,
-  [inv.IdInventario]
-);
+  const registro = aporte.idProducto
+    ? await buscarInventarioProducto(queryRunner, aporte.idProducto, aporte.idSucursal)
+    : await buscarInventarioInsumo(queryRunner, String(aporte.idInsumo), aporte.idSucursal);
+
+  if (!registro) continue;
+
+  const stock = Number(registro.Stock);
+  const aReducir = Math.min(aporte.total, stock);
+  if (aReducir <= 0) continue;
+
+  registro.Stock = stock - aReducir;
+  if (registro.Stock <= 0) {
+    registro.Stock = 0;
+    registro.Estado = 0;
+  }
+  await queryRunner.manager.save(registro);
+
+  await registrarMovimientoSalida(
+    queryRunner,
+    registro,
+    "SALIDA_AJUSTE",
+    aReducir,
+    id
+  );
 }
 
     // --- FIN INVENTARIO ---

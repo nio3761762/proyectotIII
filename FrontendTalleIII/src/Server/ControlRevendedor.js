@@ -9,7 +9,7 @@ export const listarControlRevendedor = async (fecha, idEmpleado, idSucursal, pag
       page,
       limit
     };
-    const response = await API.get('revendedorControl', { params });
+    const response = await API.get('revendedorControl', { params, timeout: 60000 });
    
     return response.data;
 

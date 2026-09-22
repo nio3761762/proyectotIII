@@ -180,7 +180,7 @@ watch(() => props.detalle, (newVal) => {
     form.cantidadDevuelta = newVal.CantidadDevuelta;
     form.motivo = newVal.Motivo || '';
 
-    const preciosAjuste = (newVal.Precios || []).filter(p => p.Estado === 'AJUSTE');
+    const preciosAjuste = (newVal.PreciosAjustados || newVal.Precios || []).filter(p => p.Estado === 'AJUSTE');
     form.ajustes = preciosAjuste.length > 0
       ? preciosAjuste.map(p => ({
           cantidad: p.Cantidad || 0,

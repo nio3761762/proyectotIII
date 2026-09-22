@@ -1,4 +1,4 @@
-import { BaseEntity, Column, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryColumn } from "typeorm";
+import { BaseEntity, Column, Entity, Index, JoinColumn, ManyToOne, OneToMany, PrimaryColumn } from "typeorm";
 import { Insumo } from "./Insumo";
 import { Producto } from "./Producto";
 import { Sucursal } from "./Sucursal";
@@ -6,6 +6,8 @@ import { MovimientoInventario } from "./MovimientoInventario";
 import { Unidadmedida } from "./UnidadMedida";
 
 @Entity()
+@Index("idx_inventario_sucursal_producto", ["Sucursal", "Producto", "Estado"])
+@Index("idx_inventario_sucursal_insumo", ["Sucursal", "Insumo", "Estado"])
 export class Inventario extends BaseEntity {
   @PrimaryColumn({ name: "idinventario", type: "varchar", length: 150 })
   IdInventario: string;

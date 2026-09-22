@@ -27,11 +27,12 @@ export const createDetalleventa = async (queryRunner: QueryRunner, venta: Venta,
     if (precioMayor !== undefined) nuevoDetalleventa.PrecioMayor = precioMayor;
 
     await queryRunner.manager.save(nuevoDetalleventa);
-     
-    if (presentacion  && IdSucursal)
-    await DecrementProducto(queryRunner,presentacion,IdSucursal,Cantidad, venta.IdVenta, tipo);
-    if(promocion && IdSucursal)
-    await DecrementPromocion(queryRunner,IdSucursal, Cantidad,promocion, venta.IdVenta, tipo)   
+
+    if (presentacion && IdSucursal) {
+      await DecrementProducto(queryRunner, presentacion, IdSucursal, Cantidad, venta.IdVenta, tipo);
+    } else if (promocion && IdSucursal) {
+      await DecrementPromocion(queryRunner, IdSucursal, Cantidad, promocion, venta.IdVenta, tipo);
+    }
     return nuevoDetalleventa;
 };
 

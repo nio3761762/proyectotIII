@@ -47,6 +47,7 @@ import transferencia from './routes/Transferencia.routes'
 import revendedorControl from './routes/RevendedorControl.routes'
 import sabor from './routes/Sabor.routes'
 import tamanio from './routes/Tamanio.routes'
+import stockDiario from './routes/StockDiario.routes'
 import { errorHandler } from './middleware/error.middleware';
 
 
@@ -104,6 +105,7 @@ app.use(transferencia)
 app.use(revendedorControl)
 app.use(sabor)
 app.use(tamanio)
+app.use(stockDiario)
 
 
 

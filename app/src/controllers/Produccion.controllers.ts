@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { IsNull, MoreThan, QueryRunner } from "typeorm";
+import { IsNull, QueryRunner } from "typeorm";
 import { Produccion } from "../entities/Produccion";
 import { generarIdSecuencial } from "../utils/idGenerator";
 import { MovimientoInventario } from "../entities/MovimientoInventario";
@@ -18,7 +18,7 @@ import { Horario } from "../entities/Horario";
 import { DetalleProduccion } from "../entities/Detalleproduccuin";
 import { verifyProducto } from "./Producto.controllers";
 import { verifyProductoMedida } from "./ProductoMedida.controllers";
-import { createLoteInventario, registrarMovimientoEntrada, registrarMovimientoSalida } from "./Inventario.controllers";
+import { createLoteInventario, registrarMovimientoEntrada, registrarMovimientoSalida, buscarInventarioProducto, buscarInventarioInsumo } from "./Inventario.controllers";
 import { ProduccionHornoDetalle } from "../entities/Produccionhornodetalle";
 import { verifyHorno } from "./Horno.controllers";
 import { BajaProducto } from "../entities/BajaProducto";
@@ -458,9 +458,9 @@ export const finalizarProduccionTotal = async (req: Request, res: Response) => {
       det.CostoUnitario = det.CostoTotal / Number(det.Cantidad);
       await queryRunner.manager.save(det);
 
-      // Actualizamos los lotes de inventario que creamos durante el día
+      // Actualizamos el registro único de inventario del producto en la sucursal
       await queryRunner.manager.update(Inventario,
-        { IdReferencia: IdProduccion, Producto: { IdProducto: det.Producto.IdProducto } },
+        { Sucursal: { IdSucursal }, Producto: { IdProducto: det.Producto.IdProducto } },
         { CostoUnitario: det.CostoUnitario }
       ); 
     }
@@ -499,24 +499,20 @@ export const descartarProductosDaniados = async (req: Request, res: Response) =>
     });
     if (!detalle) throw new Error("No se puede descartar un producto que no ha sido registrado como producido.");
 
-    // 3. Buscar el lote de inventario asociado
-    const lote = await queryRunner.manager.findOne(Inventario, {
-      where: { 
-        IdReferencia: IdProduccion, 
-        Producto: { IdProducto }, 
-        Sucursal: { IdSucursal: produccion.Sucursal.IdSucursal },
-        Estado: 1 
-      }
-    });
+    // 3. Buscar el registro único de inventario del producto en la sucursal
+    const lote = await buscarInventarioProducto(queryRunner, IdProducto, produccion.Sucursal.IdSucursal);
 
-    if (!lote) throw new Error("No se encontró stock en inventario para este lote de producción.");
+    if (!lote || Number(lote.Stock) <= 0) throw new Error("No se encontró stock en inventario para este producto.");
     if (Number(lote.Stock) < Number(Cantidad)) {
-      throw new Error(`Stock insuficiente en el lote. Disponible: ${lote.Stock}`);
+      throw new Error(`Stock insuficiente en inventario. Disponible: ${lote.Stock}`);
     }
 
     // 4. Descontar del inventario
     lote.Stock = Number(lote.Stock) - Number(Cantidad);
-    if (lote.Stock <= 0) lote.Estado = 0;
+    if (lote.Stock <= 0) {
+      lote.Stock = 0;
+      lote.Estado = 0;
+    }
     await queryRunner.manager.save(lote);
 
     // Registrar movimiento de salida
@@ -613,6 +609,7 @@ export const anularProduccion = async (req: Request, res: Response) => {
       if (lote) {
         // Revertimos el stock: si el movimiento fue resta (-), sumamos. Si fue suma (+), restamos.
         lote.Stock = Number(lote.Stock) - Number(mov.Cantidad);
+        if (Number(lote.Stock) < 0) lote.Stock = 0;
         lote.Estado = lote.Stock > 0 ? 1 : 0;
         await queryRunner.manager.save(lote);
 
@@ -871,25 +868,19 @@ export const actualizarProduccion = async (req: Request, res: Response) => {
           const cantidadAReducir = Math.abs(diferencia);
           if (!detalleExistente) throw new Error(`No existe registro del producto ${IdProducto} para reducir`);
 
-          // Reducir inventario descontando de todos los lotes activos de esta producción
-          const lotes = await queryRunner.manager.find(Inventario, {
-            where: { IdReferencia: id, Producto: { IdProducto }, Estado: 1 },
-            order: { FechaIngreso: 'ASC' }
-          });
-          let restante = cantidadAReducir;
-          for (const lote of lotes) {
-            if (restante <= 0) break;
-            const disponible = Number(lote.Stock);
-            const aDescontar = Math.min(disponible, restante);
-            lote.Stock = disponible - aDescontar;
-            if (lote.Stock <= 0) {
-              lote.Estado = 0;
-              lote.Stock = 0;
-            }
-            await queryRunner.manager.save(lote);
-            await registrarMovimientoSalida(queryRunner, lote, 'AJUSTE_PRODUCCION', aDescontar, id);
-            restante -= aDescontar;
+          // Reducir inventario descontando del registro único del producto en la sucursal
+          const registro = await buscarInventarioProducto(queryRunner, IdProducto, IdSucursal);
+          if (!registro || Number(registro.Stock) < cantidadAReducir) {
+            throw new Error(`Stock insuficiente para reducir la producción del producto ${IdProducto}. Disponible: ${registro ? registro.Stock : 0}`);
           }
+          const aDescontar = cantidadAReducir;
+          registro.Stock = Number(registro.Stock) - aDescontar;
+          if (registro.Stock <= 0) {
+            registro.Stock = 0;
+            registro.Estado = 0;
+          }
+          await queryRunner.manager.save(registro);
+          await registrarMovimientoSalida(queryRunner, registro, 'AJUSTE_PRODUCCION', aDescontar, id);
 
           // Actualizar detalle
           detalleExistente.Cantidad = Number(CantidadParaCostos);
@@ -980,8 +971,7 @@ const recalcularCostosProduccion = async (queryRunner: QueryRunner, IdProduccion
  * APOYO
  */
 export const consumirInsumoFIFO = async (queryRunner: QueryRunner, IdInsumo: string | undefined, Cantidad: number, IdSucursal: string, IdReferencia: string, tipoMovimiento: string = "SALIDA_PRODUCCION") => {
-  let restante = Number(Cantidad);
-  let costoTotal = 0;
+  const restante = Number(Cantidad);
 
   if (!IdInsumo) return 0;
 
@@ -992,18 +982,10 @@ export const consumirInsumoFIFO = async (queryRunner: QueryRunner, IdInsumo: str
     if (cp > 0) costoOverride = cp;
   }
 
-  const lotes = await queryRunner.manager.find(Inventario, {
-    where: {
-      Insumo: { IdInsumo },
-      Sucursal: { IdSucursal },
-      Stock: MoreThan(0),
-      Estado: 1
-    },
-    order: { FechaIngreso: "ASC" },
-    relations: ["Insumo", "Sucursal"]
-  });
+  // UN registro por insumo + sucursal
+  const registro = await buscarInventarioInsumo(queryRunner, IdInsumo, IdSucursal);
 
-  if (lotes.length === 0) {
+  if (!registro || Number(registro.Stock) <= 0) {
     const cp = costoOverride ?? 0;
     const insumo = await verifyInsumo({ ProductoId: IdInsumo });
     const sucursal = await verifySucursal({ SucursalId: IdSucursal });
@@ -1023,40 +1005,33 @@ export const consumirInsumoFIFO = async (queryRunner: QueryRunner, IdInsumo: str
     return mov.CostoTotal;
   }
 
-  const lotsToSave: Inventario[] = [];
-  const movements: MovimientoInventario[] = [];
+  const disponible = Number(registro.Stock);
+  const consumo = Math.min(disponible, restante);
 
-  for (const lote of lotes) {
-    if (restante <= 0) break;
-    const disponible = Number(lote.Stock);
-    const consumo = Math.min(disponible, restante);
+  const costoUnitario = costoOverride ?? Number(registro.CostoUnitario);
+  const costo = consumo * costoUnitario;
 
-    const costoUnitario = costoOverride ?? Number(lote.CostoUnitario);
-    const costo = consumo * costoUnitario;
-
-    lote.Stock = disponible - consumo;
-    if (lote.Stock <= 0) lote.Estado = 0;
-    lotsToSave.push(lote);
-
-    const mov = new MovimientoInventario();
-    mov.IdMovimiento = await generarIdSecuencial("MOINV", queryRunner);
-    mov.Tipo = tipoMovimiento;
-    mov.Cantidad = -consumo;
-    mov.Fecha = new Date();
-    mov.Insumo = lote.Insumo;
-    mov.Sucursal = lote.Sucursal;
-    mov.CostoUnitario = Number(lote.CostoUnitario);
-    mov.CostoTotal = costo;
-    mov.Inventario = lote;
-    mov.IdReferencia = IdReferencia;
-    movements.push(mov);
-    costoTotal += costo;
-    restante -= consumo;
+  registro.Stock = disponible - consumo;
+  if (registro.Stock <= 0) {
+    registro.Stock = 0;
+    registro.Estado = 0;
   }
+  await queryRunner.manager.save(registro);
 
-  if (lotsToSave.length > 0) await queryRunner.manager.save(lotsToSave);
-  if (movements.length > 0) await queryRunner.manager.save(movements);
-  return costoTotal;
+  const mov = new MovimientoInventario();
+  mov.IdMovimiento = await generarIdSecuencial("MOINV", queryRunner);
+  mov.Tipo = tipoMovimiento;
+  mov.Cantidad = -consumo;
+  mov.Fecha = new Date();
+  mov.Insumo = registro.Insumo;
+  mov.Sucursal = registro.Sucursal;
+  mov.CostoUnitario = costoUnitario;
+  mov.CostoTotal = costo;
+  mov.Inventario = registro;
+  mov.IdReferencia = IdReferencia;
+  await queryRunner.manager.save(mov);
+
+  return costo;
 };
 
 const calcularGastoProporcional = async (IdSucursal: string, servicio: string, horasProduccion: number) => {
@@ -1529,42 +1504,36 @@ export const registrarMermaProduccion = async (req: Request, res: Response) => {
 
     // 2. Ajustar inventario según el delta
     if (delta !== 0) {
-      let lote = await queryRunner.manager.findOne(Inventario, {
-        where: { IdReferencia: IdProduccion, Producto: { IdProducto: IdProducto }, Estado: 1 }
-      });
+      const prod = await queryRunner.manager.findOne(Produccion, { where: { IdProduccion }, relations: ["Sucursal"] });
+      const IdSucursal = prod?.Sucursal?.IdSucursal || "";
+      const registro = await buscarInventarioProducto(queryRunner, IdProducto, IdSucursal);
 
       if (delta > 0) {
-        if (!lote) throw new Error("No se encontró stock en inventario para esta producción.");
-        if (Number(lote.Stock) < delta) {
-          throw new Error(`Stock insuficiente en el lote para registrar la merma. Disponible: ${lote.Stock}`);
+        if (!registro || Number(registro.Stock) < delta) {
+          throw new Error(`No se encontró stock suficiente para registrar la merma. Disponible: ${registro ? registro.Stock : 0}`);
         }
 
         // 3a. Descontar del inventario
-        lote.Stock = Number(lote.Stock) - delta;
-        if (lote.Stock <= 0) {
-          lote.Estado = 0;
-          lote.Stock = 0;
+        registro.Stock = Number(registro.Stock) - delta;
+        if (registro.Stock <= 0) {
+          registro.Stock = 0;
+          registro.Estado = 0;
         }
-        await queryRunner.manager.save(lote);
+        await queryRunner.manager.save(registro);
 
         // 4a. Registrar movimiento de salida por merma
-        await registrarMovimientoSalida(queryRunner, lote, "MERMA_PRODUCCION", delta, IdProduccion);
+        await registrarMovimientoSalida(queryRunner, registro, "MERMA_PRODUCCION", delta, IdProduccion);
       } else {
-        // Para restaurar stock se permite recuperar un lote agotado
-        if (!lote) {
-          lote = await queryRunner.manager.findOne(Inventario, {
-            where: { IdReferencia: IdProduccion, Producto: { IdProducto: IdProducto } }
-          });
-        }
-        if (!lote) throw new Error("No se encontró stock en inventario para esta producción.");
+        // Para restaurar stock se permite recuperar un registro agotado
+        if (!registro) throw new Error("No se encontró stock en inventario para esta producción.");
 
         // 3b. Restaurar stock por reducción de merma
-        lote.Stock = Number(lote.Stock) + Math.abs(delta);
-        if (lote.Stock > 0) lote.Estado = 1;
-        await queryRunner.manager.save(lote);
+        registro.Stock = Number(registro.Stock) + Math.abs(delta);
+        if (registro.Stock > 0) registro.Estado = 1;
+        await queryRunner.manager.save(registro);
 
         // 4b. Registrar movimiento de entrada por ajuste de merma
-        await registrarMovimientoEntrada(queryRunner, lote, "AJUSTE_MERMA", IdProduccion, Math.abs(delta));
+        await registrarMovimientoEntrada(queryRunner, registro, "AJUSTE_MERMA", IdProduccion, Math.abs(delta));
       }
     }
 
@@ -1606,24 +1575,20 @@ export const registrarBajaProducto = async (req: Request, res: Response) => {
     // 2. Validar el producto
     const producto = await verifyProducto({ ProductoId: IdProducto });
 
-    // 3. Buscar el lote en inventario asociado a esta producción
-    const lote = await queryRunner.manager.findOne(Inventario, {
-      where: {
-        IdReferencia: IdProduccion,
-        Producto: { IdProducto },
-        Sucursal: { IdSucursal: produccion.Sucursal.IdSucursal },
-        Estado: 1
-      }
-    });
+    // 3. Buscar el registro único de inventario del producto en la sucursal
+    const lote = await buscarInventarioProducto(queryRunner, IdProducto, produccion.Sucursal.IdSucursal);
 
-    if (!lote) throw new HttpError(404, "No se encontró stock en inventario para este lote de producción.");
+    if (!lote || Number(lote.Stock) <= 0) throw new HttpError(404, "No se encontró stock en inventario para este producto.");
     if (Number(lote.Stock) < Number(Cantidad)) {
-      throw new HttpError(400, `Stock insuficiente en el lote. Disponible: ${lote.Stock}`);
+      throw new HttpError(400, `Stock insuficiente en inventario. Disponible: ${lote.Stock}`);
     }
 
     // 4. Descontar del inventario
     lote.Stock = Number(lote.Stock) - Number(Cantidad);
-    if (lote.Stock <= 0) lote.Estado = 0;
+    if (lote.Stock <= 0) {
+      lote.Stock = 0;
+      lote.Estado = 0;
+    }
     await queryRunner.manager.save(lote);
 
     // 5. Registrar movimiento de salida

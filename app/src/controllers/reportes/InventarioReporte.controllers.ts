@@ -42,9 +42,9 @@ export const getReporteInventarioConsolidado = async (req: Request, res: Respons
                 COALESCE(i.imagen, p.imagen) as imagen,
                 CASE WHEN i.idinsumo IS NOT NULL THEN 'INSUMO' ELSE 'PRODUCTO' END as tipo_item,
                 s.nombre as sucursal,
-                SUM(CAST(inv.stock AS NUMERIC)) as cantidad_base,
+                CAST(COALESCE(inv.stock, 0) AS NUMERIC) as cantidad_base,
                 COALESCE(i.stockminimo, p.stockminimo, 0) as stock_minimo,
-                AVG(CAST(inv.costounitario AS NUMERIC)) as costo_promedio,
+                CAST(COALESCE(inv.costounitario, 0) AS NUMERIC) as costo_promedio,
                 COALESCE(
                     (SELECT json_agg(json_build_object(
                         'nombre', um_sub.nombre, 
@@ -70,8 +70,9 @@ export const getReporteInventarioConsolidado = async (req: Request, res: Respons
             LEFT JOIN insumo i ON inv.idinsumo = i.idinsumo
             LEFT JOIN producto p ON inv.idproducto = p.idproducto
             LEFT JOIN sucursal s ON inv.idsucursal = s.idsucursal
-            WHERE inv.estado = 1 ${sucursalCond} ${tipoCond}
-            GROUP BY s.nombre, i.idinsumo, p.idproducto, i.nombre, p.nombre, i.imagen, p.imagen, i.stockminimo, p.stockminimo
+            -- 🔥 Registro único por (item, sucursal). Sin filtro de estado:
+            -- los productos AGOTADOS / STOCK BAJO también deben mostrarse.
+            WHERE 1=1 ${sucursalCond} ${tipoCond}
             ORDER BY s.nombre, tipo_item, 1
         `;
 

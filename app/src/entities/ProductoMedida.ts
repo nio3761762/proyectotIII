@@ -1,4 +1,4 @@
-import { Entity, Column, PrimaryColumn, ManyToOne, JoinColumn, OneToOne, OneToMany, BaseEntity } from "typeorm";
+import { Entity, Column, Index, PrimaryColumn, ManyToOne, JoinColumn, OneToOne, OneToMany, BaseEntity } from "typeorm";
 import { Producto } from "./Producto";
 import { Presentacion } from "./Presentacion";
 import { Comision } from "./Comision";
@@ -11,6 +11,7 @@ import { Revendedorcontroldetalle } from "./RevendedorControlDetalle ";
 
 
 @Entity()
+@Index("idx_productomedida_producto_estado", ["Producto", "Estado"])
 export class Productomedida extends BaseEntity {
     @PrimaryColumn({ name: "idproductomedida", type: "varchar", length: 50 })
     IdProductoMedida: string;

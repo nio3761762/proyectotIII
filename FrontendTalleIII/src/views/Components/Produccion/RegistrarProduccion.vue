@@ -149,6 +149,7 @@ import { Listsucursal } from '@/Server/Sucural';
 import { ListEmpleado } from '@/Server/Empleado';
 import { getEmpleadosSinSucursal } from '@/Server/EmpleadoSucursal';
 import { iniciarProduccion } from '@/Server/Produccion';
+import { getLocalDate } from '../../../utils/formatters';
 
 
 
@@ -171,7 +172,7 @@ const form = reactive({
   IdSucursal: '',
   Observacion: '',
   HoraInicio: '',
-  FechaRegistro: new Date().toISOString().split('T')[0]
+  FechaRegistro: getLocalDate()
 });
 
 const selectedEmpleados = ref([]);

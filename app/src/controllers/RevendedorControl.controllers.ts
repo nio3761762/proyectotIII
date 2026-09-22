@@ -120,6 +120,18 @@ export const registrarRevendedorControl = async (req: Request, res: Response) =>
             nuevoIdControl, 
             "SALIDA_REVENDEDOR"
           );
+
+          // 3.1. La mercadería devuelta por el revendedor regresa al inventario
+          if (Number(detalle.CantidadDevuelta) > 0) {
+            await IncrementProducto(
+              queryRunner,
+              productoMedida,
+              idSucursal,
+              Number(detalle.CantidadDevuelta),
+              nuevoIdControl,
+              "AJUSTE_REVENDEDOR"
+            );
+          }
         }
       }
       resultados.push(nuevoIdControl);
@@ -309,7 +321,14 @@ export const actualizarAjusteDetalle = async (req: Request, res: Response) => {
     const { precioVenta, precioMayor, comisionUnitaria, cantidadDevuelta, motivo, precios } = req.body;
 
     const detalle = await queryRunner.manager.findOne(Revendedorcontroldetalle, {
-      where: { IdRevendedorControlDetalle: idDetalle }
+      where: { IdRevendedorControlDetalle: idDetalle },
+      relations: [
+        "ProductoMedida",
+        "ProductoMedida.Producto",
+        "ProductoMedida.Presentacion",
+        "RevendedorControl",
+        "RevendedorControl.Sucursal"
+      ]
     });
 
     if (!detalle) {
@@ -319,18 +338,54 @@ export const actualizarAjusteDetalle = async (req: Request, res: Response) => {
     if (precioVenta !== undefined) detalle.PrecioVenta = precioVenta;
     if (precioMayor !== undefined) detalle.PrecioMayor = precioMayor;
     if (comisionUnitaria !== undefined) detalle.ComisionUnitaria = comisionUnitaria;
-    if (cantidadDevuelta !== undefined) detalle.CantidadDevuelta = cantidadDevuelta;
     if (motivo !== undefined) detalle.Motivo = motivo;
+
+    // Ajustar inventario según el cambio en la cantidad devuelta
+    if (cantidadDevuelta !== undefined) {
+      const oldDevuelta = Number(detalle.CantidadDevuelta) || 0;
+      const nuevaDevuelta = Number(cantidadDevuelta) || 0;
+      const delta = nuevaDevuelta - oldDevuelta;
+      if (delta !== 0) {
+        const idSucursal = detalle.RevendedorControl?.Sucursal?.IdSucursal;
+        if (idSucursal) {
+          if (delta > 0) {
+            await IncrementProducto(queryRunner, detalle.ProductoMedida, idSucursal, delta, detalle.IdRevendedorControlDetalle, "AJUSTE_REVENDEDOR");
+          } else {
+            await DecrementProducto(queryRunner, detalle.ProductoMedida, idSucursal, Math.abs(delta), detalle.IdRevendedorControlDetalle, "SALIDA_REVENDEDOR");
+          }
+        }
+      }
+      detalle.CantidadDevuelta = nuevaDevuelta;
+    }
 
     await queryRunner.manager.save(detalle);
 
-    // Si se envían precios, actualizar la tabla Revendedorcontrolprecio
+    // Si se envían precios, reemplazar la tabla Revendedorcontrolprecio conservando la fila NORMAL
     if (Array.isArray(precios)) {
       await queryRunner.manager.delete(Revendedorcontrolprecio, {
         RevendedorControlDetalle: { IdRevendedorControlDetalle: idDetalle }
       });
 
+      const cantidadEntregada = Number(detalle.CantidadEntregada) || 0;
+      const cantidadDevuelta = Number(detalle.CantidadDevuelta) || 0;
+      const cantidadAjustada = precios
+        .filter((p: any) => (p.estado || 'NORMAL') === 'AJUSTE')
+        .reduce((s: number, p: any) => s + (Number(p.cantidad) || 0), 0);
+      const cantidadNormal = Math.max(0, cantidadEntregada - cantidadDevuelta - cantidadAjustada);
+
+      if (cantidadNormal > 0) {
+        const rcpNormal = new Revendedorcontrolprecio();
+        rcpNormal.IdRevendedorControlPrecio = await generarIdSecuencial('RCP');
+        rcpNormal.RevendedorControlDetalle = detalle;
+        rcpNormal.Cantidad = cantidadNormal;
+        rcpNormal.PrecioVenta = detalle.PrecioVenta;
+        rcpNormal.Estado = 'NORMAL';
+        rcpNormal.Observacion = '';
+        await queryRunner.manager.save(rcpNormal);
+      }
+
       for (const p of precios) {
+        if ((p.estado || 'NORMAL') === 'NORMAL') continue;
         const rcp = new Revendedorcontrolprecio();
         rcp.IdRevendedorControlPrecio = await generarIdSecuencial('RCP');
         rcp.RevendedorControlDetalle = detalle;
@@ -408,8 +463,10 @@ export const actualizarControlCompleto = async (req: Request, res: Response) => 
       const sucursalNueva = await verifySucursal({ SucursalId: idSucursal });
       for (const d of existingDetalles) {
         const qty = Number(d.CantidadEntregada);
-        if (qty > 0) {
-          await IncrementProducto(queryRunner, d.ProductoMedida, idSucursalOrigen, qty, idControl, "AJUSTE_REVENDEDOR");
+        const devuelto = Number(d.CantidadDevuelta) || 0;
+        const neto = qty - devuelto;
+        if (neto > 0) {
+          await IncrementProducto(queryRunner, d.ProductoMedida, idSucursalOrigen, neto, idControl, "AJUSTE_REVENDEDOR");
         }
       }
       control.Sucursal = sucursalNueva;
@@ -450,6 +507,10 @@ export const actualizarControlCompleto = async (req: Request, res: Response) => 
           await DecrementProducto(queryRunner, productoMedida, idSucursalInventario, nuevoDetalle.CantidadEntregada, idControl, "SALIDA_REVENDEDOR");
         }
 
+        if (Number(nuevoDetalle.CantidadDevuelta) > 0) {
+          await IncrementProducto(queryRunner, productoMedida, idSucursalInventario, Number(nuevoDetalle.CantidadDevuelta), idControl, "AJUSTE_REVENDEDOR");
+        }
+
         await queryRunner.manager.save(nuevoDetalle);
 
         if (Array.isArray(precios)) {
@@ -469,21 +530,31 @@ export const actualizarControlCompleto = async (req: Request, res: Response) => 
 
       const productoMedida = detalle.ProductoMedida;
       const oldCantidad = Number(detalle.CantidadEntregada);
+      const oldDevuelta = Number(detalle.CantidadDevuelta) || 0;
+      const nuevaEntregada = cantidadEntregada !== undefined ? Number(cantidadEntregada) : oldCantidad;
+      const nuevaDevuelta = cantidadDevuelta !== undefined ? Number(cantidadDevuelta) : oldDevuelta;
 
       if (!sucursalCambiada) {
-        if (cantidadEntregada !== undefined && cantidadEntregada !== oldCantidad) {
-          if (oldCantidad > 0) await IncrementProducto(queryRunner, productoMedida, idSucursalInventario, oldCantidad, idControl, "AJUSTE_REVENDEDOR");
-          if (cantidadEntregada > 0) await DecrementProducto(queryRunner, productoMedida, idSucursalInventario, cantidadEntregada, idControl, "SALIDA_REVENDEDOR");
-          detalle.CantidadEntregada = cantidadEntregada;
+        const deltaEntregada = nuevaEntregada - oldCantidad;
+        if (deltaEntregada > 0) {
+          await DecrementProducto(queryRunner, productoMedida, idSucursalInventario, deltaEntregada, idControl, "SALIDA_REVENDEDOR");
+        } else if (deltaEntregada < 0) {
+          await IncrementProducto(queryRunner, productoMedida, idSucursalInventario, Math.abs(deltaEntregada), idControl, "AJUSTE_REVENDEDOR");
+        }
+
+        const deltaDevuelta = nuevaDevuelta - oldDevuelta;
+        if (deltaDevuelta > 0) {
+          await IncrementProducto(queryRunner, productoMedida, idSucursalInventario, deltaDevuelta, idControl, "AJUSTE_REVENDEDOR");
+        } else if (deltaDevuelta < 0) {
+          await DecrementProducto(queryRunner, productoMedida, idSucursalInventario, Math.abs(deltaDevuelta), idControl, "SALIDA_REVENDEDOR");
         }
       } else {
-        // La sucursal ya cambió: el stock se devolvió arriba, ahora se descuenta de la nueva sucursal
-        if (cantidadEntregada !== undefined) {
-          if (cantidadEntregada > 0) await DecrementProducto(queryRunner, productoMedida, idSucursalInventario, cantidadEntregada, idControl, "SALIDA_REVENDEDOR");
-          detalle.CantidadEntregada = cantidadEntregada;
-        }
+        // La sucursal ya cambió: el stock se devolvió arriba (entregado - devuelto), ahora se descuenta de la nueva sucursal
+        if (nuevaEntregada > 0) await DecrementProducto(queryRunner, productoMedida, idSucursalInventario, nuevaEntregada, idControl, "SALIDA_REVENDEDOR");
+        if (nuevaDevuelta > 0) await IncrementProducto(queryRunner, productoMedida, idSucursalInventario, nuevaDevuelta, idControl, "AJUSTE_REVENDEDOR");
       }
 
+      detalle.CantidadEntregada = nuevaEntregada;
       if (precioVenta !== undefined) detalle.PrecioVenta = precioVenta;
       if (precioMayor !== undefined) detalle.PrecioMayor = precioMayor;
       if (cantidadDevuelta !== undefined) detalle.CantidadDevuelta = cantidadDevuelta;
@@ -519,8 +590,10 @@ export const actualizarControlCompleto = async (req: Request, res: Response) => 
       } as any);
 
       const cantEliminar = Number(d.CantidadEntregada);
-      if (cantEliminar > 0 && !sucursalCambiada) {
-        await IncrementProducto(queryRunner, d.ProductoMedida, idSucursalInventario, cantEliminar, idControl, "AJUSTE_REVENDEDOR");
+      const devueltoEliminar = Number(d.CantidadDevuelta) || 0;
+      const netoEliminar = cantEliminar - devueltoEliminar;
+      if (netoEliminar > 0 && !sucursalCambiada) {
+        await IncrementProducto(queryRunner, d.ProductoMedida, idSucursalInventario, netoEliminar, idControl, "AJUSTE_REVENDEDOR");
       }
       await queryRunner.manager.delete(Revendedorcontroldetalle, d.IdRevendedorControlDetalle);
     }

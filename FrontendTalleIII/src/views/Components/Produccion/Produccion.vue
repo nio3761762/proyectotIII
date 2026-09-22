@@ -576,6 +576,7 @@ import ControlPanelProduccion from './ControlPanelProduccion.vue';
 import EditarProduccion from './EditarProduccion.vue';
 import Paginado from '../Modals/Paginado.vue';
 import AnularVentaModal from '../Venta/AnularVentaModal.vue';
+import { getLocalDate } from '../../../utils/formatters';
 
 // State
 const showRegistration = ref(false);  
@@ -605,7 +606,7 @@ const toggleRow = (id) => {
 const currentFilters = ref({
   search: '',
   idsucursal: '-1',
-  fecha: '',
+  fecha: getLocalDate(),
 });
 
 // Modal State

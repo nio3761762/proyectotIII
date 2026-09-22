@@ -90,6 +90,17 @@
             <div v-if="loadingCatalog" class="flex justify-center py-20">
               <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-orange-500"></div>
             </div>
+            <div v-else-if="errorCatalog" class="p-12 text-center bg-white rounded-3xl border-2 border-dashed border-red-200 animate-fade-in">
+              <div class="flex flex-col items-center gap-4">
+                <div class="p-4 bg-red-50 rounded-full">
+                  <AlertTriangle class="h-10 w-10 text-red-400" />
+                </div>
+                <p class="text-red-500 font-bold text-lg">{{ errorCatalog }}</p>
+                <button @click="cargarProductosCatalogo" class="px-6 py-3 bg-red-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-red-600 transition-all">
+                  Reintentar
+                </button>
+              </div>
+            </div>
             <div v-else>
               <div v-if="!puedeVenderEnEstaSucursal" class="mb-6 p-4 bg-orange-50 border border-orange-200 rounded-2xl flex items-center gap-3 text-orange-800 animate-fade-in">
                 <AlertTriangle class="h-5 w-5 shrink-0" />
@@ -140,6 +151,18 @@
 
             <div v-if="loading" class="flex justify-center py-20">
               <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-orange-500"></div>
+            </div>
+
+            <div v-else-if="errorHistorial" class="p-12 text-center bg-white rounded-3xl border-2 border-dashed border-red-200 animate-fade-in">
+              <div class="flex flex-col items-center gap-4">
+                <div class="p-4 bg-red-50 rounded-full">
+                  <AlertTriangle class="h-10 w-10 text-red-400" />
+                </div>
+                <p class="text-red-500 font-bold text-lg">{{ errorHistorial }}</p>
+                <button @click="cargarControles" class="px-6 py-3 bg-red-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-red-600 transition-all">
+                  Reintentar
+                </button>
+              </div>
             </div>
 
             <div v-else>
@@ -260,6 +283,8 @@ const isAdmin = computed(() => {
 
 const initializing = ref(true);
 const loading = ref(false);
+const errorHistorial = ref('');
+const errorCatalog = ref('');
 const modoRegistro = ref(false);
 const tabActiva = ref('catalogo');
 const vistaModo = ref('card');
@@ -337,8 +362,12 @@ const obtenerSucursalUsuario = async (id) => {
   } catch (e) { console.error('Error al obtener sucursal del usuario:', e); }
 };
 
+let historialRequestToken = 0;
+
 const cargarControles = async () => {
+  const token = ++historialRequestToken;
   loading.value = true;
+  errorHistorial.value = '';
   try {
     const res = await listarControlRevendedor(
       filtros.value.fecha || null,
@@ -347,23 +376,34 @@ const cargarControles = async () => {
       paginacion.page,
       paginacion.limit
     );
+    if (token !== historialRequestToken) return;
     controles.value = (res.data || []).map(c => ({ ...c, GastoExtra: Number(c.GastoExtra) || 0 }));
     totalItems.value = res.total || 0;
   } catch (error) {
+    if (token !== historialRequestToken) return;
     console.error("Error al cargar controles", error);
+    errorHistorial.value = error.response?.data?.message || error.message || 'Error al cargar el historial';
   } finally {
-    loading.value = false;
+    if (token === historialRequestToken) loading.value = false;
   }
 };
 
+let catalogRequestToken = 0;
+
 const cargarProductosCatalogo = async () => {
+  const token = ++catalogRequestToken;
   const branchToSearch = filtrosCatalogo.sucursal;
   if (!branchToSearch || branchToSearch === 'TODOS') {
     productosList.value = [];
+    paginacionProductos.total = 0;
+    paginacionProductos.totalPaginas = 1;
+    errorCatalog.value = '';
+    loadingCatalog.value = false;
     return;
   }
-  
+
   loadingCatalog.value = true;
+  errorCatalog.value = '';
   try {
     const res = await ListarProductosOnSucursal(
       branchToSearch,
@@ -373,13 +413,17 @@ const cargarProductosCatalogo = async () => {
       filtrosCatalogo.categoria === 'TODOS' ? null : filtrosCatalogo.categoria,
       filtrosCatalogo.subcategoria === 'TODOS' ? null : filtrosCatalogo.subcategoria
     );
+    if (token !== catalogRequestToken) return;
     productosList.value = res.result || [];
     paginacionProductos.total = parseInt(res.total) || productosList.value.length;
     paginacionProductos.totalPaginas = Math.ceil(paginacionProductos.total / limiteProductos.value) || 1;
   } catch (error) {
+    if (token !== catalogRequestToken) return;
     console.error("Error al cargar productos", error);
+    errorCatalog.value = error.response?.data?.message || error.message || 'Error al cargar los productos del inventario';
+    productosList.value = [];
   } finally {
-    loadingCatalog.value = false;
+    if (token === catalogRequestToken) loadingCatalog.value = false;
   }
 };
 
@@ -672,7 +716,6 @@ onMounted(async () => {
     await Promise.all([
       cargarSucursales(),
       cargarCategoriasCatalogo(),
-      cargarControles(),
       cargarProductosCatalogo()
     ]);
   } catch (e) {

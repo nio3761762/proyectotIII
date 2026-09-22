@@ -81,6 +81,7 @@ import { BajaProducto } from "./entities/BajaProducto";
 import { Sabor } from "./entities/Sabor";
 import { Tamanio } from "./entities/Tamanio";
 import { Productovariante } from "./entities/ProductoVariante";
+import { StockDiario } from "./entities/StockDiario";
 export const AppDataSource = new DataSource({
     type: "postgres",
     host: process.env.DB_HOST ,
@@ -168,8 +169,9 @@ export const AppDataSource = new DataSource({
         GastoGeneral,
         BajaProducto,
         Sabor,
-        Tamanio
-        ,Productovariante
+        Tamanio,
+        Productovariante,
+        StockDiario
     ],
-    synchronize: true
+    synchronize: false
 })

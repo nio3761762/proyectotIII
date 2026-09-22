@@ -513,6 +513,56 @@ CASE WHEN dp.idproductomedida IS NOT NULL THEN COALESCE(pres.nombre, 'S/N') ELSE
     const disponible = new Map<string, number>();
     const meta = new Map<string, any>();
 
+    // ===== Stock de inicio desde stock_diario =====
+    // Carga el stock restante del último día registrado ANTES del rango consultado,
+    // evitando recalcular fechas anteriores ("ir hasta 5 fechas atrás").
+    const cargarStockPrevio = async () => {
+      try {
+        const prevSQL = `
+          SELECT DISTINCT ON (sd.idproducto, sd.presentacion)
+            sd.idproducto, sd.presentacion, sd.presentacionfactor, sd.esunidad,
+            sd.abreviatura, sd.stockrestante, sd.producto, sd.idproductomedida
+          FROM stock_diario sd
+          WHERE sd.fecha = (
+            SELECT MAX(fecha) FROM stock_diario
+            WHERE fecha < $1::date
+              AND ($2::varchar IS NULL OR $2 = 'TODOS' OR idsucursal = $2::varchar)
+          )
+          AND ($2::varchar IS NULL OR $2 = 'TODOS' OR sd.idsucursal = $2::varchar)
+          ORDER BY sd.idproducto, sd.presentacion, sd.turno DESC
+        `;
+        const prevRows: any[] = await AppDataSource.query(prevSQL, [
+          fechadesde,
+          idsucursal || null
+        ]);
+        for (const r of prevRows) {
+          const esUnidad = r.esunidad !== undefined ? Number(r.esunidad) : 1;
+          const pres = String(r.presentacion || "Unidad");
+          const restante = Number(r.stockrestante) || 0;
+          const factor = Math.max(1, Number(r.presentacionfactor) || 1);
+          const m = {
+            producto: r.producto || "Sin nombre",
+            presentacion: pres,
+            abreviatura: r.abreviatura || "",
+            factor,
+            esUnidad: !!esUnidad
+          };
+          const keys = new Set<string>([String(r.idproducto) + "::" + pres]);
+          if (esUnidad) {
+            keys.add(String(r.idproducto) + "::Unidad");
+            keys.add(String(r.idproducto) + "::S/N");
+          }
+          for (const key of keys) {
+            if (!disponible.has(key)) disponible.set(key, restante);
+            if (!meta.has(key)) meta.set(key, { ...m, presentacion: m.presentacion });
+          }
+        }
+      } catch (err) {
+        console.error("Error cargando stock previo desde stock_diario:", err);
+      }
+    };
+    await cargarStockPrevio();
+
     const absorber = (rows: any[]) => {
       const groups = new Map<string, any[]>();
       rows.forEach(p => {

@@ -29,7 +29,7 @@ export const ListarProductosOnSucursal = async (idsucursal,search,limit, page,ca
     if(search) params.search = search
     if(categoria) params.categoria = categoria
     if(subcategoria) params.subcategoria = subcategoria
-    const response = await API.get('getInventario', { params });
+    const response = await API.get('getInventario', { params, timeout: 60000 });
     return response.data;
   } catch (error) {
     console.error('Error al listar productos por sucursal:', error);

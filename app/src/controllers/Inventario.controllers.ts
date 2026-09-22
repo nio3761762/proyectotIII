@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { EntityManager, MoreThan, QueryRunner } from "typeorm";
+import { QueryRunner } from "typeorm";
 import { Inventario } from "../entities/Inventario";
 import { MovimientoInventario } from "../entities/MovimientoInventario";
 import { BajaProducto } from "../entities/BajaProducto";
@@ -8,7 +8,6 @@ import { generarIdSecuencial } from "../utils/idGenerator";
 import { verifyInsumo } from "./Insumo.controllers";
 import { verifyProducto } from "./Producto.controllers";
 import { verifySucursal } from "./Sucursal.controllers";
-import { Unidadmedida } from "../entities/UnidadMedida";
 import { verifyUnidadMedida } from "./Medida.controllers";
 import { AppDataSource } from "../db";
 import { Productomedida } from "../entities/ProductoMedida";
@@ -16,7 +15,7 @@ import { HttpError } from "../utils/error.handler";
 import { Promocion } from "../entities/Promocion";
 import { verifyProductoMedida } from "./ProductoMedida.controllers";
 import { getFechaHoraBolivia } from "../utils/Fecha";
-const { fecha} = getFechaHoraBolivia()
+
 export const createLoteInventario = async (
    queryRunner: QueryRunner,
   idProducto: string | null,
@@ -31,36 +30,67 @@ export const createLoteInventario = async (
   idUnidadMedida?: number,
 
 ) => {
+  const { fecha } = getFechaHoraBolivia();
+  const stock = Number(stockBase);
+  const hasProducto = !!idProducto;
+  const hasInsumo = !!idInsumo;
+  if (!hasProducto && !hasInsumo) return;
 
-  const nuevo = new Inventario();
+  // UN registro por producto/insumo + sucursal
+  let registro = hasProducto
+    ? await buscarInventarioProducto(queryRunner, idProducto as string, idSucursal)
+    : await buscarInventarioInsumo(queryRunner, idInsumo as string, idSucursal);
 
-  nuevo.IdInventario = await generarIdSecuencial("INV", queryRunner);
-  nuevo.Stock = Number(stockBase);
-  nuevo.CostoUnitario = Number(costoUnitario);
-  nuevo.Preciounitario = Number(precioUnitario);
-  nuevo.FechaIngreso = fecha;
-  nuevo.TipoOrigen = tipoOrigen;
-  nuevo.IdReferencia = idReferencia;
- 
-  if (cantidadOriginal) nuevo.Cantidad = cantidadOriginal;
-  if (idUnidadMedida) {
-    nuevo.Unidadmedida = await verifyUnidadMedida({ UnidadMedidaId: idUnidadMedida });
+  const costo = Number(costoUnitario) || 0;
+  const precio = Number(precioUnitario) || 0;
+
+  if (!registro && stock <= 0) return;
+
+  if (!registro) {
+    registro = new Inventario();
+    registro.IdInventario = await generarIdSecuencial("INV", queryRunner);
+    registro.Stock = stock;
+    registro.CostoUnitario = costo;
+    registro.Preciounitario = precio;
+    registro.FechaIngreso = fecha;
+    registro.TipoOrigen = tipoOrigen;
+    registro.IdReferencia = idReferencia;
+    registro.Estado = 1;
+    if (cantidadOriginal) registro.Cantidad = cantidadOriginal;
+    if (idUnidadMedida) {
+      registro.Unidadmedida = await verifyUnidadMedida({ UnidadMedidaId: idUnidadMedida });
+    }
+    registro.Sucursal = await verifySucursal({ SucursalId: idSucursal });
+    if (hasProducto) {
+      registro.Producto = await verifyProducto({ ProductoId: idProducto as string });
+    }
+    if (hasInsumo) {
+      registro.Insumo = await verifyInsumo({ ProductoId: idInsumo as string });
+    }
+  } else {
+    // Solo se actualizan cantidad (incremento) y costo (promedio ponderado)
+    const stockAnterior = Number(registro.Stock) || 0;
+    const costoAnterior = Number(registro.CostoUnitario) || 0;
+    const nuevoStock = stockAnterior + stock;
+    registro.Stock = nuevoStock;
+    registro.CostoUnitario = nuevoStock > 0
+      ? (stockAnterior * costoAnterior + stock * costo) / nuevoStock
+      : costo;
+    if (cantidadOriginal !== undefined) {
+      registro.Cantidad = Number(registro.Cantidad) + Number(cantidadOriginal);
+    }
+    if (precio && !registro.Preciounitario) registro.Preciounitario = precio;
+    if (registro.Stock > 0) registro.Estado = 1;
+    if (tipoOrigen) registro.TipoOrigen = tipoOrigen;
+    if (idReferencia) registro.IdReferencia = idReferencia;
   }
 
-  nuevo.Sucursal = await verifySucursal({ SucursalId: idSucursal });
+  await queryRunner.manager.save(registro);
 
-  if (idProducto) {
-    nuevo.Producto = await verifyProducto({ ProductoId: idProducto });
+  // Solo registrar movimiento si realmente ingresó cantidad
+  if (stock > 0) {
+    await registrarMovimientoEntrada(queryRunner, registro, tipoOrigen, idReferencia, stock);
   }
-
-  if (idInsumo) {
-    nuevo.Insumo = await verifyInsumo({ ProductoId: idInsumo });
-  }
-    
-   
-    await queryRunner.manager.save(nuevo);
-
-  await registrarMovimientoEntrada(queryRunner,nuevo, tipoOrigen, idReferencia);
 };
 
 export const registrarMovimientoEntrada = async (
@@ -73,6 +103,7 @@ export const registrarMovimientoEntrada = async (
 
   const mov = new MovimientoInventario();
 
+  const { fecha } = getFechaHoraBolivia();
   mov.IdMovimiento = await generarIdSecuencial("MOINV", queryRunner);
   mov.Tipo = tipo;
   mov.Cantidad = cantidad !== undefined ? cantidad : lote.Stock;
@@ -107,22 +138,26 @@ export const anularMovimientoInventario = async (queryRunner: QueryRunner, idCom
 
   for (const mov of movimientos) {
 
-    const lote = mov.Inventario;
+    const registro = mov.Inventario;
 
-    if (!lote) continue;
+    if (!registro) continue;
 
     const cantidad = Number(mov.Cantidad);
 
     // 🔥 VALIDACIÓN
-    if (Number(lote.Stock) < cantidad) {
+    if (Number(registro.Stock) < cantidad) {
       throw new Error(
-        `No puedes anular la compra. El lote ${lote.IdInventario} ya fue consumido`
+        `No puedes anular la compra. El stock del producto ya fue consumido`
       );
     }
 
-    // 🔴 2. revertir inventario
-    lote.Stock = Number(lote.Stock) - cantidad;
-    await queryRunner.manager.save(lote);
+    // 🔴 2. revertir inventario (decrementar el registro único)
+    registro.Stock = Number(registro.Stock) - cantidad;
+    if (registro.Stock <= 0) {
+      registro.Stock = 0;
+      registro.Estado = 0;
+    }
+    await queryRunner.manager.save(registro);
 
     // 🔴 3. registrar movimiento inverso
     const reverso = new MovimientoInventario();
@@ -135,7 +170,7 @@ export const anularMovimientoInventario = async (queryRunner: QueryRunner, idCom
     reverso.Fecha = new Date();
     reverso.Sucursal = mov.Sucursal;
     reverso.IdReferencia = idCompra;
-    reverso.Inventario = lote;
+    reverso.Inventario = registro;
 
     if (mov.Insumo) reverso.Insumo = mov.Insumo;
     if (mov.Producto) reverso.Producto = mov.Producto;
@@ -175,6 +210,30 @@ export const registrarMovimientoSalida = async (
 };
 
 
+/**
+ * 🔥 NUEVO MODELO: UN registro por (producto|insumo + sucursal).
+ * Solo se actualiza la cantidad (Stock), con incremento o decremento.
+ */
+export const buscarInventarioProducto = async (queryRunner: QueryRunner, idProducto: string, idSucursal: string) => {
+  return queryRunner.manager.findOne(Inventario, {
+    where: {
+      Sucursal: { IdSucursal: idSucursal },
+      Producto: { IdProducto: idProducto }
+    },
+    relations: ["Sucursal", "Producto", "Insumo"]
+  });
+};
+
+export const buscarInventarioInsumo = async (queryRunner: QueryRunner, idInsumo: string, idSucursal: string) => {
+  return queryRunner.manager.findOne(Inventario, {
+    where: {
+      Sucursal: { IdSucursal: idSucursal },
+      Insumo: { IdInsumo: idInsumo }
+    },
+    relations: ["Sucursal", "Producto", "Insumo"]
+  });
+};
+
 export const getInventario = async (req: Request, res: Response) => {
   try {
 
@@ -209,7 +268,11 @@ export const getInventario = async (req: Request, res: Response) => {
         cat.nombre AS categoria,
         sub.nombre AS subcategoria,
 
-        COALESCE(inv.cantidad, 0) AS cantidad,
+        -- 🔥 REGISTRO ÚNICO POR (PRODUCTO, SUCURSAL)
+        COALESCE(inv.stock, 0) AS cantidad,
+        inv.estado AS estado,
+        COALESCE(inv.costounitario, 0) AS costounitario,
+        COALESCE(inv.preciounitario, 0) AS preciounitario,
 
         COUNT(*) OVER() AS total,
 
@@ -242,16 +305,10 @@ export const getInventario = async (req: Request, res: Response) => {
       LEFT JOIN categoria cat
         ON cat.idcategoria = sub.idcategoria
 
-      INNER JOIN (
-        SELECT
-          idproducto,
-          idsucursal,
-          SUM(stock) AS cantidad
-        FROM inventario
-        WHERE estado = 1
-        GROUP BY idproducto, idsucursal
-      ) inv
+      INNER JOIN inventario inv
         ON inv.idproducto = pro.idproducto
+        AND inv.idsucursal = $1
+        AND inv.estado = 1
 
       LEFT JOIN productomedida pm
         ON pm.idproducto = pro.idproducto
@@ -261,8 +318,7 @@ export const getInventario = async (req: Request, res: Response) => {
         ON pre.idpresentacion = pm.idpresentacion
 
       WHERE
-        inv.idsucursal = $1
-        AND pro.nombre ILIKE $2
+        pro.nombre ILIKE $2
         AND ($3::text IS NULL OR cat.idcategoria = $3)
         AND ($4::text IS NULL OR sub.idsubcategoria = $4)
 
@@ -273,7 +329,10 @@ export const getInventario = async (req: Request, res: Response) => {
         pro.descripcion,
         cat.nombre,
         sub.nombre,
-        inv.cantidad
+        inv.stock,
+        inv.estado,
+        inv.costounitario,
+        inv.preciounitario
 
       ORDER BY pro.nombre ASC
 
@@ -324,136 +383,80 @@ export const getInventario = async (req: Request, res: Response) => {
 };
 
 export const DecrementProductoDirecto = async (queryRunner: QueryRunner, idProducto: string, SucursalId: string, Cantidad: number, id: string, tipo: string = "SALIDA_BAJA") => {
-  let cantidadRestante = Number(Cantidad);
-  const cantidadTotalADescontar = cantidadRestante;
-  let costoTotalAcumulado = 0;
+  const cantidad = Number(Cantidad);
 
-  const lotes = await queryRunner.manager.find(Inventario,{
-    where: {
-      Sucursal: { IdSucursal: SucursalId },
-      Producto: { IdProducto: idProducto },
-      Estado: 1,
-      Stock: MoreThan(0)
-    },relations:['Producto','Sucursal'],
-    order: { FechaIngreso: "ASC" }
-  });
-  if (lotes.length === 0) {
+  const registro = await buscarInventarioProducto(queryRunner, idProducto, SucursalId);
+  if (!registro || Number(registro.Stock) <= 0) {
     throw new HttpError(404, `No hay stock disponible para el producto ${idProducto} en la sucursal ${SucursalId}.`);
   }
 
-  const totalStock = lotes.reduce((acc, lote) => acc + Number(lote.Stock), 0);
-  if (totalStock < cantidadRestante) {
-    throw new HttpError(400, `Stock insuficiente. Disponible: ${totalStock}, Requerido: ${Cantidad}`);
+  const stockDisponible = Number(registro.Stock);
+  if (stockDisponible < cantidad) {
+    throw new HttpError(400, `Stock insuficiente. Disponible: ${stockDisponible}, Requerido: ${Cantidad}`);
   }
 
-  for (const lote of lotes) {
-    if (cantidadRestante <= 0) break;
-
-    const stockDisponible = Number(lote.Stock);
-    const aDescontar = Math.min(stockDisponible, cantidadRestante);
-
-    lote.Stock = stockDisponible - aDescontar;
-    await queryRunner.manager.save(lote);
-    await registrarMovimientoSalida(queryRunner, lote, tipo, aDescontar, id);
-
-    costoTotalAcumulado += aDescontar * Number(lote.CostoUnitario);
-    cantidadRestante -= aDescontar;
+  registro.Stock = stockDisponible - cantidad;
+  if (registro.Stock <= 0) {
+    registro.Stock = 0;
+    registro.Estado = 0;
   }
+  await queryRunner.manager.save(registro);
+  await registrarMovimientoSalida(queryRunner, registro, tipo, cantidad, id);
 
-  const costoPromedio = cantidadTotalADescontar > 0 ? costoTotalAcumulado / cantidadTotalADescontar : 0;
-  return { success: true, costoUnitarioBase: costoPromedio };
+  return { success: true, costoUnitarioBase: Number(registro.CostoUnitario) || 0 };
 };
 
 export const DecrementProducto = async (queryRunner: QueryRunner,presentacion: Productomedida, SucursalId: string, Cantidad: number, id: string, tipo: string = "SALIDA_VENTA") => {
-  // Buscar lotes con stock en la sucursal, ordenados por fecha de ingreso (FIFO)
+  const idProducto = presentacion.Producto.IdProducto;
+  const cantidad = Number(Cantidad) * Number(presentacion.Cantidad);
 
-  const idProducto = presentacion.Producto.IdProducto
-  let cantidadRestante = Number(Cantidad) * Number(presentacion.Cantidad);
-  const cantidadTotalADescontar = cantidadRestante;
-  let costoTotalAcumulado = 0;
-
-  const lotes = await queryRunner.manager.find(Inventario,{
-    where: {
-      Sucursal: { IdSucursal: SucursalId },
-      Producto: { IdProducto: idProducto },
-      Estado: 1,
-      Stock: MoreThan(0)
-    },relations:['Producto','Sucursal'],
-    order: { FechaIngreso: "ASC" }
-  });
-  if (lotes.length === 0) {
+  const registro = await buscarInventarioProducto(queryRunner, idProducto, SucursalId);
+  if (!registro || Number(registro.Stock) <= 0) {
     throw new HttpError(404, `No hay stock disponible para el producto ${presentacion.Producto.IdProducto} en la sucursal ${SucursalId}.`);
   }
 
-  const totalStock = lotes.reduce((acc, lote) => acc + Number(lote.Stock), 0);
-  if (totalStock < cantidadRestante) {
-    throw new HttpError(400, `Stock insuficiente. Disponible: ${totalStock}, Requerido: ${Cantidad}`);
+  const stockDisponible = Number(registro.Stock);
+  if (stockDisponible < cantidad) {
+    throw new HttpError(400, `Stock insuficiente. Disponible: ${stockDisponible}, Requerido: ${Cantidad}`);
   }
 
-  for (const lote of lotes) {
-    if (cantidadRestante <= 0) break;
-
-    const stockDisponible = Number(lote.Stock);
-    const aDescontar = Math.min(stockDisponible, cantidadRestante);
-  
-    lote.Stock = stockDisponible - aDescontar;
-
-    await queryRunner.manager.save(lote);
-   
-    await registrarMovimientoSalida(queryRunner,lote, tipo, aDescontar, id);
-
-    costoTotalAcumulado += aDescontar * Number(lote.CostoUnitario);
-    cantidadRestante -= aDescontar;
+  registro.Stock = stockDisponible - cantidad;
+  if (registro.Stock <= 0) {
+    registro.Stock = 0;
+    registro.Estado = 0;
   }
+  await queryRunner.manager.save(registro);
 
-  const costoPromedio = cantidadTotalADescontar > 0 ? costoTotalAcumulado / cantidadTotalADescontar : 0;
-  return { success: true, costoUnitarioBase: costoPromedio };
+  await registrarMovimientoSalida(queryRunner, registro, tipo, cantidad, id);
+
+  return { success: true, costoUnitarioBase: Number(registro.CostoUnitario) || 0 };
 };
 
 export const DecrementInsumo = async (queryRunner: QueryRunner, insumo: any, SucursalId: string, Cantidad: number, id: string, tipo: string = "SALIDA_TRANSFERENCIA") => {
   const idInsumo = insumo.Insumo.IdInsumo;
   const unidad = insumo.Unidadmedida;
-  let cantidadRestante = Number(Cantidad) * Number(unidad.Cantidad) * Number(insumo.Cantidad);
-  const cantidadTotalADescontar = cantidadRestante;
-  let costoTotalAcumulado = 0;
+  const cantidad = Number(Cantidad) * Number(unidad.Cantidad) * Number(insumo.Cantidad);
 
-  const lotes = await queryRunner.manager.find(Inventario, {
-    where: {
-      Sucursal: { IdSucursal: SucursalId },
-      Insumo: { IdInsumo: idInsumo },
-      Estado: 1,
-      Stock: MoreThan(0)
-    },
-    relations: ['Insumo', 'Sucursal'],
-    order: { FechaIngreso: "ASC" }
-  });
-
-  if (lotes.length === 0) {
+  const registro = await buscarInventarioInsumo(queryRunner, idInsumo, SucursalId);
+  if (!registro || Number(registro.Stock) <= 0) {
     throw new HttpError(404, `No hay stock disponible para el insumo ${idInsumo} en la sucursal ${SucursalId}.`);
   }
 
-  const totalStock = lotes.reduce((acc, lote) => acc + Number(lote.Stock), 0);
-  if (totalStock < cantidadRestante) {
-    throw new HttpError(400, `Stock insuficiente de insumo. Disponible: ${totalStock}, Requerido: ${cantidadRestante}`);
+  const stockDisponible = Number(registro.Stock);
+  if (stockDisponible < cantidad) {
+    throw new HttpError(400, `Stock insuficiente de insumo. Disponible: ${stockDisponible}, Requerido: ${cantidad}`);
   }
 
-  for (const lote of lotes) {
-    if (cantidadRestante <= 0) break;
-
-    const stockDisponible = Number(lote.Stock);
-    const aDescontar = Math.min(stockDisponible, cantidadRestante);
-
-    lote.Stock = stockDisponible - aDescontar;
-    await queryRunner.manager.save(lote);
-
-    await registrarMovimientoSalida(queryRunner, lote, tipo, aDescontar, id);
-    
-    costoTotalAcumulado += aDescontar * Number(lote.CostoUnitario);
-    cantidadRestante -= aDescontar;
+  registro.Stock = stockDisponible - cantidad;
+  if (registro.Stock <= 0) {
+    registro.Stock = 0;
+    registro.Estado = 0;
   }
+  await queryRunner.manager.save(registro);
 
-  const costoPromedio = cantidadTotalADescontar > 0 ? costoTotalAcumulado / cantidadTotalADescontar : 0;
-  return { success: true, costoUnitarioBase: costoPromedio };
+  await registrarMovimientoSalida(queryRunner, registro, tipo, cantidad, id);
+
+  return { success: true, costoUnitarioBase: Number(registro.CostoUnitario) || 0 };
 };
 
 export const DecrementPromocion = async (queryRunner: QueryRunner,
@@ -475,95 +478,124 @@ export const DecrementPromocion = async (queryRunner: QueryRunner,
 };
 
 export const IncrementProducto = async (queryRunner: QueryRunner,presentacion: Productomedida, SucursalId: string, Cantidad: number, id: string, tipo: string = "ANULACION_VENTA") => {
+  const { fecha } = getFechaHoraBolivia();
   const idProducto = presentacion.Producto.IdProducto;
-  let cantidadASumar = Number(Cantidad) * Number(presentacion.Cantidad);
+  const cantidadASumar = Number(Cantidad) * Number(presentacion.Cantidad);
 
-  // Buscar el último lote (o uno activo) para devolver el stock
-  // O podríamos crear un lote nuevo de "DEVOLUCION"
-const lote = await queryRunner.manager.findOne(Inventario,{
-    where: {
-      Sucursal: { IdSucursal: SucursalId },
-      Producto: { IdProducto: idProducto },
-      Estado: 1,
-    },relations:['Producto','Sucursal'],
-    order: { FechaIngreso: "DESC" }
-  });
+  // UN registro por producto + sucursal
+  let registro = await buscarInventarioProducto(queryRunner, idProducto, SucursalId);
 
-  if (!lote) {
-    // Si no hay lote, podríamos crear uno nuevo, pero lo ideal es que exista al menos uno si se vendió
-    throw new HttpError(404, `No se encontró un lote activo para el producto ${idProducto} en la sucursal ${SucursalId} para restaurar stock.`);
+  // Si no existe, crear uno nuevo para registrar la devolución
+  if (!registro) {
+    const ultimoMov = await queryRunner.manager.findOne(MovimientoInventario, {
+      where: {
+        Producto: { IdProducto: idProducto },
+        Sucursal: { IdSucursal: SucursalId }
+      },
+      order: { Fecha: "DESC" }
+    });
+
+    registro = new Inventario();
+    registro.IdInventario = await generarIdSecuencial("INV", queryRunner);
+    registro.Stock = 0;
+    registro.CostoUnitario = ultimoMov ? Number(ultimoMov.CostoUnitario) : 0;
+    registro.Preciounitario = Number(presentacion.PrecioVenta) || 0;
+    registro.FechaIngreso = fecha;
+    registro.TipoOrigen = "ANULACION";
+    registro.IdReferencia = id;
+    registro.Estado = 1;
+    registro.Sucursal = await verifySucursal({ SucursalId });
+    registro.Producto = await verifyProducto({ ProductoId: idProducto });
   }
 
-  lote.Stock = Number(lote.Stock) + cantidadASumar;
+  registro.Stock = Number(registro.Stock) + cantidadASumar;
+  if (registro.Stock > 0) registro.Estado = 1;
+  if (Number(registro.CostoUnitario) === 0 && cantidadASumar > 0) {
+    registro.CostoUnitario = Number(presentacion.PrecioVenta) || 0;
+  }
 
- await queryRunner.manager.save(lote);
-  await registrarMovimientoEntrada(queryRunner,lote, tipo, id, cantidadASumar);
+  await queryRunner.manager.save(registro);
+  await registrarMovimientoEntrada(queryRunner, registro, tipo, id, cantidadASumar);
 
   return { success: true };
 };
 
 export const IncrementInsumo = async (queryRunner: QueryRunner, insumo: any, SucursalId: string, Cantidad: number, id: string, tipo: string = "ANULACION_TRANSFERENCIA") => {
+  const { fecha } = getFechaHoraBolivia();
   const idInsumo = insumo.Insumo.IdInsumo;
   const unidad = insumo.Unidadmedida;
-  let cantidadASumar = Number(Cantidad) * Number(unidad.Cantidad) * Number(insumo.Cantidad);
+  const cantidadASumar = Number(Cantidad) * Number(unidad.Cantidad) * Number(insumo.Cantidad);
 
-  const lote = await queryRunner.manager.findOne(Inventario, {
-    where: {
-      Sucursal: { IdSucursal: SucursalId },
-      Insumo: { IdInsumo: idInsumo },
-      Estado: 1
-    },
-    relations: ['Insumo', 'Sucursal'],
-    order: { FechaIngreso: "DESC" }
-  });
+  // UN registro por insumo + sucursal
+  let registro = await buscarInventarioInsumo(queryRunner, idInsumo, SucursalId);
 
-  if (!lote) {
-    throw new HttpError(404, `No se encontró un lote activo para el insumo ${idInsumo} en la sucursal ${SucursalId} para restaurar stock.`);
+  // Si no existe, crear uno nuevo para registrar la devolución
+  if (!registro) {
+    const ultimoMov = await queryRunner.manager.findOne(MovimientoInventario, {
+      where: {
+        Insumo: { IdInsumo: idInsumo },
+        Sucursal: { IdSucursal: SucursalId }
+      },
+      order: { Fecha: "DESC" }
+    });
+
+    registro = new Inventario();
+    registro.IdInventario = await generarIdSecuencial("INV", queryRunner);
+    registro.Stock = 0;
+    registro.CostoUnitario = ultimoMov ? Number(ultimoMov.CostoUnitario) : 0;
+    registro.Preciounitario = ultimoMov
+      ? Number(ultimoMov.CostoUnitario) * (Number(unidad.Cantidad) * Number(insumo.Cantidad))
+      : 0;
+    registro.FechaIngreso = fecha;
+    registro.TipoOrigen = "ANULACION";
+    registro.IdReferencia = id;
+    registro.Estado = 1;
+    registro.Sucursal = await verifySucursal({ SucursalId });
+    registro.Insumo = await verifyInsumo({ ProductoId: idInsumo });
   }
 
-  lote.Stock = Number(lote.Stock) + cantidadASumar;
-  await queryRunner.manager.save(lote);
+  registro.Stock = Number(registro.Stock) + cantidadASumar;
+  if (registro.Stock > 0) registro.Estado = 1;
 
-  await registrarMovimientoEntrada(queryRunner, lote, tipo, id, cantidadASumar);
+  await queryRunner.manager.save(registro);
+
+  await registrarMovimientoEntrada(queryRunner, registro, tipo, id, cantidadASumar);
 
   return { success: true };
 };
 
 export const anularLotesPorReferencia = async (queryRunner: QueryRunner, idReferencia: string, tipoEntrada: string, tipoAnulacion: string) => {
-  const lotes = await queryRunner.manager.find(Inventario, {
+  // Con el modelo de registro único, se revierte lo que esa referencia aportó:
+  // se buscan los movimientos de entrada de la referencia y se decrementan
+  // los registros únicos correspondientes.
+  const movimientos = await queryRunner.manager.find(MovimientoInventario, {
     where: {
       IdReferencia: idReferencia,
-      TipoOrigen: tipoEntrada,
-      Estado: 1
+      Tipo: tipoEntrada
     },
-    relations: ["Sucursal", "Insumo", "Producto"]
+    relations: ["Inventario", "Sucursal", "Insumo", "Producto"]
   });
 
-  for (const lote of lotes) {
-    const cantidad = Number(lote.Stock);
+  for (const mov of movimientos) {
+    const registro = mov.Inventario;
+    if (!registro) continue;
 
-    // Si el lote ya fue movido o consumido (podríamos verificar si hubo salidas posteriores)
-    // Pero para simplificar, si el stock es menor al inicial (que no guardamos explícitamente pero podríamos inferir del movimiento)
-    // En este sistema, el stock inicial del lote es lo que se registró en el movimiento de entrada.
-    
-    const movimientoEntrada = await queryRunner.manager.findOne(MovimientoInventario, {
-      where: {
-        Inventario: { IdInventario: lote.IdInventario },
-        Tipo: tipoEntrada
-      }
-    });
+    const cantidad = Number(mov.Cantidad);
 
-    if (movimientoEntrada && Number(lote.Stock) < Number(movimientoEntrada.Cantidad)) {
-      throw new HttpError(400, `No se puede anular. El stock del lote ${lote.IdInventario} ya ha sido utilizado.`);
+    if (Number(registro.Stock) < cantidad) {
+      throw new HttpError(400, `No se puede anular. El stock ya ha sido utilizado para ${registro.Producto ? registro.Producto.Nombre : (registro.Insumo ? registro.Insumo.Nombre : "el producto")}.`);
     }
 
-    // 🔴 2. revertir inventario
-    lote.Stock = 0;
-    lote.Estado = 0; // Desactivar el lote
-    await queryRunner.manager.save(lote);
+    // 🔴 revertir inventario (decrementar el registro único)
+    registro.Stock = Number(registro.Stock) - cantidad;
+    if (registro.Stock <= 0) {
+      registro.Stock = 0;
+      registro.Estado = 0;
+    }
+    await queryRunner.manager.save(registro);
 
-    // 🔴 3. registrar movimiento inverso
-    await registrarMovimientoSalida(queryRunner, lote, tipoAnulacion, movimientoEntrada ? Number(movimientoEntrada.Cantidad) : cantidad, idReferencia);
+    // 🔴 registrar movimiento inverso
+    await registrarMovimientoSalida(queryRunner, registro, tipoAnulacion, cantidad, idReferencia);
   }
 };
 
