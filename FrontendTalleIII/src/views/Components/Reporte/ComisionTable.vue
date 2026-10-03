@@ -49,14 +49,19 @@
                 <thead>
                   <tr class="bg-gray-50/30">
                     <th rowspan="2" class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-r min-w-[160px]">Revendedor</th>
-                    <th v-for="prod in weeklyConsolidados[sem.fecha]?.productosUnicos || []" :key="prod"
-                        class="p-3 text-[10px] font-black text-gray-600 uppercase tracking-widest border-b border-r text-center min-w-[90px]">
-                      <div class="flex flex-col items-center">
-                        <span class="text-gray-600">{{ prod }}</span>
-                        <span class="text-[8px] text-gray-400 font-normal normal-case mt-0.5">(cant.)</span>
-                      </div>
+                    <th v-for="grupo in (weeklyConsolidados[sem.fecha]?.grupos || [])" :key="grupo.producto"
+                        :colspan="grupo.presentaciones.length"
+                        class="px-1 py-1 text-[10px] font-black text-gray-700 uppercase tracking-wide border-b border-r text-center min-w-[60px]">
+                      {{ grupo.producto }}
                     </th>
-                    <th colspan="4" class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-center min-w-[260px]">Totales</th>
+                    <th colspan="4" rowspan="2" class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-center min-w-[260px]">Totales</th>
+                  </tr>
+                  <tr class="bg-gray-50/30">
+                    <th v-for="col in (weeklyConsolidados[sem.fecha]?.columnas || [])" :key="col.key"
+                        :title="`${col.producto} - ${col.presentacion}`"
+                        class="px-1 py-1 text-[9px] font-black text-gray-500 uppercase tracking-wide border-b border-r text-center min-w-[34px] whitespace-nowrap">
+                      {{ col.presentacion }}
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -67,8 +72,8 @@
                         <span class="truncate">{{ emp.empleado }}</span>
                       </div>
                     </td>
-                    <td v-for="prod in weeklyConsolidados[sem.fecha]?.productosUnicos || []" :key="prod" class="p-3 border-b border-r text-center text-sm font-bold text-gray-800">
-                      {{ emp.productoMap[prod] ?? '-' }}
+                    <td v-for="col in (weeklyConsolidados[sem.fecha]?.columnas || [])" :key="col.key" class="px-1 py-2 border-b border-r text-center text-xs font-bold text-gray-800">
+                      {{ emp.celdas[col.key] ?? '-' }}
                     </td>
                     <td class="p-3 border-b text-right">
                       <div class="flex flex-col">
@@ -99,8 +104,8 @@
                 <tfoot v-if="(weeklyConsolidados[sem.fecha]?.empleados?.length || 0) > 1">
                   <tr class="bg-orange-50/50">
                     <td class="p-3 border-t-2 border-orange-200 font-black text-gray-600 text-xs uppercase">Totales</td>
-                    <td v-for="prod in weeklyConsolidados[sem.fecha]?.productosUnicos || []" :key="prod" class="p-3 border-t-2 border-orange-200 text-center font-black">
-                      {{ weeklyConsolidados[sem.fecha]?.totalPorProducto[prod] ?? '-' }}
+                    <td v-for="col in (weeklyConsolidados[sem.fecha]?.columnas || [])" :key="col.key" class="px-1 py-2 border-t-2 border-orange-200 text-center text-xs font-black">
+                      {{ weeklyConsolidados[sem.fecha]?.totalPorColumna[col.key] ?? '-' }}
                     </td>
                     <td class="p-3 border-t-2 border-orange-200 text-right">
                       <span class="font-black text-blue-600">{{ weeklyConsolidados[sem.fecha]?.totalComisionGlobal.toFixed(2) }}</span>
@@ -252,14 +257,19 @@
           <thead>
             <tr class="bg-gray-50/30">
               <th rowspan="2" class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-r min-w-[180px]">Empleado</th>
-              <th v-for="prod in processedConsolidado.productosUnicos" :key="prod"
-                  colspan="1" class="p-3 text-[10px] font-black text-gray-600 uppercase tracking-widest border-b border-r text-center min-w-[100px]">
-                <div class="flex flex-col items-center">
-                  <span class="text-gray-600">{{ prod }}</span>
-                  <span class="text-[8px] text-gray-400 font-normal normal-case mt-0.5">(cant.)</span>
-                </div>
+              <th v-for="grupo in processedConsolidado.grupos" :key="grupo.producto"
+                  :colspan="grupo.presentaciones.length"
+                  class="px-1 py-1 text-[10px] font-black text-gray-700 uppercase tracking-wide border-b border-r text-center min-w-[70px]">
+                {{ grupo.producto }}
               </th>
-              <th colspan="4" class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-center min-w-[260px]">Totales</th>
+              <th colspan="4" rowspan="2" class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-center min-w-[260px]">Totales</th>
+            </tr>
+            <tr class="bg-gray-50/30">
+              <th v-for="col in processedConsolidado.columnas" :key="col.key"
+                  :title="`${col.producto} - ${col.presentacion}`"
+                  class="px-1 py-1 text-[9px] font-black text-gray-500 uppercase tracking-wide border-b border-r text-center min-w-[38px] whitespace-nowrap">
+                {{ col.presentacion }}
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -271,9 +281,9 @@
                   <span class="truncate">{{ emp.empleado }}</span>
                 </div>
               </td>
-              <td v-for="prod in processedConsolidado.productosUnicos" :key="prod"
-                  class="p-3 border-b border-r text-center text-sm font-bold text-gray-800">
-                {{ emp.productoMap[prod] ?? '-' }}
+              <td v-for="col in processedConsolidado.columnas" :key="col.key"
+                  class="px-1 py-2 border-b border-r text-center text-xs font-bold text-gray-800">
+                {{ emp.celdas[col.key] ?? '-' }}
               </td>
                     <td class="p-3 border-b text-right">
                       <div class="flex flex-col">
@@ -304,9 +314,9 @@
                 <tfoot v-if="processedConsolidado.empleados.length > 1">
                   <tr class="bg-orange-50/50">
                     <td class="p-3 border-t-2 border-orange-200 font-black text-gray-600 text-xs uppercase">Totales</td>
-                    <td v-for="prod in processedConsolidado.productosUnicos" :key="prod"
-                        class="p-3 border-t-2 border-orange-200 text-center font-black">
-                      {{ processedConsolidado.totalPorProducto[prod] ?? '-' }}
+                    <td v-for="col in processedConsolidado.columnas" :key="col.key"
+                        class="px-1 py-2 border-t-2 border-orange-200 text-center text-xs font-black">
+                      {{ processedConsolidado.totalPorColumna[col.key] ?? '-' }}
                     </td>
                     <td class="p-3 border-t-2 border-orange-200 text-right">
                       <span class="font-black text-blue-600">{{ processedConsolidado.totalComisionGlobal.toFixed(2) }}</span>
@@ -531,25 +541,54 @@ const props = defineProps({
   }
 })
 
+const SIN_PRODUCTO = 'Sin Producto'
+const SIN_PRESENTACION = 'S/D'
+
+const claveColumna = (producto, presentacion) =>
+  `${String(producto || SIN_PRODUCTO)}||${String(presentacion || SIN_PRESENTACION)}`
+
+const etiquetaPresentacion = (item) => {
+  const abreviatura = String(item?.presentacion_abreviatura || '').trim()
+  if (abreviatura) return abreviatura
+  const nombre = String(item?.presentacion || '').trim()
+  return nombre || SIN_PRESENTACION
+}
+
+const construirColumnas = (items) => {
+  const grupos = []
+  const porProducto = {}
+  const columnas = []
+  items.forEach(item => {
+    const producto = String(item?.producto || SIN_PRODUCTO)
+    if (!porProducto[producto]) {
+      porProducto[producto] = { producto, presentaciones: [] }
+      grupos.push(porProducto[producto])
+    }
+    const grupo = porProducto[producto]
+    const presentacion = etiquetaPresentacion(item)
+    if (!grupo.presentaciones.some(p => p.presentacion === presentacion)) {
+      const columna = { key: claveColumna(producto, presentacion), producto, presentacion }
+      grupo.presentaciones.push(columna)
+      columnas.push(columna)
+    }
+  })
+  return { grupos, columnas }
+}
+
 const processedConsolidado = computed(() => {
   const data = props.consolidado?.reporte || [];
-  if (!Array.isArray(data)) return { empleados: [], productosUnicos: [], totalPorProducto: {}, totalComisionGlobal: 0, totalLiquidoGlobal: 0 };
-  const productosUnicos = [];
-  const productSet = new Set();
-  data.forEach(emp => {
-    if (emp.productos) {
-      emp.productos.forEach(p => {
-        if (!productSet.has(p.producto)) {
-          productSet.add(p.producto);
-          productosUnicos.push(p.producto);
-        }
-      });
-    }
-  });
+  if (!Array.isArray(data) || data.length === 0) return { empleados: [], grupos: [], columnas: [], totalPorColumna: {}, totalComisionGlobal: 0, totalLiquidoGlobal: 0, totalGastoExtraGlobal: 0, totalNetoEntregarGlobal: 0 };
+
+  const items = [];
+  data.forEach(emp => (emp.productos || []).forEach(p => items.push(p)));
+  const { grupos, columnas } = construirColumnas(items);
+
   const empleados = data.map(emp => {
-    const productoMap = {};
+    const celdas = {};
+    columnas.forEach(col => { celdas[col.key] = 0 });
     (emp.productos || []).forEach(p => {
-      productoMap[p.producto] = Number(p.cantidad_total || 0);
+      const key = claveColumna(p.producto, etiquetaPresentacion(p));
+      if (key in celdas) celdas[key] += Number(p.cantidad_total || 0);
     });
     return {
       empleado: emp.empleado,
@@ -558,18 +597,20 @@ const processedConsolidado = computed(() => {
       total_liquido_panaderia: Number(emp.total_liquido_panaderia || 0),
       total_gasto_extra: Number(emp.total_gasto_extra || 0),
       neto_a_entregar: Number(emp.neto_a_entregar || emp.total_liquido_panaderia || 0),
-      productoMap
+      celdas
     };
   });
-  const totalPorProducto = {};
-  productosUnicos.forEach(prod => {
-    totalPorProducto[prod] = empleados.reduce((sum, emp) => sum + (emp.productoMap[prod] || 0), 0);
+
+  const totalPorColumna = {};
+  columnas.forEach(col => {
+    totalPorColumna[col.key] = empleados.reduce((sum, emp) => sum + (emp.celdas[col.key] || 0), 0);
   });
+
   const totalComisionGlobal = empleados.reduce((sum, emp) => sum + emp.total_comision, 0);
   const totalLiquidoGlobal = empleados.reduce((sum, emp) => sum + emp.total_liquido_panaderia, 0);
   const totalGastoExtraGlobal = empleados.reduce((sum, emp) => sum + emp.total_gasto_extra, 0);
   const totalNetoEntregarGlobal = empleados.reduce((sum, emp) => sum + emp.neto_a_entregar, 0);
-  return { empleados, productosUnicos, totalPorProducto, totalComisionGlobal, totalLiquidoGlobal, totalGastoExtraGlobal, totalNetoEntregarGlobal };
+  return { empleados, grupos, columnas, totalPorColumna, totalComisionGlobal, totalLiquidoGlobal, totalGastoExtraGlobal, totalNetoEntregarGlobal };
 });
 
 const getWeekMonday = (dateStr) => sharedWeekStart(dateStr)
@@ -626,10 +667,10 @@ const weeklyConsolidados = computed(() => {
   const result = {}
   processedDetallado.value.forEach(sem => {
     const empleadosMap = {}
-    const productSet = new Set()
+    const items = []
     sem.controles.forEach(c => {
       if (!empleadosMap[c.idempleado]) {
-        empleadosMap[c.idempleado] = { empleado: c.empleado, idempleado: c.idempleado, total_comision: 0, total_liquido_panaderia: 0, total_gasto_extra: 0, neto_a_entregar: 0, productoMap: {} }
+        empleadosMap[c.idempleado] = { empleado: c.empleado, idempleado: c.idempleado, total_comision: 0, total_liquido_panaderia: 0, total_gasto_extra: 0, neto_a_entregar: 0, celdas: {} }
       }
       const emp = empleadosMap[c.idempleado]
       emp.total_comision += Number(c.total_comision || 0)
@@ -637,18 +678,19 @@ const weeklyConsolidados = computed(() => {
       emp.total_gasto_extra += Number(c.total_gasto_extra || 0)
       emp.neto_a_entregar += Number(c.neto_a_entregar || c.total_liquido_panaderia || 0)
       ;(c.detalles || []).forEach(d => {
-        productSet.add(d.producto)
-        emp.productoMap[d.producto] = (emp.productoMap[d.producto] || 0) + Number(d.cantidad_vendida || 0)
+        items.push(d)
+        const key = claveColumna(d.producto, etiquetaPresentacion(d))
+        emp.celdas[key] = (emp.celdas[key] || 0) + Number(d.cantidad_vendida || 0)
       })
     })
-    const productosUnicos = [...productSet]
+    const { grupos, columnas } = construirColumnas(items)
     const empleados = Object.values(empleadosMap)
-    const totalPorProducto = {}
-    productosUnicos.forEach(prod => {
-      totalPorProducto[prod] = empleados.reduce((sum, emp) => sum + (emp.productoMap[prod] || 0), 0)
+    const totalPorColumna = {}
+    columnas.forEach(col => {
+      totalPorColumna[col.key] = empleados.reduce((sum, emp) => sum + (emp.celdas[col.key] || 0), 0)
     })
     result[sem.fecha] = {
-      empleados, productosUnicos, totalPorProducto,
+      empleados, grupos, columnas, totalPorColumna,
       totalComisionGlobal: empleados.reduce((s, e) => s + e.total_comision, 0),
       totalLiquidoGlobal: empleados.reduce((s, e) => s + e.total_liquido_panaderia, 0),
       totalGastoExtraGlobal: empleados.reduce((s, e) => s + e.total_gasto_extra, 0),

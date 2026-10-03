@@ -73,6 +73,8 @@ export const getReporteRevendedorConsolidado = async (req: Request, res: Respons
           COALESCE(per.nombre, per_dir.nombre) || ' ' || COALESCE(COALESCE(per.apellidopaterno, per_dir.apellidopaterno), '') as empleado,
           prod.idproducto,
           prod.nombre as producto,
+          COALESCE(pre.nombre, 'Sin Presentacion') as presentacion,
+          COALESCE(NULLIF(pre.abreviatura, ''), pre.nombre, 'Sin Presentacion') as presentacion_abreviatura,
           SUM(dc.vendido_total) as cantidad_total,
           SUM(dc.comision_total) as comision,
           SUM(dc.liquido_panaderia) as liquido_panaderia
@@ -82,7 +84,9 @@ export const getReporteRevendedorConsolidado = async (req: Request, res: Respons
         LEFT JOIN persona per_dir ON per_dir.idpersona = dc.idpersona
         JOIN productomedida pm ON dc.idproductomedida = pm.idproductomedida
         JOIN producto prod ON pm.idproducto = prod.idproducto
-        GROUP BY dc.persona_id, COALESCE(per.nombre, per_dir.nombre), COALESCE(per.apellidopaterno, per_dir.apellidopaterno), prod.idproducto, prod.nombre
+        LEFT JOIN presentacion pre ON pm.idpresentacion = pre.idpresentacion
+        GROUP BY dc.persona_id, COALESCE(per.nombre, per_dir.nombre), COALESCE(per.apellidopaterno, per_dir.apellidopaterno), prod.idproducto, prod.nombre,
+                 COALESCE(pre.nombre, 'Sin Presentacion'), COALESCE(NULLIF(pre.abreviatura, ''), pre.nombre, 'Sin Presentacion')
       ),
       gasto_extra_agg AS (
         SELECT 
@@ -98,10 +102,12 @@ export const getReporteRevendedorConsolidado = async (req: Request, res: Respons
           json_agg(json_build_object(
             'producto', pe.producto,
             'idproducto', pe.idproducto,
+            'presentacion', pe.presentacion,
+            'presentacion_abreviatura', pe.presentacion_abreviatura,
             'cantidad_total', pe.cantidad_total,
             'comision', pe.comision,
             'liquido_panaderia', pe.liquido_panaderia
-          ) ORDER BY pe.cantidad_total DESC) as productos,
+          ) ORDER BY pe.producto ASC, pe.presentacion ASC) as productos,
           SUM(pe.comision) as total_comision,
           SUM(pe.liquido_panaderia) as total_liquido_panaderia,
           COALESCE(ge.total_gasto_extra, 0) as total_gasto_extra,
@@ -228,6 +234,7 @@ export const getReporteRevendedorDetallado = async (req: Request, res: Response)
             'iddetalle', dc.idrevendedorcontroldetalle,
             'producto', prod.nombre,
             'presentacion', pre.nombre,
+            'presentacion_abreviatura', COALESCE(NULLIF(pre.abreviatura, ''), pre.nombre, 'Sin Presentacion'),
             'cantidad_entregada', dc.cantidadentregada,
             'cantidad_devuelta', dc.cantidaddevuelta,
             'cantidad_vendida', dc.vendido_total,

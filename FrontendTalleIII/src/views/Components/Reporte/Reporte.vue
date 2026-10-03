@@ -1001,6 +1001,34 @@ const addChartDataToWorkbook = (wb, sheetName, labels, datasets) => {
   XLSX.utils.book_append_sheet(wb, ref, sheetName);
 };
 
+const comPresLabel = (item) => {
+  const abreviatura = String(item?.presentacion_abreviatura || '').trim();
+  if (abreviatura) return abreviatura;
+  const nombre = String(item?.presentacion || '').trim();
+  return nombre || 'S/D';
+};
+const comColKey = (producto, presentacion) => `${String(producto || 'Sin Producto')}||${String(presentacion || 'S/D')}`;
+const comBuildColumnas = (items) => {
+  const grupos = [];
+  const porProducto = {};
+  const columnas = [];
+  items.forEach(it => {
+    const producto = String(it?.producto || 'Sin Producto');
+    if (!porProducto[producto]) {
+      porProducto[producto] = { producto, presentaciones: [] };
+      grupos.push(porProducto[producto]);
+    }
+    const grupo = porProducto[producto];
+    const presentacion = comPresLabel(it);
+    if (!grupo.presentaciones.some(p => p.presentacion === presentacion)) {
+      const columna = { key: comColKey(producto, presentacion), producto, presentacion };
+      grupo.presentaciones.push(columna);
+      columnas.push(columna);
+    }
+  });
+  return { grupos, columnas };
+};
+
 watch(activeTab, () => {
     clearTimeout(filtrosTimer);
     filtros.value.vendedor = "";
@@ -3223,30 +3251,44 @@ const exportarPDF = async () => {
 
       if (comisionDetallada.value?.reporte?.length) {
         const empMap = {}
-        const prodSet = new Set()
+        const comItems = []
         comisionDetallada.value.reporte.forEach(g => {
           if (Array.isArray(g.controles)) g.controles.forEach(c => {
-            if (!empMap[c.empleado]) empMap[c.empleado] = { empleado: c.empleado, total_comision: 0, total_liquido: 0, total_gasto_extra: 0, neto_a_entregar: 0, productoMap: {} }
+            if (!empMap[c.empleado]) empMap[c.empleado] = { empleado: c.empleado, total_comision: 0, total_liquido: 0, total_gasto_extra: 0, neto_a_entregar: 0, celdas: {} }
             empMap[c.empleado].total_gasto_extra += Number(c.total_gasto_extra || 0)
             if (Array.isArray(c.detalles)) c.detalles.forEach(d => {
-              prodSet.add(d.producto)
-              empMap[c.empleado].productoMap[d.producto] = (empMap[c.empleado].productoMap[d.producto] || 0) + Number(d.cantidad_vendida || 0)
+              comItems.push(d)
+              const key = comColKey(d.producto, comPresLabel(d))
+              empMap[c.empleado].celdas[key] = (empMap[c.empleado].celdas[key] || 0) + Number(d.cantidad_vendida || 0)
               empMap[c.empleado].total_comision += Number(d.comision_total || 0)
               empMap[c.empleado].total_liquido += Number(d.liquido_panaderia || 0)
             })
           })
         })
         Object.values(empMap).forEach(e => { e.neto_a_entregar = e.total_liquido - e.total_gasto_extra })
-        const prodUnicos = [...prodSet]
+        const { grupos: comGrupos, columnas: comColumnas } = comBuildColumnas(comItems)
         const empleados = Object.values(empMap)
         if (empleados.length) {
           if (startY > 240) { doc.addPage('l'); startY = 50 }
           doc.setFontSize(12); doc.setTextColor(0); doc.setFont(undefined, 'bold');
           doc.text('Resumen de Comisiones', 14, startY);
           startY += 8;
-          const col = ["Empleado", ...prodUnicos, "Comisión", "Líq. Panadería", "Gasto Extra", "Neto a Entregar"];
-          const rows = empleados.map(e => [e.empleado, ...prodUnicos.map(p => e.productoMap[p] ?? '-'), `${e.total_comision.toFixed(2)} Bs.`, `${e.total_liquido.toFixed(2)} Bs.`, `${e.total_gasto_extra.toFixed(2)} Bs.`, `${e.neto_a_entregar.toFixed(2)} Bs.`]);
-          autoTable(doc, { head: [col], body: rows, startY, styles: { fontSize: 7 }, theme: 'striped' });
+          const stCabCom = { fontSize: 7, fontStyle: 'bold', halign: 'center', fillColor: [249, 115, 22], textColor: [255, 255, 255] };
+          const stProdCom = { fontSize: 7, fontStyle: 'bold', halign: 'center', fillColor: [67, 56, 202], textColor: [255, 255, 255] };
+          const stPresCom = { fontSize: 6, fontStyle: 'bold', halign: 'center', fillColor: [224, 231, 255], textColor: [67, 56, 202] };
+          const head = [
+            [
+              { content: 'Empleado', rowSpan: 2, styles: stCabCom },
+              ...comGrupos.map(g => ({ content: g.producto, colSpan: g.presentaciones.length, styles: stProdCom })),
+              { content: 'Comisión', rowSpan: 2, styles: stCabCom },
+              { content: 'Líq. Panadería', rowSpan: 2, styles: stCabCom },
+              { content: 'Gasto Extra', rowSpan: 2, styles: stCabCom },
+              { content: 'Neto a Entregar', rowSpan: 2, styles: stCabCom }
+            ],
+            comColumnas.map(c => ({ content: c.presentacion, styles: stPresCom }))
+          ];
+          const rows = empleados.map(e => [e.empleado, ...comColumnas.map(c => e.celdas[c.key] ?? '-'), `${e.total_comision.toFixed(2)} Bs.`, `${e.total_liquido.toFixed(2)} Bs.`, `${e.total_gasto_extra.toFixed(2)} Bs.`, `${e.neto_a_entregar.toFixed(2)} Bs.`]);
+          autoTable(doc, { head, body: rows, startY, styles: { fontSize: 7 }, theme: 'striped' });
           startY = doc.lastAutoTable.finalY + 10;
         }
       }
@@ -3325,31 +3367,44 @@ const exportarPDF = async () => {
         if (chH1 !== null || chH2 !== null) startY += Math.max(chH1 || 0, chH2 || 0) + 10
 
         const empMap = {}
-        const prodSet = new Set()
+        const comItems = []
         sem.groups.forEach(group => {
           if (Array.isArray(group.controles)) group.controles.forEach(control => {
-            if (!empMap[control.empleado]) empMap[control.empleado] = { empleado: control.empleado, total_comision: 0, total_liquido: 0, total_gasto_extra: 0, neto_a_entregar: 0, productoMap: {} }
+            if (!empMap[control.empleado]) empMap[control.empleado] = { empleado: control.empleado, total_comision: 0, total_liquido: 0, total_gasto_extra: 0, neto_a_entregar: 0, celdas: {} }
             empMap[control.empleado].total_gasto_extra += Number(control.total_gasto_extra || 0)
             if (Array.isArray(control.detalles)) control.detalles.forEach(det => {
-              prodSet.add(det.producto)
-              const pname = det.producto
-              empMap[control.empleado].productoMap[pname] = (empMap[control.empleado].productoMap[pname] || 0) + Number(det.cantidad_vendida || 0)
+              comItems.push(det)
+              const key = comColKey(det.producto, comPresLabel(det))
+              empMap[control.empleado].celdas[key] = (empMap[control.empleado].celdas[key] || 0) + Number(det.cantidad_vendida || 0)
               empMap[control.empleado].total_comision += Number(det.comision_total || 0)
               empMap[control.empleado].total_liquido += Number(det.liquido_panaderia || 0)
             })
           })
         })
         Object.values(empMap).forEach(e => { e.neto_a_entregar = e.total_liquido - e.total_gasto_extra })
-        const prodUnicos = [...prodSet]
+        const { grupos: comGrupos, columnas: comColumnas } = comBuildColumnas(comItems)
         const empleados = Object.values(empMap)
-        if (empleados.length && prodUnicos.length) {
+        if (empleados.length && comColumnas.length) {
           if (startY > 240) { doc.addPage('l'); startY = 50 }
           doc.setFontSize(10); doc.setTextColor(0); doc.setFont(undefined, 'bold')
           doc.text('Resumen de Comisiones', 14, startY)
           startY += 7
-          const col = ["Empleado", ...prodUnicos, "Comisión", "Líq. Panadería", "Gasto Extra", "Neto a Entregar"]
-          const rows = empleados.map(e => [e.empleado, ...prodUnicos.map(p => e.productoMap[p] ?? '-'), `${e.total_comision.toFixed(2)} Bs.`, `${e.total_liquido.toFixed(2)} Bs.`, `${e.total_gasto_extra.toFixed(2)} Bs.`, `${e.neto_a_entregar.toFixed(2)} Bs.`])
-          autoTable(doc, { head: [col], body: rows, startY, styles: { fontSize: 6 }, theme: 'striped' })
+          const stCabCom = { fontSize: 6, fontStyle: 'bold', halign: 'center', fillColor: [249, 115, 22], textColor: [255, 255, 255] };
+          const stProdCom = { fontSize: 6, fontStyle: 'bold', halign: 'center', fillColor: [67, 56, 202], textColor: [255, 255, 255] };
+          const stPresCom = { fontSize: 6, fontStyle: 'bold', halign: 'center', fillColor: [224, 231, 255], textColor: [67, 56, 202] };
+          const head = [
+            [
+              { content: 'Empleado', rowSpan: 2, styles: stCabCom },
+              ...comGrupos.map(g => ({ content: g.producto, colSpan: g.presentaciones.length, styles: stProdCom })),
+              { content: 'Comisión', rowSpan: 2, styles: stCabCom },
+              { content: 'Líq. Panadería', rowSpan: 2, styles: stCabCom },
+              { content: 'Gasto Extra', rowSpan: 2, styles: stCabCom },
+              { content: 'Neto a Entregar', rowSpan: 2, styles: stCabCom }
+            ],
+            comColumnas.map(c => ({ content: c.presentacion, styles: stPresCom }))
+          ];
+          const rows = empleados.map(e => [e.empleado, ...comColumnas.map(c => e.celdas[c.key] ?? '-'), `${e.total_comision.toFixed(2)} Bs.`, `${e.total_liquido.toFixed(2)} Bs.`, `${e.total_gasto_extra.toFixed(2)} Bs.`, `${e.neto_a_entregar.toFixed(2)} Bs.`])
+          autoTable(doc, { head, body: rows, startY, styles: { fontSize: 6 }, theme: 'striped' })
           startY = doc.lastAutoTable.finalY + 8
         }
 
@@ -5297,30 +5352,47 @@ const exportarExcel = () => {
     wsRes['!cols'] = [{ wch: 25 }, { wch: 20 }];
     XLSX.utils.book_append_sheet(workbook, wsRes, "Resumen");
 
-    // Sheet 2: Consolidado
+// Sheet 2: Consolidado
     if (comisionConsolidada.value?.reporte?.length) {
-      const consolidado = comisionConsolidada.value;
-      const productosUnicos = [];
-      const prodSet = new Set();
+      const consolidado = comisionConsolidado.value;
+      const comItems = [];
       consolidado.reporte.forEach(group => {
-        group.empleados?.forEach(emp => {
-          emp.productos?.forEach(p => {
-            if (!prodSet.has(p.producto)) { prodSet.add(p.producto); productosUnicos.push(p.producto); }
-          });
-        });
+        group.empleados?.forEach(emp => { emp.productos?.forEach(p => comItems.push(p)); });
       });
+      const { grupos: comGrupos, columnas: comColumnas } = comBuildColumnas(comItems);
 
-      const wsCons = {}; rIdx = 0;
-      const consHeader = ['Empleado', ...productosUnicos, 'Total Comisión', 'Líq. Panadería'];
-      consHeader.forEach((h, c) => {
-        wsCons[XLSX.utils.encode_cell({ r: rIdx, c })] = { t: 's', v: String(h), s: { font: { bold: true }, fill: blueBg } };
+      const wsCons = {};
+      const merges = [];
+      const colComision = 1 + comColumnas.length;
+      wsCons[XLSX.utils.encode_cell({ r: 0, c: 0 })] = { t: 's', v: 'Empleado', s: { font: { bold: true }, fill: blueBg } };
+      merges.push({ s: { r: 0, c: 0 }, e: { r: 1, c: 0 } });
+      let cursor = 1;
+      comGrupos.forEach(g => {
+        wsCons[XLSX.utils.encode_cell({ r: 0, c: cursor })] = { t: 's', v: String(g.producto), s: { font: { bold: true }, fill: blueBg } };
+        if (g.presentaciones.length > 1) merges.push({ s: { r: 0, c: cursor }, e: { r: 0, c: cursor + g.presentaciones.length - 1 } });
+        g.presentaciones.forEach((p, i) => {
+          wsCons[XLSX.utils.encode_cell({ r: 1, c: cursor + i })] = { t: 's', v: String(p.presentacion), s: { font: { bold: true }, fill: blueBg } };
+        });
+        cursor += g.presentaciones.length;
       });
-      rIdx++;
+      ['Total Comisión', 'Líq. Panadería'].forEach((h, i) => {
+        wsCons[XLSX.utils.encode_cell({ r: 0, c: colComision + i })] = { t: 's', v: h, s: { font: { bold: true }, fill: blueBg } };
+        merges.push({ s: { r: 0, c: colComision + i }, e: { r: 1, c: colComision + i } });
+      });
+      rIdx = 2;
+      const celdasPorEmpleado = emp => {
+        const celdas = {};
+        comColumnas.forEach(c => { celdas[c.key] = 0; });
+        emp.productos?.forEach(p => {
+          const key = comColKey(p.producto, comPresLabel(p));
+          if (key in celdas) celdas[key] += Number(p.cantidad_total || 0);
+        });
+        return celdas;
+      };
       consolidado.reporte.forEach(group => {
         group.empleados?.forEach(emp => {
-          const prodMap = {};
-          emp.productos?.forEach(p => { prodMap[p.producto] = Number(p.cantidad_total || 0); });
-          const row = [emp.empleado, ...productosUnicos.map(p => prodMap[p] || ''), Number(emp.total_comision), Number(emp.total_liquido_panaderia)];
+          const celdas = celdasPorEmpleado(emp);
+          const row = [emp.empleado, ...comColumnas.map(c => celdas[c.key] || 0), Number(emp.total_comision), Number(emp.total_liquido_panaderia)];
           row.forEach((val, c) => {
             const cell = { v: val }; if (typeof val === 'number') { cell.t = 'n'; cell.z = '#,##0.00'; } else cell.t = 's';
             wsCons[XLSX.utils.encode_cell({ r: rIdx, c })] = cell;
@@ -5328,8 +5400,9 @@ const exportarExcel = () => {
           rIdx++;
         });
       });
-      wsCons['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rIdx - 1, c: consHeader.length - 1 } });
-      wsCons['!cols'] = consHeader.map(() => ({ wch: 20 }));
+      wsCons['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: Math.max(rIdx - 1, 1), c: colComision + 1 } });
+      wsCons['!cols'] = [{ wch: 25 }, ...comColumnas.map(() => ({ wch: 10 })), { wch: 18 }, { wch: 18 }];
+      wsCons['!merges'] = merges;
       XLSX.utils.book_append_sheet(workbook, wsCons, "Consolidado");
     }
 
