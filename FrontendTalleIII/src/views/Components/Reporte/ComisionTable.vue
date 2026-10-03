@@ -58,7 +58,7 @@
                   </tr>
                   <tr class="bg-gray-50/30">
                     <th v-for="col in (weeklyConsolidados[sem.fecha]?.columnas || [])" :key="col.key"
-                        :title="`${col.producto} - ${col.presentacion}`"
+                        :title="col.etiqueta && col.etiqueta !== col.presentacion ? `${col.producto} - ${col.presentacion} (${col.etiqueta})` : `${col.producto} - ${col.presentacion}`"
                         class="px-1 py-1 text-[9px] font-black text-gray-500 uppercase tracking-wide border-b border-r text-center min-w-[34px] whitespace-nowrap">
                       {{ col.presentacion }}
                     </th>
@@ -208,7 +208,7 @@
                           </tr>
                         </template>
                           <tr class="bg-blue-50/20">
-                            <td colspan="10" class="p-2 text-right text-[10px] font-black text-gray-400 uppercase tracking-widest border-b">Totales del Control:</td>
+                            <td colspan="8" class="p-2 text-right text-[10px] font-black text-gray-400 uppercase tracking-widest border-b">Totales del Control:</td>
                             <td class="p-2 text-right border-b font-black text-blue-600">{{ Number(control.total_comision).toFixed(2) }}</td>
                             <td class="p-2 text-right border-b font-black text-emerald-600">{{ Number(control.total_liquido_panaderia).toFixed(2) }}</td>
                             <td class="p-2 text-right border-b font-black text-red-500">{{ Number(control.total_gasto_extra || 0).toFixed(2) }}</td>
@@ -266,7 +266,7 @@
             </tr>
             <tr class="bg-gray-50/30">
               <th v-for="col in processedConsolidado.columnas" :key="col.key"
-                  :title="`${col.producto} - ${col.presentacion}`"
+                  :title="col.etiqueta && col.etiqueta !== col.presentacion ? `${col.producto} - ${col.presentacion} (${col.etiqueta})` : `${col.producto} - ${col.presentacion}`"
                   class="px-1 py-1 text-[9px] font-black text-gray-500 uppercase tracking-wide border-b border-r text-center min-w-[38px] whitespace-nowrap">
                 {{ col.presentacion }}
               </th>
@@ -462,6 +462,8 @@
                             <td class="p-4 border-b border-gray-100 text-sm text-right text-blue-600">{{ Number(det.comision_unitaria).toFixed(2) }}</td>
                             <td class="p-4 border-b border-gray-100 text-sm text-right font-bold text-blue-600">{{ Number(det.comision_total).toFixed(2) }}</td>
                             <td class="p-4 border-b border-gray-100 text-sm text-right font-bold text-emerald-600">{{ Number(det.liquido_panaderia).toFixed(2) }}</td>
+                            <td v-if="detIdx === 0" :rowspan="control.totalDetalleRows" class="p-4 border-b border-gray-100 text-sm text-right font-bold text-red-500">{{ Number(control.total_gasto_extra || 0).toFixed(2) }}</td>
+                            <td v-if="detIdx === 0" :rowspan="control.totalDetalleRows" class="p-4 border-b border-gray-100 text-sm text-right font-bold text-red-700 bg-orange-50/20">{{ Number(control.neto_a_entregar || control.total_liquido_panaderia).toFixed(2) }}</td>
                           </tr>
                           <tr v-for="(ajuste, aIdx) in (det.precios_ajustados || [])" :key="control.idcontrol + '-ajuste-' + detIdx + '-' + aIdx"
                               v-show="isExpandedAjustes(control.idcontrol + '-' + detIdx)"
@@ -479,7 +481,7 @@
                             <td class="p-2 text-center font-bold text-amber-700 border-b border-amber-100">{{ Number(ajuste.cantidad || 0) }}</td>
                             <td class="p-2 border-b border-amber-100"></td>
                             <td class="p-2 text-right font-bold text-amber-700 border-b border-amber-100">{{ Number(ajuste.precio_venta || 0).toFixed(2) }}</td>
-                            <td class="p-2 text-[10px] text-amber-600 font-semibold border-b border-amber-100" colspan="4">{{ ajuste.estado || '' }}</td>
+                            <td class="p-2 text-[10px] text-amber-600 font-semibold border-b border-amber-100" colspan="5">{{ ajuste.estado || '' }}</td>
                           </tr>
                         </template>
                         <tr class="bg-blue-50/20">
@@ -516,6 +518,12 @@ import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { Chart, registerables } from 'chart.js'
 import { getWeekStart as sharedWeekStart, getWeekLabel as sharedWeekLabel } from './useSemana'
 import {
+  claveColumna,
+  construirColumnas,
+  construirCeldas,
+  sumarColumnas
+} from './useComisionColumnas'
+import {
   User, BarChart3, Trophy, TrendingUp, TrendingDown, Users, 
   ChevronDown, ChevronRight, Clock, Package, Store, Search, List, Calendar
 } from 'lucide-vue-next'
@@ -541,40 +549,6 @@ const props = defineProps({
   }
 })
 
-const SIN_PRODUCTO = 'Sin Producto'
-const SIN_PRESENTACION = 'S/D'
-
-const claveColumna = (producto, presentacion) =>
-  `${String(producto || SIN_PRODUCTO)}||${String(presentacion || SIN_PRESENTACION)}`
-
-const etiquetaPresentacion = (item) => {
-  const abreviatura = String(item?.presentacion_abreviatura || '').trim()
-  if (abreviatura) return abreviatura
-  const nombre = String(item?.presentacion || '').trim()
-  return nombre || SIN_PRESENTACION
-}
-
-const construirColumnas = (items) => {
-  const grupos = []
-  const porProducto = {}
-  const columnas = []
-  items.forEach(item => {
-    const producto = String(item?.producto || SIN_PRODUCTO)
-    if (!porProducto[producto]) {
-      porProducto[producto] = { producto, presentaciones: [] }
-      grupos.push(porProducto[producto])
-    }
-    const grupo = porProducto[producto]
-    const presentacion = etiquetaPresentacion(item)
-    if (!grupo.presentaciones.some(p => p.presentacion === presentacion)) {
-      const columna = { key: claveColumna(producto, presentacion), producto, presentacion }
-      grupo.presentaciones.push(columna)
-      columnas.push(columna)
-    }
-  })
-  return { grupos, columnas }
-}
-
 const processedConsolidado = computed(() => {
   const data = props.consolidado?.reporte || [];
   if (!Array.isArray(data) || data.length === 0) return { empleados: [], grupos: [], columnas: [], totalPorColumna: {}, totalComisionGlobal: 0, totalLiquidoGlobal: 0, totalGastoExtraGlobal: 0, totalNetoEntregarGlobal: 0 };
@@ -583,28 +557,17 @@ const processedConsolidado = computed(() => {
   data.forEach(emp => (emp.productos || []).forEach(p => items.push(p)));
   const { grupos, columnas } = construirColumnas(items);
 
-  const empleados = data.map(emp => {
-    const celdas = {};
-    columnas.forEach(col => { celdas[col.key] = 0 });
-    (emp.productos || []).forEach(p => {
-      const key = claveColumna(p.producto, etiquetaPresentacion(p));
-      if (key in celdas) celdas[key] += Number(p.cantidad_total || 0);
-    });
-    return {
-      empleado: emp.empleado,
-      idempleado: emp.idempleado,
-      total_comision: Number(emp.total_comision || 0),
-      total_liquido_panaderia: Number(emp.total_liquido_panaderia || 0),
-      total_gasto_extra: Number(emp.total_gasto_extra || 0),
-      neto_a_entregar: Number(emp.neto_a_entregar || emp.total_liquido_panaderia || 0),
-      celdas
-    };
-  });
+  const empleados = data.map(emp => ({
+    empleado: emp.empleado,
+    idempleado: emp.idempleado,
+    total_comision: Number(emp.total_comision || 0),
+    total_liquido_panaderia: Number(emp.total_liquido_panaderia || 0),
+    total_gasto_extra: Number(emp.total_gasto_extra || 0),
+    neto_a_entregar: Number(emp.neto_a_entregar || emp.total_liquido_panaderia || 0),
+    celdas: construirCeldas(emp.productos || [], columnas, 'cantidad_total')
+  }));
 
-  const totalPorColumna = {};
-  columnas.forEach(col => {
-    totalPorColumna[col.key] = empleados.reduce((sum, emp) => sum + (emp.celdas[col.key] || 0), 0);
-  });
+  const totalPorColumna = sumarColumnas(empleados, columnas);
 
   const totalComisionGlobal = empleados.reduce((sum, emp) => sum + emp.total_comision, 0);
   const totalLiquidoGlobal = empleados.reduce((sum, emp) => sum + emp.total_liquido_panaderia, 0);
@@ -666,29 +629,28 @@ const processedDetallado = computed(() => {
 const weeklyConsolidados = computed(() => {
   const result = {}
   processedDetallado.value.forEach(sem => {
-    const empleadosMap = {}
+    const empleadosMap = new Map()
     const items = []
     sem.controles.forEach(c => {
-      if (!empleadosMap[c.idempleado]) {
-        empleadosMap[c.idempleado] = { empleado: c.empleado, idempleado: c.idempleado, total_comision: 0, total_liquido_panaderia: 0, total_gasto_extra: 0, neto_a_entregar: 0, celdas: {} }
+      if (!empleadosMap.has(c.idempleado)) {
+        empleadosMap.set(c.idempleado, { empleado: c.empleado, idempleado: c.idempleado, total_comision: 0, total_liquido_panaderia: 0, total_gasto_extra: 0, neto_a_entregar: 0, detalles: [] })
       }
-      const emp = empleadosMap[c.idempleado]
+      const emp = empleadosMap.get(c.idempleado)
       emp.total_comision += Number(c.total_comision || 0)
       emp.total_liquido_panaderia += Number(c.total_liquido_panaderia || 0)
       emp.total_gasto_extra += Number(c.total_gasto_extra || 0)
       emp.neto_a_entregar += Number(c.neto_a_entregar || c.total_liquido_panaderia || 0)
       ;(c.detalles || []).forEach(d => {
         items.push(d)
-        const key = claveColumna(d.producto, etiquetaPresentacion(d))
-        emp.celdas[key] = (emp.celdas[key] || 0) + Number(d.cantidad_vendida || 0)
+        emp.detalles.push(d)
       })
     })
     const { grupos, columnas } = construirColumnas(items)
-    const empleados = Object.values(empleadosMap)
-    const totalPorColumna = {}
-    columnas.forEach(col => {
-      totalPorColumna[col.key] = empleados.reduce((sum, emp) => sum + (emp.celdas[col.key] || 0), 0)
-    })
+    const empleados = [...empleadosMap.values()].map(emp => ({
+      ...emp,
+      celdas: construirCeldas(emp.detalles, columnas, 'cantidad_vendida')
+    }))
+    const totalPorColumna = sumarColumnas(empleados, columnas)
     result[sem.fecha] = {
       empleados, grupos, columnas, totalPorColumna,
       totalComisionGlobal: empleados.reduce((s, e) => s + e.total_comision, 0),

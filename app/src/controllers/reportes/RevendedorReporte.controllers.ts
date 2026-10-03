@@ -73,6 +73,7 @@ export const getReporteRevendedorConsolidado = async (req: Request, res: Respons
           COALESCE(per.nombre, per_dir.nombre) || ' ' || COALESCE(COALESCE(per.apellidopaterno, per_dir.apellidopaterno), '') as empleado,
           prod.idproducto,
           prod.nombre as producto,
+          pm.idpresentacion,
           COALESCE(pre.nombre, 'Sin Presentacion') as presentacion,
           COALESCE(NULLIF(pre.abreviatura, ''), pre.nombre, 'Sin Presentacion') as presentacion_abreviatura,
           SUM(dc.vendido_total) as cantidad_total,
@@ -86,6 +87,7 @@ export const getReporteRevendedorConsolidado = async (req: Request, res: Respons
         JOIN producto prod ON pm.idproducto = prod.idproducto
         LEFT JOIN presentacion pre ON pm.idpresentacion = pre.idpresentacion
         GROUP BY dc.persona_id, COALESCE(per.nombre, per_dir.nombre), COALESCE(per.apellidopaterno, per_dir.apellidopaterno), prod.idproducto, prod.nombre,
+                 pm.idpresentacion,
                  COALESCE(pre.nombre, 'Sin Presentacion'), COALESCE(NULLIF(pre.abreviatura, ''), pre.nombre, 'Sin Presentacion')
       ),
       gasto_extra_agg AS (
@@ -103,6 +105,7 @@ export const getReporteRevendedorConsolidado = async (req: Request, res: Respons
             'producto', pe.producto,
             'idproducto', pe.idproducto,
             'presentacion', pe.presentacion,
+            'idpresentacion', pe.idpresentacion,
             'presentacion_abreviatura', pe.presentacion_abreviatura,
             'cantidad_total', pe.cantidad_total,
             'comision', pe.comision,
@@ -232,8 +235,10 @@ export const getReporteRevendedorDetallado = async (req: Request, res: Response)
           s.nombre as sucursal,
           json_agg(json_build_object(
             'iddetalle', dc.idrevendedorcontroldetalle,
+            'idproducto', prod.idproducto,
             'producto', prod.nombre,
-            'presentacion', pre.nombre,
+            'presentacion', COALESCE(pre.nombre, 'Sin Presentacion'),
+            'idpresentacion', pm.idpresentacion,
             'presentacion_abreviatura', COALESCE(NULLIF(pre.abreviatura, ''), pre.nombre, 'Sin Presentacion'),
             'cantidad_entregada', dc.cantidadentregada,
             'cantidad_devuelta', dc.cantidaddevuelta,
@@ -284,7 +289,7 @@ export const getReporteRevendedorDetallado = async (req: Request, res: Response)
         JOIN sucursal s ON rc.idsucursal = s.idsucursal
         JOIN productomedida pm ON dc.idproductomedida = pm.idproductomedida
         JOIN producto prod ON pm.idproducto = prod.idproducto
-        JOIN presentacion pre ON pm.idpresentacion = pre.idpresentacion
+        LEFT JOIN presentacion pre ON pm.idpresentacion = pre.idpresentacion
         GROUP BY rc.fecha, rc.idrevendedorcontrol, rc.observacion, rc.gastoextra, COALESCE(per.nombre, per_dir.nombre), COALESCE(per.apellidopaterno, per_dir.apellidopaterno), COALESCE(rc.idempleado, rc.idpersona), rc.idempleado, rc.idpersona, per_dir.idpersona, per_dir.nombre, per_dir.apellidopaterno, per_dir.apellidomaterno, s.nombre
       )
       SELECT 

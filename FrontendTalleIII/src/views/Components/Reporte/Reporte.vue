@@ -187,6 +187,7 @@ import ResumenGananciasDiarias from './ResumenGananciasDiarias.vue'
 
 import logoMasasCori from '@/views/assets/LogoMasasCorir.png';
 import { useInicioSemana, useFinSemana, getAnchorWeekday, getWeekStart as semanaGetWeekStart, getWeekLabel as semanaGetWeekLabel } from './useSemana'
+import { claveColumna, construirColumnas } from './useComisionColumnas'
 
 // --- Lógica de Pestañas ---
 const activeTab = ref('financiero');
@@ -1001,34 +1002,6 @@ const addChartDataToWorkbook = (wb, sheetName, labels, datasets) => {
   XLSX.utils.book_append_sheet(wb, ref, sheetName);
 };
 
-const comPresLabel = (item) => {
-  const abreviatura = String(item?.presentacion_abreviatura || '').trim();
-  if (abreviatura) return abreviatura;
-  const nombre = String(item?.presentacion || '').trim();
-  return nombre || 'S/D';
-};
-const comColKey = (producto, presentacion) => `${String(producto || 'Sin Producto')}||${String(presentacion || 'S/D')}`;
-const comBuildColumnas = (items) => {
-  const grupos = [];
-  const porProducto = {};
-  const columnas = [];
-  items.forEach(it => {
-    const producto = String(it?.producto || 'Sin Producto');
-    if (!porProducto[producto]) {
-      porProducto[producto] = { producto, presentaciones: [] };
-      grupos.push(porProducto[producto]);
-    }
-    const grupo = porProducto[producto];
-    const presentacion = comPresLabel(it);
-    if (!grupo.presentaciones.some(p => p.presentacion === presentacion)) {
-      const columna = { key: comColKey(producto, presentacion), producto, presentacion };
-      grupo.presentaciones.push(columna);
-      columnas.push(columna);
-    }
-  });
-  return { grupos, columnas };
-};
-
 watch(activeTab, () => {
     clearTimeout(filtrosTimer);
     filtros.value.vendedor = "";
@@ -1216,23 +1189,14 @@ const generarReporte = async () => {
     if (consolidado && consolidado.totalesGlobales) {
       indicadores.value.totalVentas = Number(consolidado.totalesGlobales.total_comision_empleados) || 0;
       indicadores.value.gananciaNeta = Number(consolidado.totalesGlobales.total_ganancia_panaderia) || 0;
-      if (consolidado.reporte) {
-        let totalProductos = 0;
-        consolidado.reporte.forEach(g => {
-          if (g.empleados) {
-            g.empleados.forEach(e => {
-              if (e.productos) {
-                totalProductos += e.productos.reduce((acc, p) => acc + Number(p.cantidad_total || 0), 0);
-              }
-            });
-          }
-        });
+      if (Array.isArray(consolidado.reporte)) {
+        // `reporte` del consolidado es un array de empleados, no de grupos.
+        const totalProductos = consolidado.reporte.reduce(
+          (acc, e) => acc + (e.productos || []).reduce((s, p) => s + Number(p.cantidad_total || 0), 0),
+          0
+        );
         indicadores.value.productosVendidos = totalProductos;
-        const totalEmpleados = new Set();
-        consolidado.reporte.forEach(g => {
-          if (g.empleados) g.empleados.forEach(e => totalEmpleados.add(e.idempleado));
-        });
-        indicadores.value.clientes = totalEmpleados.size;
+        indicadores.value.clientes = new Set(consolidado.reporte.map(e => e.idempleado)).size;
       }
     }
   } else if (activeTab.value === 'produccion') {
@@ -3238,7 +3202,7 @@ const exportarPDF = async () => {
         startY += Math.max(chCo1, chCo2) + 15;
 
         const empRows = [];
-        (comisionConsolidada.value?.reporte || []).forEach(g => { if (Array.isArray(g.empleados)) g.empleados.forEach(emp => { empRows.push([emp.empleado, `${Number(emp.total_comision || 0).toFixed(2)} Bs.`, `${Number(emp.total_liquido_panaderia || 0).toFixed(2)} Bs.`, `${Number(emp.total_gasto_extra || 0).toFixed(2)} Bs.`, `${Number(emp.neto_a_entregar || emp.total_liquido_panaderia || 0).toFixed(2)} Bs.`]); }) });
+        (comisionConsolidada.value?.reporte || []).forEach(emp => { if (emp && emp.empleado) empRows.push([emp.empleado, `${Number(emp.total_comision || 0).toFixed(2)} Bs.`, `${Number(emp.total_liquido_panaderia || 0).toFixed(2)} Bs.`, `${Number(emp.total_gasto_extra || 0).toFixed(2)} Bs.`, `${Number(emp.neto_a_entregar || emp.total_liquido_panaderia || 0).toFixed(2)} Bs.`]); });
         if (empRows.length) {
           autoTable(doc, {
             head: [['Empleado', 'Comisión', 'Líq. Panadería', 'Gasto Extra', 'Neto a Entregar']],
@@ -3258,7 +3222,7 @@ const exportarPDF = async () => {
             empMap[c.empleado].total_gasto_extra += Number(c.total_gasto_extra || 0)
             if (Array.isArray(c.detalles)) c.detalles.forEach(d => {
               comItems.push(d)
-              const key = comColKey(d.producto, comPresLabel(d))
+              const key = claveColumna(d)
               empMap[c.empleado].celdas[key] = (empMap[c.empleado].celdas[key] || 0) + Number(d.cantidad_vendida || 0)
               empMap[c.empleado].total_comision += Number(d.comision_total || 0)
               empMap[c.empleado].total_liquido += Number(d.liquido_panaderia || 0)
@@ -3266,7 +3230,7 @@ const exportarPDF = async () => {
           })
         })
         Object.values(empMap).forEach(e => { e.neto_a_entregar = e.total_liquido - e.total_gasto_extra })
-        const { grupos: comGrupos, columnas: comColumnas } = comBuildColumnas(comItems)
+        const { grupos: comGrupos, columnas: comColumnas } = construirColumnas(comItems)
         const empleados = Object.values(empMap)
         if (empleados.length) {
           if (startY > 240) { doc.addPage('l'); startY = 50 }
@@ -3374,7 +3338,7 @@ const exportarPDF = async () => {
             empMap[control.empleado].total_gasto_extra += Number(control.total_gasto_extra || 0)
             if (Array.isArray(control.detalles)) control.detalles.forEach(det => {
               comItems.push(det)
-              const key = comColKey(det.producto, comPresLabel(det))
+              const key = claveColumna(det)
               empMap[control.empleado].celdas[key] = (empMap[control.empleado].celdas[key] || 0) + Number(det.cantidad_vendida || 0)
               empMap[control.empleado].total_comision += Number(det.comision_total || 0)
               empMap[control.empleado].total_liquido += Number(det.liquido_panaderia || 0)
@@ -3382,7 +3346,7 @@ const exportarPDF = async () => {
           })
         })
         Object.values(empMap).forEach(e => { e.neto_a_entregar = e.total_liquido - e.total_gasto_extra })
-        const { grupos: comGrupos, columnas: comColumnas } = comBuildColumnas(comItems)
+        const { grupos: comGrupos, columnas: comColumnas } = construirColumnas(comItems)
         const empleados = Object.values(empMap)
         if (empleados.length && comColumnas.length) {
           if (startY > 240) { doc.addPage('l'); startY = 50 }
@@ -5356,10 +5320,11 @@ const exportarExcel = () => {
     if (comisionConsolidada.value?.reporte?.length) {
       const consolidado = comisionConsolidado.value;
       const comItems = [];
-      consolidado.reporte.forEach(group => {
-        group.empleados?.forEach(emp => { emp.productos?.forEach(p => comItems.push(p)); });
+      // `reporte` del consolidado es un array de empleados, no de grupos.
+      consolidado.reporte.forEach(emp => {
+        (emp?.productos || []).forEach(p => comItems.push(p));
       });
-      const { grupos: comGrupos, columnas: comColumnas } = comBuildColumnas(comItems);
+      const { grupos: comGrupos, columnas: comColumnas } = construirColumnas(comItems);
 
       const wsCons = {};
       const merges = [];
@@ -5384,21 +5349,19 @@ const exportarExcel = () => {
         const celdas = {};
         comColumnas.forEach(c => { celdas[c.key] = 0; });
         emp.productos?.forEach(p => {
-          const key = comColKey(p.producto, comPresLabel(p));
+          const key = claveColumna(p);
           if (key in celdas) celdas[key] += Number(p.cantidad_total || 0);
         });
         return celdas;
       };
-      consolidado.reporte.forEach(group => {
-        group.empleados?.forEach(emp => {
-          const celdas = celdasPorEmpleado(emp);
-          const row = [emp.empleado, ...comColumnas.map(c => celdas[c.key] || 0), Number(emp.total_comision), Number(emp.total_liquido_panaderia)];
-          row.forEach((val, c) => {
-            const cell = { v: val }; if (typeof val === 'number') { cell.t = 'n'; cell.z = '#,##0.00'; } else cell.t = 's';
-            wsCons[XLSX.utils.encode_cell({ r: rIdx, c })] = cell;
-          });
-          rIdx++;
+      consolidado.reporte.forEach(emp => {
+        const celdas = celdasPorEmpleado(emp);
+        const row = [emp.empleado, ...comColumnas.map(c => celdas[c.key] || 0), Number(emp.total_comision || 0), Number(emp.total_liquido_panaderia || 0)];
+        row.forEach((val, c) => {
+          const cell = { v: val }; if (typeof val === 'number') { cell.t = 'n'; cell.z = '#,##0.00'; } else cell.t = 's';
+          wsCons[XLSX.utils.encode_cell({ r: rIdx, c })] = cell;
         });
+        rIdx++;
       });
       wsCons['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: Math.max(rIdx - 1, 1), c: colComision + 1 } });
       wsCons['!cols'] = [{ wch: 25 }, ...comColumnas.map(() => ({ wch: 10 })), { wch: 18 }, { wch: 18 }];
@@ -5438,7 +5401,7 @@ const exportarExcel = () => {
     const consCo = comisionConsolidada.value;
     if (consCo?.reporte?.length) {
       const empRows = [];
-      consCo.reporte.forEach(g => (g.empleados || []).forEach(emp => { empRows.push({ empleado: emp.empleado, comision: Number(emp.total_comision || 0), liquido: Number(emp.total_liquido_panaderia || 0) }); }));
+      consCo.reporte.forEach(emp => { empRows.push({ empleado: emp.empleado, comision: Number(emp.total_comision || 0), liquido: Number(emp.total_liquido_panaderia || 0) }); });
       if (empRows.length) {
         addChartDataToWorkbook(workbook, 'Gráfica Comisiones', empRows.map(e => e.empleado), [
           { label: 'Comisión (Bs.)', data: empRows.map(e => e.comision) },
