@@ -1799,7 +1799,7 @@ const exportarPDF = async () => {
           if (pRows.length) {
             autoTable(doc, {
               head: [['Variante', 'Contenido', 'Cant. Vendida', 'Total Cant.', 'Subtotal']],
-              body: pRows, startY, styles: { fontSize: 7 }
+              body: pRows, startY, styles: { fontSize: 7, lineWidth: 0.1, lineColor: [120, 120, 120] }, theme: 'grid'
             })
             startY = doc.lastAutoTable.finalY + 5
           }
@@ -1835,8 +1835,8 @@ const exportarPDF = async () => {
           const detRows = (promo.detalle_productos || []).map(d => [d.producto, d.presentacion, `x${d.cantidad_por_promo}`, `${d.total_unidades} uds.`])
           if (detRows.length) {
             autoTable(doc, {
-              head: [['Producto', 'Presentación', 'Cant. x Promo', 'Total Unidades']],
-              body: detRows, startY, styles: { fontSize: 7 }
+              head: [['Producto', 'Presentación', 'Cant. por Promo', 'Total Unidades']],
+              body: detRows, startY, styles: { fontSize: 7, lineWidth: 0.1, lineColor: [120, 120, 120] }, theme: 'grid'
             })
             startY = doc.lastAutoTable.finalY + 5
           }
@@ -1863,19 +1863,29 @@ const exportarPDF = async () => {
         doc.text(`Fecha: ${fmtPeriodo(dateGroup)} - Total: ${dateGroup.totalIngreso.toFixed(2)} Bs.`, 18, startY)
         startY += 8
 
-        const detRows = dateGroup.ventas.map(v => [
-          v.isFirstInSale ? v.cliente : '',
-          v.producto,
-          v.cantidad,
-          `${v.precio} Bs.`,
-          `${v.subtotal} Bs.`,
-          v.estado,
-          v.hasFactura ? v.nroFactura : 'S/F',
-          v.isFirstInSale ? `${v.precioTotalVenta} Bs.` : ''
-        ])
+        const detRows = []
+        dateGroup.ventas.forEach(v => {
+          const span = v.clientRowspan || 1
+          const sucLabel = v.sucursal === 'Cocina' || v.sucursal === 'cocina' ? 'Pedido' : (v.sucursal || '')
+          if (v.isFirstInSale) {
+            detRows.push([
+              { content: v.cliente, rowSpan: span },
+              { content: sucLabel, rowSpan: span },
+              v.producto,
+              v.cantidad,
+              `${v.precio} Bs.`,
+              `${v.subtotal} Bs.`,
+              { content: v.estado, rowSpan: span },
+              { content: v.hasFactura ? v.nroFactura : 'S/F', rowSpan: span },
+              { content: `${v.precioTotalVenta} Bs.`, rowSpan: span }
+            ])
+          } else {
+            detRows.push([v.producto, v.cantidad, `${v.precio} Bs.`, `${v.subtotal} Bs.`])
+          }
+        })
         autoTable(doc, {
-          head: [['Cliente', 'Producto', 'Cant.', 'P. Unit.', 'Subtotal', 'Estado', 'Factura', 'Total Venta']],
-          body: detRows, startY, styles: { fontSize: 7 }, columnStyles: { 0: { cellWidth: 25 }, 1: { cellWidth: 40 }, 7: { cellWidth: 20 } }
+          head: [['Cliente', 'Tienda/Sucursal', 'Producto', 'Cant.', 'P. Unit.', 'Subtotal', 'Estado', 'Factura', 'Total Venta']],
+          body: detRows, startY, styles: { fontSize: 7, lineWidth: 0.1, lineColor: [120, 120, 120] }, theme: 'grid', columnStyles: { 0: { cellWidth: 20 }, 1: { cellWidth: 20 }, 2: { cellWidth: 30 }, 8: { cellWidth: 20 } }
         })
         startY = doc.lastAutoTable.finalY + 3
       })
@@ -2010,14 +2020,25 @@ const exportarPDF = async () => {
           doc.text(`${g.totalIngreso.toFixed(2)} Bs.`, pageW - 40, startY)
           startY += 8
 
-          const detRows = g.ventas.map(v => [
-            v.isFirstInSale ? v.cliente : '',
-            v.producto, v.cantidad, `${v.precio} Bs.`, `${v.subtotal} Bs.`,
-            v.estado, v.hasFactura ? v.nroFactura : 'S/F'
-          ])
+          const detRows = []
+          g.ventas.forEach(v => {
+            const span = v.clientRowspan || 1
+            const sucLabel = v.sucursal === 'Cocina' || v.sucursal === 'cocina' ? 'Pedido' : (v.sucursal || '')
+            if (v.isFirstInSale) {
+              detRows.push([
+                { content: v.cliente, rowSpan: span },
+                { content: sucLabel, rowSpan: span },
+                v.producto, v.cantidad, `${v.precio} Bs.`, `${v.subtotal} Bs.`,
+                { content: v.estado, rowSpan: span },
+                { content: v.hasFactura ? v.nroFactura : 'S/F', rowSpan: span }
+              ])
+            } else {
+              detRows.push([v.producto, v.cantidad, `${v.precio} Bs.`, `${v.subtotal} Bs.`])
+            }
+          })
           autoTable(doc, {
-            head: [['Cliente', 'Producto', 'Cant.', 'P. Unit.', 'Subtotal', 'Estado', 'Factura']],
-            body: detRows, startY, styles: { fontSize: 6 }, columnStyles: { 0: { cellWidth: 25 }, 1: { cellWidth: 35 } }
+            head: [['Cliente', 'Tienda/Sucursal', 'Producto', 'Cant.', 'P. Unit.', 'Subtotal', 'Estado', 'Factura']],
+            body: detRows, startY, styles: { fontSize: 6, lineWidth: 0.1, lineColor: [120, 120, 120] }, theme: 'grid', columnStyles: { 0: { cellWidth: 20 }, 1: { cellWidth: 20 }, 2: { cellWidth: 30 } }
           })
           startY = doc.lastAutoTable.finalY + 3
         })
@@ -4764,7 +4785,7 @@ const exportarExcel = () => {
     const ws = {};
     const merges = [];
     let rowIndex = 0;
-    const header = ["Cliente", "Producto", "Cantidad", "Precio Unitario (Bs.)", "Subtotal (Bs.)", "Estado", "Factura"];
+    const header = ["Cliente", "Tienda/Sucursal", "Producto", "Cantidad", "Precio Unitario (Bs.)", "Subtotal (Bs.)", "Estado", "Factura"];
     header.forEach((h, c) => { const cellRef = XLSX.utils.encode_cell({ r: rowIndex, c }); ws[cellRef] = { t: 's', v: h, s: { font: { bold: true } } }; });
     rowIndex++;
     sortedVentas.value.forEach(dateGroup => {
@@ -4774,8 +4795,12 @@ const exportarExcel = () => {
         merges.push({ s: { r: rowIndex, c: 0 }, e: { r: rowIndex, c: header.length - 1 } });
         rowIndex++;
         dateGroup.ventas.forEach(venta => {
-          const row = [ venta.cliente, venta.producto, venta.cantidad, parseFloat(venta.precio), parseFloat(venta.subtotal), venta.estado, venta.hasFactura ? venta.nroFactura : 'S/F' ];
-          if (venta.isFirstInSale && venta.clientRowspan > 1) { merges.push({ s: { r: rowIndex, c: 0 }, e: { r: rowIndex + venta.clientRowspan - 1, c: 0 } }); }
+          const sucLabel = venta.sucursal === 'Cocina' || venta.sucursal === 'cocina' ? 'Pedido' : (venta.sucursal || '');
+          const row = [ venta.cliente, sucLabel, venta.producto, venta.cantidad, parseFloat(venta.precio), parseFloat(venta.subtotal), venta.estado, venta.hasFactura ? venta.nroFactura : 'S/F' ];
+          if (venta.isFirstInSale && venta.clientRowspan > 1) {
+            merges.push({ s: { r: rowIndex, c: 0 }, e: { r: rowIndex + venta.clientRowspan - 1, c: 0 } });
+            merges.push({ s: { r: rowIndex, c: 1 }, e: { r: rowIndex + venta.clientRowspan - 1, c: 1 } });
+          }
           row.forEach((val, c) => { const cellRef = XLSX.utils.encode_cell({ r: rowIndex, c }); const cell = { v: val }; if (typeof val === 'number') { cell.t = 'n'; } else { cell.t = 's'; } ws[cellRef] = cell; });
           rowIndex++;
         });
@@ -4784,7 +4809,7 @@ const exportarExcel = () => {
     const range = { s: { r: 0, c: 0 }, e: { r: rowIndex - 1, c: header.length - 1 } };
     ws['!ref'] = XLSX.utils.encode_range(range);
     ws['!merges'] = merges;
-    ws['!cols'] = [ { wch: 25 }, { wch: 25 }, { wch: 10 }, { wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 10 } ];
+    ws['!cols'] = [ { wch: 25 }, { wch: 18 }, { wch: 25 }, { wch: 10 }, { wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 10 } ];
     XLSX.utils.book_append_sheet(workbook, ws, "Detalle");
 
     // Hoja: Datos de Gráficas

@@ -110,21 +110,22 @@
                   <span class="text-xs text-gray-500">({{ day.ventas.length }} transacciones)</span>
                 </div>
                 <div class="overflow-x-auto">
-                  <table class="w-full text-left border-collapse">
-                    <thead>
-                      <tr class="bg-gray-50/30">
-                        <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b">Cliente</th>
-                        <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b">Producto / Detalle</th>
-                        <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-center">Cant.</th>
-                        <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-right">Unitario</th>
-                        <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-right">Subtotal</th>
-                        <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-right">Total Venta</th>
-                        <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-right">Gasto Extra</th>
-                        <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-right">Total Neto</th>
-                        <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-center">Estado</th>
-                        <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-center">Factura</th>
-                      </tr>
-                    </thead>
+                  <table class="ventas-detalle-table w-full text-left border-collapse">
+<thead>
+                        <tr class="bg-gray-50/30">
+                          <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b">Cliente</th>
+                          <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b">Tienda/Sucursal</th>
+                          <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b">Producto / Detalle</th>
+                          <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-center">Cant.</th>
+                          <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-right">Unitario</th>
+                          <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-right">Subtotal</th>
+                          <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-right">Total Venta</th>
+                          <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-right">Gasto Extra</th>
+                          <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-right">Total Neto</th>
+                          <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-center">Estado</th>
+                          <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-center">Factura</th>
+                        </tr>
+                      </thead>
                     <tbody>
                       <template v-for="(ventaData, idx) in day.ventas" :key="ventaData.idVenta + idx">
                         <tr class="hover:bg-gray-50/50 transition-colors group">
@@ -134,10 +135,11 @@
                               <div class="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center text-[10px] font-black text-gray-500">
                                 {{ ventaData.cliente.charAt(0) }}
                               </div>
-                              <span class="truncate max-w-[120px]">{{ ventaData.cliente }}</span>
-                            </div>
-                          </td>
-                          <td class="p-3 border-b border-gray-100 text-sm text-gray-600">{{ ventaData.producto }}</td>
+                            <span class="truncate max-w-[120px]">{{ ventaData.cliente }}</span>
+                          </div>
+                        </td>
+                        <td v-if="ventaData.isFirstInSale" :rowspan="ventaData.clientRowspan" class="p-3 border-b border-gray-100 text-sm font-medium text-gray-700">{{ ventaData.sucursal === 'Cocina' || ventaData.sucursal === 'cocina' ? 'Pedido' : (ventaData.sucursal || '-') }}</td>
+                        <td class="p-3 border-b border-gray-100 text-sm text-gray-600">{{ ventaData.producto }}</td>
                           <td class="p-3 border-b border-gray-100 text-sm text-gray-600 text-center font-bold">{{ ventaData.cantidad }}</td>
                           <td class="p-3 border-b border-gray-100 text-sm text-gray-600 text-right">{{ ventaData.precio }} Bs.</td>
                           <td class="p-3 border-b border-gray-100 text-sm font-bold text-gray-800 text-right">{{ ventaData.subtotal }} Bs.</td>
@@ -443,76 +445,78 @@
             </div>
           </button>
 
-          <div v-show="isExpanded(dateGroup.fecha)" class="overflow-x-auto border-t border-gray-100">
-            <table class="w-full text-left border-collapse">
-              <thead>
-                <tr class="bg-gray-50/30">
-                  <th class="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b">Cliente</th>
-                  <th class="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b">Producto / Detalle</th>
-                  <th class="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-center">Cant.</th>
-                  <th class="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-right">Unitario</th>
-                  <th class="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-right">Subtotal</th>
-                  <th class="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-right">Total Venta</th>
-                  <th class="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-right">Gasto Extra</th>
-                  <th class="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-right">Total Neto</th>
-                  <th class="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-center">Estado</th>
-                  <th class="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-center">Factura</th>
-                </tr>
-              </thead>
+            <div v-show="isExpanded(dateGroup.fecha)" class="overflow-x-auto border-t border-gray-100">
+              <table class="ventas-detalle-table w-full text-left border-collapse">
+                <thead>
+                 <tr class="bg-gray-50/30">
+                   <th class="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b">Cliente</th>
+                   <th class="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b">Tienda/Sucursal</th>
+                   <th class="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b">Producto / Detalle</th>
+                   <th class="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-center">Cant.</th>
+                   <th class="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-right">Unitario</th>
+                   <th class="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-right">Subtotal</th>
+                   <th class="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-right">Total Venta</th>
+                   <th class="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-right">Gasto Extra</th>
+                   <th class="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-right">Total Neto</th>
+                   <th class="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-center">Estado</th>
+                   <th class="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-center">Factura</th>
+                 </tr>
+               </thead>
               <tbody>
                 <template v-for="(ventaData, idx) in dateGroup.ventas" :key="ventaData.idVenta + idx">
                   <tr class="hover:bg-gray-50/50 transition-colors group">
-                    <td v-if="ventaData.isFirstInSale" :rowspan="ventaData.clientRowspan" 
-                        class="p-4 border-b border-gray-100 text-sm align-top font-bold text-gray-700">
-                      <div class="flex items-center gap-2">
-                        <div class="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center text-[10px] font-black text-gray-500">
-                          {{ ventaData.cliente.charAt(0) }}
-                        </div>
-                        <span class="truncate max-w-[120px]">{{ ventaData.cliente }}</span>
-                      </div>
-                    </td>
-                    <td class="p-4 border-b border-gray-100 text-sm text-gray-600">
-                      {{ ventaData.producto }}
-                    </td>
-                    <td class="p-4 border-b border-gray-100 text-sm text-gray-600 text-center font-bold">
-                      {{ ventaData.cantidad }}
-                    </td>
-                    <td class="p-4 border-b border-gray-100 text-sm text-gray-600 text-right">
-                      {{ ventaData.precio }} Bs.
-                    </td>
-                    <td class="p-4 border-b border-gray-100 text-sm font-bold text-gray-800 text-right">
-                      {{ ventaData.subtotal }} Bs.
-                    </td>
-                    <td v-if="ventaData.isFirstInSale" :rowspan="ventaData.clientRowspan" 
-                        class="p-4 border-b border-gray-100 text-sm font-black text-blue-700 text-right align-top bg-blue-50/20">
-                      {{ ventaData.precioTotalVenta }} Bs.
-                    </td>
-                    <td v-if="ventaData.isFirstInSale" :rowspan="ventaData.clientRowspan"
-                        class="p-4 border-b border-gray-100 text-sm font-bold text-orange-600 text-right align-top bg-orange-50/20">
-                      {{ ventaData.gastoextra && parseFloat(ventaData.gastoextra) > 0 ? ventaData.gastoextra + ' Bs.' : '-' }}
-                    </td>
-                    <td v-if="ventaData.isFirstInSale" :rowspan="ventaData.clientRowspan"
-                        class="p-4 border-b border-gray-100 text-sm font-black text-green-700 text-right align-top bg-green-50/20">
-                      {{ ventaData.totalNeto }} Bs.
-                    </td>
-                    <td v-if="ventaData.isFirstInSale" :rowspan="ventaData.clientRowspan" class="p-4 border-b border-gray-100 text-sm text-center align-top">
-                      <span :class="[
-                        'px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider',
-                        ventaData.estado === 'Pagado' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                      ]">
-                        {{ ventaData.estado }}
-                      </span>
-                    </td>
-                    <td v-if="ventaData.isFirstInSale" :rowspan="ventaData.clientRowspan" class="p-4 border-b border-gray-100 text-sm text-center align-top">
-                      <div v-if="ventaData.hasFactura" class="flex items-center justify-center">
-                        <a :href="ventaData.urlFactura" target="_blank" 
-                           class="flex items-center gap-1.5 text-blue-600 hover:text-blue-800 font-semibold transition-colors bg-blue-50 px-2 py-1 rounded-lg border border-blue-100">
-                          <FileText class="h-3 w-3" />
-                          <span class="text-xs">{{ ventaData.nroFactura.split('-').pop() }}</span>
-                        </a>
-                      </div>
-                      <span v-else class="text-gray-400 text-xs italic">S/F</span>
-                    </td>
+                     <td v-if="ventaData.isFirstInSale" :rowspan="ventaData.clientRowspan" 
+                         class="p-4 border-b border-gray-100 text-sm align-top font-bold text-gray-700">
+                       <div class="flex items-center gap-2">
+                         <div class="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center text-[10px] font-black text-gray-500">
+                           {{ ventaData.cliente.charAt(0) }}
+                         </div>
+                         <span class="truncate max-w-[120px]">{{ ventaData.cliente }}</span>
+                       </div>
+                     </td>
+                     <td v-if="ventaData.isFirstInSale" :rowspan="ventaData.clientRowspan" class="p-4 border-b border-gray-100 text-sm font-medium text-gray-700">{{ ventaData.sucursal === 'Cocina' || ventaData.sucursal === 'cocina' ? 'Pedido' : (ventaData.sucursal || '-') }}</td>
+                     <td class="p-4 border-b border-gray-100 text-sm text-gray-600">
+                       {{ ventaData.producto }}
+                     </td>
+                        <td class="p-4 border-b border-gray-100 text-sm text-gray-600 text-center font-bold">
+                          {{ ventaData.cantidad }}
+                        </td>
+                        <td class="p-4 border-b border-gray-100 text-sm text-gray-600 text-right">
+                          {{ ventaData.precio }} Bs.
+                        </td>
+                        <td class="p-4 border-b border-gray-100 text-sm font-bold text-gray-800 text-right">
+                          {{ ventaData.subtotal }} Bs.
+                        </td>
+                        <td v-if="ventaData.isFirstInSale" :rowspan="ventaData.clientRowspan" 
+                            class="p-4 border-b border-gray-100 text-sm font-black text-blue-700 text-right align-top bg-blue-50/20">
+                          {{ ventaData.precioTotalVenta }} Bs.
+                        </td>
+                        <td v-if="ventaData.isFirstInSale" :rowspan="ventaData.clientRowspan"
+                            class="p-4 border-b border-gray-100 text-sm font-bold text-orange-600 text-right align-top bg-orange-50/20">
+                          {{ ventaData.gastoextra && parseFloat(ventaData.gastoextra) > 0 ? ventaData.gastoextra + ' Bs.' : '-' }}
+                        </td>
+                        <td v-if="ventaData.isFirstInSale" :rowspan="ventaData.clientRowspan"
+                            class="p-4 border-b border-gray-100 text-sm font-black text-green-700 text-right align-top bg-green-50/20">
+                          {{ ventaData.totalNeto }} Bs.
+                        </td>
+                        <td v-if="ventaData.isFirstInSale" :rowspan="ventaData.clientRowspan" class="p-4 border-b border-gray-100 text-sm text-center align-top">
+                          <span :class="[
+                            'px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider',
+                            ventaData.estado === 'Pagado' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                          ]">
+                            {{ ventaData.estado }}
+                          </span>
+                        </td>
+                        <td v-if="ventaData.isFirstInSale" :rowspan="ventaData.clientRowspan" class="p-4 border-b border-gray-100 text-sm text-center align-top">
+                          <div v-if="ventaData.hasFactura" class="flex items-center justify-center">
+                            <a :href="ventaData.urlFactura" target="_blank" 
+                               class="flex items-center gap-1.5 text-blue-600 hover:text-blue-800 font-semibold transition-colors bg-blue-50 px-2 py-1 rounded-lg border border-blue-100">
+                              <FileText class="h-3 w-3" />
+                              <span class="text-xs">{{ ventaData.nroFactura.split('-').pop() }}</span>
+                            </a>
+                          </div>
+                          <span v-else class="text-gray-400 text-xs italic">S/F</span>
+                        </td>
                   </tr>
                 </template>
               </tbody>
@@ -823,6 +827,11 @@ defineExpose({
 }
 
 .animate-fade-in-up {
-  animation: fade-in-up 0.5s ease-out forwards;
+  animation: fade-in-up 0.3s ease-out forwards;
+}
+
+.ventas-detalle-table th,
+.ventas-detalle-table td {
+  border: 1px solid #e5e7eb;
 }
 </style>
