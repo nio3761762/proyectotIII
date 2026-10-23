@@ -144,6 +144,7 @@ export const registrarRevendedorControl = async (req: Request, res: Response) =>
     });
 
   } catch (error) {
+    console.error("Error al registrar controles de revendedor:", error);
     await queryRunner.rollbackTransaction();
     if (error instanceof HttpError) {
       return res.status(error.statusCode).json({ message: error.message });
