@@ -26,6 +26,7 @@ defineEmits(['update:activeTab'])
 const tabs = [
   { id: 'financiero', label: 'Financiero' },
   { id: 'ventas', label: 'Detalle de Ventas' },
+  { id: 'venta', label: 'Venta' },
   { id: 'pedidos', label: 'Detalle de Pedidos' },
   { id: 'transferencias', label: 'Transferencias' },
   { id: 'compras', label: 'Compras' },

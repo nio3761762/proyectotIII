@@ -1,5 +1,193 @@
 <template>
   <div class="space-y-10">
+    <!-- Resumen Mensual (Acordeón: Mes -> Semanas -> Días) -->
+    <div v-if="props.agruparPorMes" class="space-y-4">
+      <template v-for="mes in ventasMensualDetalle" :key="mes.monthKey">
+        <div class="bg-white rounded-3xl border border-2 border-orange-200 shadow-sm overflow-hidden">
+          <div class="px-6 py-4 bg-gradient-to-r from-orange-100 to-amber-100 border-b border-orange-100 flex items-center justify-between cursor-pointer" @click="toggleMes(mes.monthKey)">
+            <div class="flex items-center gap-3">
+              <svg :class="['w-5 h-5 text-orange-500 transition-transform', expandedMeses[mes.monthKey] ? 'rotate-180' : '']" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+              <h2 class="font-black text-gray-800 text-xl">{{ mes.monthLabel }}</h2>
+              <span class="text-xs text-gray-400">|</span>
+              <span class="text-sm text-gray-500">{{ mes.semanas.length }} semanas · {{ mes.cantVentas }} ventas</span>
+            </div>
+            <div class="flex items-center gap-4">
+              <div class="text-right">
+                <p class="text-[9px] text-gray-400 uppercase font-black">Total Ingresos</p>
+                <p class="text-base font-black text-green-600">{{ formatCurrency(mes.totalIngresos) }}</p>
+              </div>
+              <div v-if="mes.totalGastoExtra > 0" class="text-right">
+                <p class="text-[9px] text-gray-400 uppercase font-black">Gasto Extra</p>
+                <p class="text-sm font-black text-orange-500">{{ formatCurrency(mes.totalGastoExtra) }}</p>
+              </div>
+              <div class="text-right">
+                <p class="text-[9px] text-gray-400 uppercase font-black">Promedio</p>
+                <p class="text-sm font-black text-blue-600">{{ formatCurrency(mes.promedioVenta) }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div v-if="expandedMeses[mes.monthKey]" class="space-y-4 pl-2 md:pl-4 border-l-4 border-orange-200">
+          <div v-for="sem in mes.semanas" :key="sem.semana" class="bg-white rounded-3xl border border-gray-200 shadow-sm overflow-hidden">
+            <div class="px-6 py-3 bg-gradient-to-r from-orange-50 to-amber-50 border-b border-gray-100 flex items-center justify-between cursor-pointer" @click="toggleSemana(sem.semana)">
+              <div class="flex items-center gap-3">
+                <svg :class="['w-4 h-4 text-gray-400 transition-transform', expandedSemanas[sem.semana] ? 'rotate-180' : '']" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                <h3 class="font-bold text-gray-700 text-lg">{{ sem.semanaLabel }}</h3>
+                <span class="text-xs text-gray-400">|</span>
+                <span class="text-sm text-gray-500">{{ sem.cantVentas }} ventas</span>
+              </div>
+              <div class="flex items-center gap-4">
+                <div class="text-right">
+                  <p class="text-[9px] text-gray-400 uppercase font-black">Ingresos</p>
+                  <p class="text-sm font-black text-green-600">{{ formatCurrency(sem.totalIngresos) }}</p>
+                </div>
+                <div class="text-right">
+                  <p class="text-[9px] text-gray-400 uppercase font-black">Neto</p>
+                  <p class="text-sm font-black text-green-600">{{ formatCurrency(sem.totalIngresos - sem.totalGastoExtra) }}</p>
+                </div>
+                <div class="text-right">
+                  <p class="text-[9px] text-gray-400 uppercase font-black">Promedio</p>
+                  <p class="text-sm font-black text-blue-600">{{ formatCurrency(sem.promedioVenta) }}</p>
+                </div>
+              </div>
+            </div>
+            <div v-if="expandedSemanas[sem.semana]" class="p-6 space-y-6">
+              <div v-if="weeklyConsolidados[sem.semana]?.ventasPorSucursal?.length">
+                <div class="flex items-center gap-3 mb-4">
+                  <div class="p-2 bg-indigo-100 rounded-xl"><Store class="h-5 w-5 text-indigo-600" /></div>
+                  <h4 class="text-lg font-bold text-gray-800">Ventas por Sucursal</h4>
+                </div>
+                <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-x-auto">
+                  <table class="w-full text-left">
+                    <thead>
+                      <tr class="bg-gray-50/50">
+                        <th class="p-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Sucursal</th>
+                        <th class="p-4 text-xs font-bold text-gray-400 uppercase tracking-widest text-center">Ventas</th>
+                        <th class="p-4 text-xs font-bold text-gray-400 uppercase tracking-widest text-right">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                      <tr v-for="suc in weeklyConsolidados[sem.semana]?.ventasPorSucursal || []" :key="suc.nombre" class="hover:bg-gray-50/30 transition-colors">
+                        <td class="p-4 text-sm font-bold text-gray-700">{{ suc.nombre }}</td>
+                        <td class="p-4 text-sm text-gray-600 text-center">{{ suc.cant_ventas }}</td>
+                        <td class="p-4 text-sm font-bold text-indigo-600 text-right">{{ Number(suc.total).toFixed(2) }} Bs.</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              <div v-if="weeklyConsolidados[sem.semana]?.metodosPago?.length">
+                <div class="flex items-center gap-3 mb-4">
+                  <div class="p-2 bg-emerald-100 rounded-xl"><CreditCard class="h-5 w-5 text-emerald-600" /></div>
+                  <h4 class="text-lg font-bold text-gray-800">Uso de Métodos de Pago</h4>
+                </div>
+                <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-x-auto">
+                  <table class="w-full text-left">
+                    <thead>
+                      <tr class="bg-gray-50/50">
+                        <th class="p-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Método</th>
+                        <th class="p-4 text-xs font-bold text-gray-400 uppercase tracking-widest text-center">Transacciones</th>
+                        <th class="p-4 text-xs font-bold text-gray-400 uppercase tracking-widest text-right">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                      <tr v-for="metodo in weeklyConsolidados[sem.semana]?.metodosPago || []" :key="metodo.nombre" class="hover:bg-gray-50/30 transition-colors">
+                        <td class="p-4 text-sm font-bold text-gray-700">{{ metodo.nombre }}</td>
+                        <td class="p-4 text-sm text-gray-600 text-center">{{ metodo.cantidad }}</td>
+                        <td class="p-4 text-sm font-bold text-emerald-600 text-right">{{ Number(metodo.total).toFixed(2) }} Bs.</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              <div v-if="getWeeklyDays(sem.semana).length > 0">
+                <div class="flex items-center gap-3 mb-4">
+                  <div class="p-2 bg-blue-100 rounded-xl"><List class="h-5 w-5 text-blue-600" /></div>
+                  <h4 class="text-lg font-bold text-gray-800">Detallado por Día</h4>
+                </div>
+                <div class="space-y-4">
+                  <div v-for="day in getWeeklyDays(sem.semana)" :key="day.fecha" class="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+                    <div class="px-4 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-100 flex items-center gap-3">
+                      <Calendar class="h-4 w-4 text-blue-500" />
+                      <span class="font-bold text-gray-700 text-sm">{{ formatFecha(day.fecha) }}</span>
+                      <span class="text-xs text-gray-500">({{ day.ventas.length }} transacciones)</span>
+                    </div>
+                    <div class="overflow-x-auto">
+                      <table class="ventas-detalle-table w-full text-left border-collapse">
+                        <thead>
+                          <tr class="bg-gray-50/30">
+                            <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b">Cliente</th>
+                            <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b">Tienda/Sucursal</th>
+                            <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b">Producto / Detalle</th>
+                            <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-center">Cant.</th>
+                            <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-right">Unitario</th>
+                            <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-right">Subtotal</th>
+                            <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-right">Total Venta</th>
+                            <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-right">Gasto Extra</th>
+                            <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-right">Total Neto</th>
+                            <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-center">Estado</th>
+                            <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-center">Factura</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <template v-for="(ventaData, idx) in day.ventas" :key="ventaData.idVenta + idx">
+                            <tr class="hover:bg-gray-50/50 transition-colors group">
+                              <td v-if="ventaData.isFirstInSale" :rowspan="ventaData.clientRowspan"
+                                  class="p-3 border-b border-gray-100 text-sm align-top font-bold text-gray-700">
+                                <div class="flex items-center gap-2">
+                                  <div class="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center text-[10px] font-black text-gray-500">
+                                    {{ ventaData.cliente.charAt(0) }}
+                                  </div>
+                                  <span class="truncate max-w-[120px]">{{ ventaData.cliente }}</span>
+                                </div>
+                              </td>
+                              <td v-if="ventaData.isFirstInSale" :rowspan="ventaData.clientRowspan" class="p-3 border-b border-gray-100 text-sm font-medium text-gray-700">{{ ventaData.sucursal === 'Cocina' || ventaData.sucursal === 'cocina' ? 'Pedido' : (ventaData.sucursal || '-') }}</td>
+                              <td class="p-3 border-b border-gray-100 text-sm text-gray-600">{{ ventaData.producto }}</td>
+                              <td class="p-3 border-b border-gray-100 text-sm text-gray-600 text-center font-bold">{{ ventaData.cantidad }}</td>
+                              <td class="p-3 border-b border-gray-100 text-sm text-gray-600 text-right">{{ ventaData.precio }} Bs.</td>
+                              <td class="p-3 border-b border-gray-100 text-sm font-bold text-gray-800 text-right">{{ ventaData.subtotal }} Bs.</td>
+                              <td v-if="ventaData.isFirstInSale" :rowspan="ventaData.clientRowspan"
+                                  class="p-3 border-b border-gray-100 text-sm font-black text-blue-700 text-right align-top bg-blue-50/20">
+                                {{ ventaData.precioTotalVenta }} Bs.
+                              </td>
+                              <td v-if="ventaData.isFirstInSale" :rowspan="ventaData.clientRowspan"
+                                  class="p-3 border-b border-gray-100 text-sm font-bold text-orange-600 text-right align-top bg-orange-50/20">
+                                {{ ventaData.gastoextra && parseFloat(ventaData.gastoextra) > 0 ? ventaData.gastoextra + ' Bs.' : '-' }}
+                              </td>
+                              <td v-if="ventaData.isFirstInSale" :rowspan="ventaData.clientRowspan"
+                                  class="p-3 border-b border-gray-100 text-sm font-black text-green-700 text-right align-top bg-green-50/20">
+                                {{ ventaData.totalNeto }} Bs.
+                              </td>
+                              <td v-if="ventaData.isFirstInSale" :rowspan="ventaData.clientRowspan" class="p-3 border-b border-gray-100 text-sm text-center align-top">
+                                <span :class="['px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider', ventaData.estado === 'Pagado' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700']">
+                                  {{ ventaData.estado }}
+                                </span>
+                              </td>
+                              <td v-if="ventaData.isFirstInSale" :rowspan="ventaData.clientRowspan" class="p-3 border-b border-gray-100 text-sm text-center align-top">
+                                <div v-if="ventaData.hasFactura" class="flex items-center justify-center">
+                                  <a :href="ventaData.urlFactura" target="_blank"
+                                     class="flex items-center gap-1.5 text-blue-600 hover:text-blue-800 font-semibold transition-colors bg-blue-50 px-2 py-1 rounded-lg border border-blue-100">
+                                    <FileText class="h-3 w-3" />
+                                    <span class="text-xs">{{ ventaData.nroFactura?.split('-').pop() }}</span>
+                                  </a>
+                                </div>
+                                <span v-else class="text-gray-400 text-xs italic">S/F</span>
+                              </td>
+                            </tr>
+                          </template>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </template>
+      <div v-if="ventasMensualDetalle.length === 0" class="text-center py-12 text-gray-400">No hay datos en este período</div>
+    </div>
+
     <!-- Resumen Semanal (Acordeón) -->
     <div v-if="props.agruparPorSemana" class="space-y-4">
       <div v-if="weeklyChartLabels.length > 0" class="bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
@@ -184,7 +372,7 @@
     </div>
 
     <!-- Resumen Consolidado -->
-    <div v-if="consolidado && !props.agruparPorSemana" class="animate-fade-in-up space-y-10">
+    <div v-if="consolidado && !props.agruparPorSemana && !props.agruparPorMes" class="animate-fade-in-up space-y-10">
 
       <!-- Charts -->
       <div v-if="chartLabels.length > 0" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -397,7 +585,7 @@
     </div>
 
     <!-- Tabla Detallada por Fechas (Acordeón) -->
-    <div v-if="!props.agruparPorSemana" class="animate-fade-in-up" style="animation-delay: 0.1s">
+    <div v-if="!props.agruparPorSemana && !props.agruparPorMes" class="animate-fade-in-up" style="animation-delay: 0.1s">
       <div class="flex items-center justify-between mb-6">
         <div class="flex items-center gap-3">
           <div class="p-2 bg-blue-100 rounded-xl">
@@ -540,7 +728,7 @@
 <script setup>
 import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { Chart, registerables } from 'chart.js'
-import { getWeekStart as sharedWeekStart, getWeekLabel as sharedWeekLabel } from './useSemana'
+import { getWeekStart as sharedWeekStart, getWeekLabel as sharedWeekLabel, getMonthKey as sharedMonthKey, getMonthLabel as sharedMonthLabel, sortMonthsDesc as sharedSortMonthsDesc } from './useSemana'
 import { 
   Package, List, Calendar, FileText, Search, Star, 
   ChevronDown, Store, CreditCard, ChevronRight 
@@ -564,6 +752,10 @@ const props = defineProps({
   agruparPorSemana: {
     type: Boolean,
     default: false
+  },
+  agruparPorMes: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -571,15 +763,30 @@ const getWeekMonday = (dateStr) => sharedWeekStart(dateStr)
 
 const getWeekLabel = (mondayStr) => sharedWeekLabel(mondayStr)
 
+const getMonthKeyLocal = (dateStr) => sharedMonthKey(dateStr)
+const getMonthLabelLocal = (monthKey) => sharedMonthLabel(monthKey)
+const sortMonthsDescLocal = (months) => sharedSortMonthsDesc(months)
+
 const formatCurrency = (val) => Number(val || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
 
 const getWeeklyDays = (weekKey) => {
-  if (!props.agruparPorSemana || !props.sortedVentas) return []
+  if (!(props.agruparPorSemana || props.agruparPorMes) || !props.sortedVentas) return []
   return props.sortedVentas.filter(g => getWeekMonday(g.fecha) === weekKey)
 }
 
 const expandedSemanas = ref({})
 const toggleSemana = (key) => { expandedSemanas.value[key] = !expandedSemanas.value[key] }
+
+const expandedMeses = ref({})
+const toggleMes = (key) => { expandedMeses.value[key] = !expandedMeses.value[key] }
+
+const buildWeekEntry = (monday) => ({
+  semana: monday,
+  semanaLabel: getWeekLabel(monday),
+  cantVentas: 0,
+  totalIngresos: 0,
+  totalGastoExtra: 0
+})
 
 const ventasSemanalDetalle = computed(() => {
   const weeks = {}
@@ -655,6 +862,33 @@ const ventasPorSemana = computed(() => {
     ...w,
     promedioVenta: w.cantVentas > 0 ? w.totalIngresos / w.cantVentas : 0
   }))
+})
+
+const ventasMensualDetalle = computed(() => {
+  const months = {}
+  props.sortedVentas.forEach(group => {
+    const fecha = String(group.fecha).split('T')[0]
+    const mk = getMonthKeyLocal(fecha)
+    if (!months[mk]) {
+      months[mk] = { monthKey: mk, monthLabel: getMonthLabelLocal(mk), semanas: [], cantVentas: 0, totalIngresos: 0, totalGastoExtra: 0 }
+    }
+    const month = months[mk]
+    const monday = getWeekMonday(fecha)
+    let week = month.semanas.find(w => w.semana === monday)
+    if (!week) { week = buildWeekEntry(monday); month.semanas.push(week) }
+    week.cantVentas += (group.ventas || []).length
+    week.totalIngresos += (group.totalIngreso || 0)
+    week.totalGastoExtra += (group.totalGastoExtra || 0)
+    month.cantVentas += (group.ventas || []).length
+    month.totalIngresos += (group.totalIngreso || 0)
+    month.totalGastoExtra += (group.totalGastoExtra || 0)
+  })
+  Object.values(months).forEach(month => {
+    month.semanas.sort((a, b) => new Date(b.semana) - new Date(a.semana))
+    month.semanas.forEach(w => { w.promedioVenta = w.cantVentas > 0 ? w.totalIngresos / w.cantVentas : 0 })
+    month.promedioVenta = month.cantVentas > 0 ? month.totalIngresos / month.cantVentas : 0
+  })
+  return sortMonthsDescLocal(Object.values(months))
 })
 
 // Lógica de Acordeón
@@ -796,6 +1030,13 @@ const renderCharts = () => {
 watch(() => props.sortedVentas, () => setTimeout(renderCharts, 100), { deep: true })
 watch(() => props.consolidado, () => setTimeout(renderCharts, 100), { deep: true })
 watch(ventasPorSemana, () => setTimeout(renderCharts, 100), { deep: true })
+watch([() => props.agruparPorSemana, () => props.agruparPorMes], () => {
+  expandedSemanas.value = {}
+  expandedMeses.value = {}
+  Object.values(weeklyChartInstances.value).forEach(i => i.destroy())
+  weeklyChartInstances.value = {}
+  nextTick(() => setTimeout(renderCharts, 100))
+})
 onMounted(() => setTimeout(renderCharts, 200))
 onBeforeUnmount(() => {
   if (ventasChartInstance) ventasChartInstance.destroy()
@@ -809,6 +1050,16 @@ defineExpose({
     ventasSemanalDetalle.value.forEach(sem => { expandedSemanas.value[sem.semana] = true })
   },
   collapseAllSemanas: () => {
+    Object.keys(expandedSemanas.value).forEach(k => { expandedSemanas.value[k] = false })
+  },
+  expandAllMeses: () => {
+    ventasMensualDetalle.value.forEach(mes => {
+      expandedMeses.value[mes.monthKey] = true
+      mes.semanas.forEach(sem => { expandedSemanas.value[sem.semana] = true })
+    })
+  },
+  collapseAllMeses: () => {
+    Object.keys(expandedMeses.value).forEach(k => { expandedMeses.value[k] = false })
     Object.keys(expandedSemanas.value).forEach(k => { expandedSemanas.value[k] = false })
   }
 })

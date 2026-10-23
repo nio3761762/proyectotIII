@@ -1,5 +1,198 @@
 <template>
   <div class="space-y-10">
+    <!-- === RESUMEN MENSUAL (Acordeón: Mes -> Semanas -> Días) === -->
+    <div v-if="props.agruparPorMes" class="space-y-4">
+      <template v-for="mes in comisionMensualDetalle" :key="mes.monthKey">
+        <div class="bg-white rounded-3xl border border-2 border-orange-200 shadow-sm overflow-hidden">
+          <div class="px-6 py-4 bg-gradient-to-r from-orange-100 to-amber-100 border-b border-orange-100 flex items-center justify-between cursor-pointer" @click="toggleMes(mes.monthKey)">
+            <div class="flex items-center gap-3">
+              <svg :class="['w-5 h-5 text-orange-500 transition-transform', expandedMeses[mes.monthKey] ? 'rotate-180' : '']" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+              <h2 class="font-black text-gray-800 text-xl">{{ mes.monthLabel }}</h2>
+              <span class="text-xs text-gray-400">|</span>
+              <span class="text-sm text-gray-500">{{ mes.semanas.length }} semanas · {{ mes.cantControles }} controles</span>
+            </div>
+            <div class="flex items-center gap-5">
+              <div class="text-right">
+                <p class="text-[9px] text-gray-400 uppercase font-black">Comisión Total</p>
+                <p class="text-sm font-black text-blue-600">{{ formatCurrency(mes.totalComision) }}</p>
+              </div>
+              <div class="text-right">
+                <p class="text-[9px] text-gray-400 uppercase font-black">Líq. Panadería</p>
+                <p class="text-sm font-black text-emerald-600">{{ formatCurrency(mes.totalLiquido) }}</p>
+              </div>
+              <div class="text-right">
+                <p class="text-[9px] text-gray-400 uppercase font-black">Gasto Extra</p>
+                <p class="text-sm font-black text-red-500">{{ formatCurrency(mes.totalGastoExtra) }}</p>
+              </div>
+              <div class="text-right">
+                <p class="text-[9px] text-gray-400 uppercase font-black">Neto a Entregar</p>
+                <p class="text-sm font-black text-red-700">{{ formatCurrency(mes.totalNeto) }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div v-if="expandedMeses[mes.monthKey]" class="space-y-4 pl-2 md:pl-4 border-l-4 border-orange-200">
+          <div v-for="sem in mes.semanas" :key="sem.fecha" class="bg-white rounded-3xl border border-gray-200 shadow-sm overflow-hidden">
+            <div class="px-6 py-3 bg-gradient-to-r from-orange-50 to-amber-50 border-b border-gray-100 flex items-center justify-between cursor-pointer" @click="toggleSemana(sem.fecha)">
+              <div class="flex items-center gap-3">
+                <svg :class="['w-4 h-4 text-gray-400 transition-transform', expandedSemanas[sem.fecha] ? 'rotate-180' : '']" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                <h3 class="font-bold text-gray-700 text-lg">{{ sem.semanaLabel }}</h3>
+                <span class="text-xs text-gray-400">|</span>
+                <span class="text-sm text-gray-500">{{ sem.controles.length }} controles</span>
+              </div>
+              <div class="flex items-center gap-5">
+                <div class="text-right">
+                  <p class="text-[9px] text-gray-400 uppercase font-black">Comisión</p>
+                  <p class="text-sm font-black text-blue-600">{{ formatCurrency(sem.controles.reduce((s,c) => s + parseFloat(c.total_comision||0), 0)) }}</p>
+                </div>
+                <div class="text-right">
+                  <p class="text-[9px] text-gray-400 uppercase font-black">Líq. Panadería</p>
+                  <p class="text-sm font-black text-emerald-600">{{ formatCurrency(sem.controles.reduce((s,c) => s + parseFloat(c.total_liquido_panaderia||0), 0)) }}</p>
+                </div>
+                <div class="text-right">
+                  <p class="text-[9px] text-gray-400 uppercase font-black">Gasto Extra</p>
+                  <p class="text-sm font-black text-red-500">{{ formatCurrency(sem.controles.reduce((s,c) => s + parseFloat(c.total_gasto_extra||0), 0)) }}</p>
+                </div>
+                <div class="text-right">
+                  <p class="text-[9px] text-gray-400 uppercase font-black">Neto a Entregar</p>
+                  <p class="text-sm font-black text-red-700">{{ formatCurrency(sem.controles.reduce((s,c) => s + parseFloat(c.neto_a_entregar||c.total_liquido_panaderia||0), 0)) }}</p>
+                </div>
+              </div>
+            </div>
+            <div v-if="expandedSemanas[sem.fecha]" class="p-6 space-y-6">
+              <div class="overflow-x-auto">
+                <div class="flex items-center gap-3 mb-4">
+                  <div class="p-2 bg-emerald-100 rounded-xl"><BarChart3 class="h-5 w-5 text-emerald-600" /></div>
+                  <h4 class="text-lg font-bold text-gray-800">Resumen de Comisiones</h4>
+                </div>
+                <div class="rounded-2xl border border-gray-200 bg-white shadow-sm" style="min-width: 600px;">
+                  <table class="w-full text-left border-collapse">
+                    <thead>
+                      <tr class="bg-gray-50/30">
+                        <th rowspan="2" class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-r min-w-[160px]">Revendedor</th>
+                        <th v-for="grupo in (weeklyConsolidados[sem.fecha]?.grupos || [])" :key="grupo.producto"
+                            :colspan="grupo.presentaciones.length"
+                            class="px-1 py-1 text-[10px] font-black text-gray-700 uppercase tracking-wide border-b border-r text-center min-w-[60px]">
+                          {{ grupo.producto }}
+                        </th>
+                        <th colspan="4" rowspan="2" class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-center min-w-[260px]">Totales</th>
+                      </tr>
+                      <tr class="bg-gray-50/30">
+                        <th v-for="col in (weeklyConsolidados[sem.fecha]?.columnas || [])" :key="col.key"
+                            class="px-1 py-1 text-[9px] font-black text-gray-500 uppercase tracking-wide border-b border-r text-center min-w-[34px] whitespace-nowrap">
+                          {{ col.presentacion }}
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="emp in weeklyConsolidados[sem.fecha]?.empleados || []" :key="emp.idempleado" class="hover:bg-orange-50/30 transition-colors">
+                        <td class="p-3 border-b border-r font-bold text-gray-800 text-sm">
+                          <div class="flex items-center gap-1.5">
+                            <User class="h-4 w-4 text-orange-500 shrink-0" />
+                            <span class="truncate">{{ emp.empleado }}</span>
+                          </div>
+                        </td>
+                        <td v-for="col in (weeklyConsolidados[sem.fecha]?.columnas || [])" :key="col.key" class="px-1 py-2 border-b border-r text-center text-xs font-bold text-gray-800">
+                          {{ emp.celdas[col.key] ?? '-' }}
+                        </td>
+                        <td class="p-3 border-b text-right">
+                          <div class="flex flex-col">
+                            <span class="text-[9px] text-gray-400 font-bold uppercase">Comisión</span>
+                            <span class="text-sm font-black text-blue-600">{{ Number(emp.total_comision).toFixed(2) }}</span>
+                          </div>
+                        </td>
+                        <td class="p-3 border-b text-right">
+                          <div class="flex flex-col">
+                            <span class="text-[9px] text-gray-400 font-bold uppercase">Panadería</span>
+                            <span class="text-sm font-black text-emerald-600">{{ Number(emp.total_liquido_panaderia).toFixed(2) }}</span>
+                          </div>
+                        </td>
+                        <td class="p-3 border-b text-right">
+                          <div class="flex flex-col">
+                            <span class="text-[9px] text-gray-400 font-bold uppercase">Gasto Extra</span>
+                            <span class="text-sm font-black text-red-500">{{ Number(emp.total_gasto_extra || 0).toFixed(2) }}</span>
+                          </div>
+                        </td>
+                        <td class="p-3 border-b text-right bg-orange-50/30">
+                          <div class="flex flex-col">
+                            <span class="text-[9px] text-gray-400 font-bold uppercase">Neto a Entregar</span>
+                            <span class="text-sm font-black text-red-700">{{ Number(emp.neto_a_entregar || emp.total_liquido_panaderia).toFixed(2) }}</span>
+                          </div>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              <div v-if="getWeeklyDays(sem.fecha).length > 0">
+                <div class="flex items-center gap-3 mb-4">
+                  <div class="p-2 bg-blue-100 rounded-xl"><List class="h-5 w-5 text-blue-600" /></div>
+                  <h4 class="text-lg font-bold text-gray-800">Detallado por Día</h4>
+                </div>
+                <div class="space-y-4">
+                  <div v-for="day in getWeeklyDays(sem.fecha)" :key="day.fecha" class="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+                    <div class="px-4 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-100 flex items-center gap-3">
+                      <Calendar class="h-4 w-4 text-blue-500" />
+                      <span class="font-bold text-gray-700 text-sm">{{ formatFecha(day.fecha) }}</span>
+                      <span class="text-xs text-gray-500">({{ day.controles.length }} controles)</span>
+                    </div>
+                    <div class="overflow-x-auto">
+                      <table class="w-full text-left border-collapse">
+                        <thead>
+                          <tr class="bg-gray-50/30">
+                            <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b">Revendedor</th>
+                            <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b">Sucursal</th>
+                            <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b">Producto</th>
+                            <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b">Presentación</th>
+                            <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-center">Entregado</th>
+                            <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-center">Devuelto</th>
+                            <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-center">Ajustado</th>
+                            <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-center">Vendido</th>
+                            <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-right">Precio Vta.</th>
+                            <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-right">Comisión Unit.</th>
+                            <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-right">Comisión Total</th>
+                            <th class="p-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b text-right">Líq. Panadería</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <template v-for="control in day.controles" :key="control.idcontrol">
+                            <template v-for="(det, detIdx) in control.detalles" :key="control.idcontrol + '-' + detIdx">
+                              <tr class="hover:bg-gray-50/50 transition-colors group">
+                                <td v-if="detIdx === 0" :rowspan="control.totalDetalleRows" class="p-3 border-b border-gray-100 text-sm align-top font-bold text-gray-700 bg-gray-50/10"><span class="text-orange-600">{{ control.empleado }}</span></td>
+                                <td v-if="detIdx === 0" :rowspan="control.totalDetalleRows" class="p-3 border-b border-gray-100 text-xs align-top text-gray-500 bg-gray-50/10">{{ control.sucursal }}</td>
+                                <td class="p-3 border-b border-gray-100 text-sm font-medium text-gray-800">{{ det.producto }}</td>
+                                <td class="p-3 border-b border-gray-100 text-xs text-gray-500">{{ det.presentacion }}</td>
+                                <td class="p-3 border-b border-gray-100 text-sm text-center">{{ det.cantidad_entregada }}</td>
+                                <td class="p-3 border-b border-gray-100 text-sm text-center text-red-500">{{ det.cantidad_devuelta }}</td>
+                                <td class="p-3 border-b border-gray-100 text-sm text-center text-amber-600">{{ det.cantidadajustada ?? '-' }}</td>
+                                <td class="p-3 border-b border-gray-100 text-sm text-center font-bold text-gray-800">{{ det.cantidad_vendida }}</td>
+                                <td class="p-3 border-b border-gray-100 text-sm text-right">{{ Number(det.precio_venta).toFixed(2) }}</td>
+                                <td class="p-3 border-b border-gray-100 text-sm text-right text-blue-600">{{ Number(det.comision_unitaria).toFixed(2) }}</td>
+                                <td class="p-3 border-b border-gray-100 text-sm text-right font-bold text-blue-600">{{ Number(det.comision_total).toFixed(2) }}</td>
+                                <td class="p-3 border-b border-gray-100 text-sm text-right font-bold text-emerald-600">{{ Number(det.liquido_panaderia).toFixed(2) }}</td>
+                              </tr>
+                            </template>
+                            <tr class="bg-blue-50/20">
+                              <td colspan="8" class="p-2 text-right text-[10px] font-black text-gray-400 uppercase tracking-widest border-b">Totales del Control:</td>
+                              <td class="p-2 text-right border-b font-black text-blue-600">{{ Number(control.total_comision).toFixed(2) }}</td>
+                              <td class="p-2 text-right border-b font-black text-emerald-600">{{ Number(control.total_liquido_panaderia).toFixed(2) }}</td>
+                              <td class="p-2 text-right border-b font-black text-red-500">{{ Number(control.total_gasto_extra || 0).toFixed(2) }}</td>
+                              <td class="p-2 text-right border-b font-black text-red-700">{{ Number(control.neto_a_entregar || control.total_liquido_panaderia).toFixed(2) }}</td>
+                            </tr>
+                          </template>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </template>
+      <div v-if="comisionMensualDetalle.length === 0" class="text-center py-12 text-gray-400">No hay datos en este período</div>
+    </div>
+
     <!-- === RESUMEN SEMANAL (Acordeón) === -->
     <div v-if="props.agruparPorSemana" class="space-y-4">
       <div v-if="weeklyChartLabels.length > 0" class="bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
@@ -228,7 +421,7 @@
     </div>
 
     <!-- === CONSOLIDADO (Resumen) === -->
-    <div v-if="consolidado && consolidado.reporte && consolidado.reporte.length && !props.agruparPorSemana" class="animate-fade-in-up space-y-10">
+    <div v-if="consolidado && consolidado.reporte && consolidado.reporte.length && !props.agruparPorSemana && !props.agruparPorMes" class="animate-fade-in-up space-y-10">
       <!-- Charts -->
       <div v-if="chartEmpleados.length > 0" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div class="bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
@@ -360,7 +553,7 @@
     </div>
 
     <!-- === DETALLADO === -->
-    <div v-if="!props.agruparPorSemana" class="animate-fade-in-up" style="animation-delay: 0.1s">
+    <div v-if="!props.agruparPorSemana && !props.agruparPorMes" class="animate-fade-in-up" style="animation-delay: 0.1s">
       <div class="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
         <div class="flex items-center gap-3">
           <div class="p-2 bg-blue-100 rounded-xl">
@@ -516,7 +709,7 @@
 <script setup>
 import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { Chart, registerables } from 'chart.js'
-import { getWeekStart as sharedWeekStart, getWeekLabel as sharedWeekLabel } from './useSemana'
+import { getWeekStart as sharedWeekStart, getWeekLabel as sharedWeekLabel, getMonthKey as sharedMonthKey, getMonthLabel as sharedMonthLabel, sortMonthsDesc as sharedSortMonthsDesc } from './useSemana'
 import {
   claveColumna,
   construirColumnas,
@@ -546,8 +739,16 @@ const props = defineProps({
   agruparPorSemana: {
     type: Boolean,
     default: false
+  },
+  agruparPorMes: {
+    type: Boolean,
+    default: false
   }
 })
+
+const getMonthKeyLocal = (dateStr) => sharedMonthKey(dateStr)
+const getMonthLabelLocal = (monthKey) => sharedMonthLabel(monthKey)
+const sortMonthsDescLocal = (months) => sharedSortMonthsDesc(months)
 
 const processedConsolidado = computed(() => {
   const data = props.consolidado?.reporte || [];
@@ -580,10 +781,10 @@ const getWeekMonday = (dateStr) => sharedWeekStart(dateStr)
 
 const getWeekLabel = (mondayStr) => sharedWeekLabel(mondayStr)
 
-const processedDetallado = computed(() => {
+const normalizedGroups = computed(() => {
   const data = props.detallado?.reporte || [];
   if (!Array.isArray(data)) return [];
-  let groups = data.map(g => ({
+  return data.map(g => ({
     ...g,
     controles: (g.controles || []).map(c => {
       const detalles = (c.detalles || []).map(d => ({
@@ -611,24 +812,28 @@ const processedDetallado = computed(() => {
       }
     })
   }))
+})
 
-  if (props.agruparPorSemana) {
-    const weeks = {}
-    groups.forEach(g => {
-      const monday = getWeekMonday(g.fecha)
-      if (!weeks[monday]) {
-        weeks[monday] = { fecha: monday, semanaLabel: getWeekLabel(monday), controles: [] }
-      }
-      weeks[monday].controles.push(...(g.controles || []))
-    })
-    groups = Object.values(weeks).sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
-  }
-  return groups
+const weeklyGroups = computed(() => {
+  const weeks = {}
+  normalizedGroups.value.forEach(g => {
+    if (!g.fecha) return
+    const monday = getWeekMonday(g.fecha)
+    if (!weeks[monday]) {
+      weeks[monday] = { fecha: monday, semanaLabel: getWeekLabel(monday), controles: [] }
+    }
+    weeks[monday].controles.push(...(g.controles || []))
+  })
+  return Object.values(weeks).sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
+})
+
+const processedDetallado = computed(() => {
+  return props.agruparPorSemana ? weeklyGroups.value : normalizedGroups.value
 })
 
 const weeklyConsolidados = computed(() => {
   const result = {}
-  processedDetallado.value.forEach(sem => {
+  weeklyGroups.value.forEach(sem => {
     const empleadosMap = new Map()
     const items = []
     sem.controles.forEach(c => {
@@ -663,25 +868,9 @@ const weeklyConsolidados = computed(() => {
 })
 
 const weeklyDetallado = computed(() => {
-  const data = props.detallado?.reporte || [];
-  if (!Array.isArray(data) || !props.agruparPorSemana) return [];
-  const groups = data.map(g => ({
-    ...g,
-    controles: (g.controles || []).map(c => {
-      const detalles = (c.detalles || []).map(d => ({
-        ...d,
-        comision_total: Number(d.comision_total || 0),
-        liquido_panaderia: Number(d.liquido_panaderia || 0),
-        precio_venta: Number(d.precio_venta || 0),
-        comision_unitaria: Number(d.comision_unitaria || 0),
-        cantidadajustada: d.cantidadajustada ?? d.cantidad_ajustada ?? 0,
-        precios_ajustados: (d.precios_ajustados || []).map(a => ({ ...a, cantidad: Number(a.cantidad || 0), precio_venta: Number(a.precio_venta || 0) }))
-      }))
-      return { ...c, total_comision: Number(c.total_comision || 0), total_liquido_panaderia: Number(c.total_liquido_panaderia || 0), total_gasto_extra: Number(c.total_gasto_extra || 0), neto_a_entregar: Number(c.neto_a_entregar || c.total_liquido_panaderia || 0), detalles, totalDetalleRows: detalles.length }
-    })
-  }))
+  if (!(props.agruparPorSemana || props.agruparPorMes)) return []
   const weeks = {}
-  groups.forEach(g => {
+  normalizedGroups.value.forEach(g => {
     if (!g.fecha) return
     const monday = getWeekMonday(g.fecha)
     if (!weeks[monday]) weeks[monday] = { fecha: monday, days: [] }
@@ -695,7 +884,7 @@ const getWeeklyDays = (fecha) => weeklyDetallado.value.find(w => w.fecha === fec
 const formatCurrency = (val) => Number(val || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
 
 const comisionPorSemana = computed(() => {
-  return processedDetallado.value.map(g => ({
+  return weeklyGroups.value.map(g => ({
     semana: g.fecha,
     semanaLabel: g.semanaLabel,
     cantControles: g.controles.length,
@@ -707,6 +896,55 @@ const comisionPorSemana = computed(() => {
 
 const expandedSemanas = ref({})
 const toggleSemana = (key) => { expandedSemanas.value[key] = !expandedSemanas.value[key] }
+
+const expandedMeses = ref({})
+const toggleMes = (key) => { expandedMeses.value[key] = !expandedMeses.value[key] }
+
+const buildWeekEntryCom = (monday) => ({
+  fecha: monday,
+  semanaLabel: getWeekLabel(monday),
+  controles: [],
+  cantControles: 0,
+  totalComision: 0,
+  totalLiquido: 0,
+  totalGastoExtra: 0,
+  totalNeto: 0
+})
+
+const comisionMensualDetalle = computed(() => {
+  const months = {}
+  normalizedGroups.value.forEach(g => {
+    if (!g.fecha) return
+    const fecha = String(g.fecha).split('T')[0]
+    const mk = getMonthKeyLocal(fecha)
+    if (!months[mk]) {
+      months[mk] = { monthKey: mk, monthLabel: getMonthLabelLocal(mk), semanas: [], cantControles: 0, totalComision: 0, totalLiquido: 0, totalGastoExtra: 0, totalNeto: 0 }
+    }
+    const month = months[mk]
+    const monday = getWeekMonday(fecha)
+    let week = month.semanas.find(w => w.fecha === monday)
+    if (!week) { week = buildWeekEntryCom(monday); month.semanas.push(week) }
+    week.controles.push(...(g.controles || []))
+    week.cantControles += (g.controles || []).length
+    ;(g.controles || []).forEach(c => {
+      week.totalComision += Number(c.total_comision || 0)
+      week.totalLiquido += Number(c.total_liquido_panaderia || 0)
+      week.totalGastoExtra += Number(c.total_gasto_extra || 0)
+      week.totalNeto += Number(c.neto_a_entregar || c.total_liquido_panaderia || 0)
+    })
+    month.cantControles += (g.controles || []).length
+    ;(g.controles || []).forEach(c => {
+      month.totalComision += Number(c.total_comision || 0)
+      month.totalLiquido += Number(c.total_liquido_panaderia || 0)
+      month.totalGastoExtra += Number(c.total_gasto_extra || 0)
+      month.totalNeto += Number(c.neto_a_entregar || c.total_liquido_panaderia || 0)
+    })
+  })
+  Object.values(months).forEach(month => {
+    month.semanas.sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
+  })
+  return sortMonthsDescLocal(Object.values(months))
+})
 
 const expandedAjustes = ref(new Set())
 const toggleAjustes = (key) => {
@@ -911,6 +1149,13 @@ const renderCharts = () => {
 
 watch(processedConsolidado, () => setTimeout(renderCharts, 100), { deep: true })
 watch(comisionPorSemana, () => setTimeout(renderCharts, 100), { deep: true })
+watch([() => props.agruparPorSemana, () => props.agruparPorMes], () => {
+  expandedSemanas.value = {}
+  expandedMeses.value = {}
+  Object.values(weeklyChartInstances.value).forEach(i => i.destroy())
+  weeklyChartInstances.value = {}
+  nextTick(() => setTimeout(renderCharts, 100))
+})
 onMounted(() => setTimeout(renderCharts, 200))
 onBeforeUnmount(() => {
   if (comisionChartInstance) comisionChartInstance.destroy()
@@ -924,6 +1169,16 @@ defineExpose({
     processedDetallado.value.forEach(sem => { expandedSemanas.value[sem.fecha] = true })
   },
   collapseAllSemanas: () => {
+    Object.keys(expandedSemanas.value).forEach(k => { expandedSemanas.value[k] = false })
+  },
+  expandAllMeses: () => {
+    comisionMensualDetalle.value.forEach(mes => {
+      expandedMeses.value[mes.monthKey] = true
+      mes.semanas.forEach(sem => { expandedSemanas.value[sem.fecha] = true })
+    })
+  },
+  collapseAllMeses: () => {
+    Object.keys(expandedMeses.value).forEach(k => { expandedMeses.value[k] = false })
     Object.keys(expandedSemanas.value).forEach(k => { expandedSemanas.value[k] = false })
   }
 })

@@ -60,6 +60,18 @@ export const ReproteFinanciero = async (fechadesde, fechahasta, idsucursal ) => 
 
 
 
+export const ReporteVentaUnificada = async (fechadesde, fechahasta, idsucursal, diaInicioSemana = 1) => {
+  try {
+    const params = { fechadesde, fechahasta, diaInicioSemana };
+    if (idsucursal && idsucursal !== 'TODOS') params.idsucursal = idsucursal;
+    const response = await API.get('/reporte/venta-unificada', { params });
+    return response.data;
+  } catch (error) {
+    console.error('Error al obtener el reporte de venta unificada:', error);
+    throw error;
+  }
+};
+
 export const ReporteProduccion = async (fechadesde, fechahasta, idsucursal,idproducto ) => {
   try {
         const params = {

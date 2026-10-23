@@ -7,8 +7,8 @@
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
       <!-- Filtros Comunes -->
       <template v-if="activeTab !== 'inventario'">
-        <input type="date" v-model="filtros.desde" :max="filtros.hasta" class="w-full pl-4 pr-4 py-3 border-0 bg-gray-50/80 rounded-2xl focus:bg-white focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500/30 transition-all duration-300 text-gray-700 placeholder:text-gray-400 outline-none" />
-        <input type="date" v-model="filtros.hasta" :min="filtros.desde" class="w-full pl-4 pr-4 py-3 border-0 bg-gray-50/80 rounded-2xl focus:bg-white focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500/30 transition-all duration-300 text-gray-700 placeholder:text-gray-400 outline-none" />
+        <input type="date" v-model="filtros.desde" :max="filtros.hasta" :disabled="bloqueaFechas" class="w-full disabled:opacity-60 disabled:cursor-not-allowed pl-4 pr-4 py-3 border-0 bg-gray-50/80 rounded-2xl focus:bg-white focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500/30 transition-all duration-300 text-gray-700 placeholder:text-gray-400 outline-none" />
+        <input type="date" v-model="filtros.hasta" :min="filtros.desde" :disabled="bloqueaFechas" class="w-full disabled:opacity-60 disabled:cursor-not-allowed pl-4 pr-4 py-3 border-0 bg-gray-50/80 rounded-2xl focus:bg-white focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500/30 transition-all duration-300 text-gray-700 placeholder:text-gray-400 outline-none" />
       </template>
       <select v-if="activeTab !== 'compras' && activeTab !== 'transferencias' && activeTab !== 'comision'" v-model="filtros.tienda" class="w-full pl-4 pr-4 py-3 border-0 bg-gray-50/80 rounded-2xl focus:bg-white focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500/30 transition-all duration-300 text-gray-700 placeholder:text-gray-400 outline-none">
         <option value="">Todas las tiendas</option>
@@ -41,6 +41,10 @@
         <select v-model="filtros.metodoPago" class="w-full pl-4 pr-4 py-3 border-0 bg-gray-50/80 rounded-2xl focus:bg-white focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500/30 transition-all duration-300 text-gray-700 placeholder:text-gray-400 outline-none">
           <option value="0">Todos los métodos</option>
           <option v-for="met in metodo" :key="met.IdMetodoPago" :value="met.IdMetodoPago">{{ met.Nombre }}</option>
+        </select>
+        <select v-model="filtros.idrevendedor" class="w-full pl-4 pr-4 py-3 border-0 bg-gray-50/80 rounded-2xl focus:bg-white focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500/30 transition-all duration-300 text-gray-700 placeholder:text-gray-400 outline-none">
+          <option value="">Todos los revendedores</option>
+          <option v-for="rev in revendedores" :key="rev.idrevendedor" :value="rev.idrevendedor">{{ rev.nombre + ' ' + (rev.apellidopaterno || '') }} <template v-if="rev.tipo === 'PERSONA'">(Persona)</template></option>
         </select>
       </template>
 
@@ -133,12 +137,38 @@
           <button @click="$emit('aplicarFiltroRapido', 'this_month')" class="px-4 py-2 bg-gray-100 rounded-xl hover:bg-gray-200 text-sm font-medium text-gray-700 transition-colors">Este Mes</button>
           <button @click="$emit('aplicarFiltroRapido', 'last_7_days')" class="px-4 py-2 bg-gray-100 rounded-xl hover:bg-gray-200 text-sm font-medium text-gray-700 transition-colors">Últimos 7 Días</button>
           <button @click="$emit('aplicarFiltroRapido', 'last_30_days')" class="px-4 py-2 bg-gray-100 rounded-xl hover:bg-gray-200 text-sm font-medium text-gray-700 transition-colors">Últimos 30 Días</button>
-          <button v-if="activeTab !== 'inventario'" 
-            @click="$emit('update:agruparPorSemana', !agruparPorSemana)" 
-            :class="['px-4 py-2 rounded-xl text-sm font-medium transition-colors border', agruparPorSemana ? 'bg-orange-500 text-white border-orange-500 shadow-md' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50']">
-            <Calendar class="h-4 w-4 inline mr-1.5" />
-            {{ agruparPorSemana ? 'Vista por Día' : 'Agrupar por Semana' }}
-          </button>
+          <div v-if="activeTab !== 'inventario'" class="flex items-center bg-gray-100 rounded-xl p-1 gap-1">
+            <button @click="setModo('dia')"
+              :class="['px-3 py-1.5 rounded-lg text-sm font-medium transition-colors', !agruparPorSemana && !agruparPorMes ? 'bg-orange-500 text-white shadow-md' : 'text-gray-600 hover:bg-gray-200']">
+              por Día
+            </button>
+            <button @click="setModo('semana')"
+              :class="['px-3 py-1.5 rounded-lg text-sm font-medium transition-colors', agruparPorSemana ? 'bg-orange-500 text-white shadow-md' : 'text-gray-600 hover:bg-gray-200']">
+              <Calendar class="h-4 w-4 inline mr-1" />
+              por Semana
+            </button>
+            <button v-if="permiteMes" @click="setModo('mes')"
+              :class="['px-3 py-1.5 rounded-lg text-sm font-medium transition-colors', agruparPorMes ? 'bg-orange-500 text-white shadow-md' : 'text-gray-600 hover:bg-gray-200']">
+              <Calendar class="h-4 w-4 inline mr-1" />
+              por Mes
+            </button>
+          </div>
+          <div v-if="agruparPorMes && activeTab === 'venta'" class="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-3 py-1.5">
+            <label class="text-sm font-medium text-gray-600 whitespace-nowrap">Mes desde</label>
+            <input type="month" :value="mesVenta" :max="mesVentaHasta" @input="$emit('update:mesVenta', $event.target.value)" class="bg-transparent text-sm font-semibold text-gray-800 outline-none" />
+          </div>
+          <div v-if="agruparPorMes && activeTab === 'venta'" class="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-3 py-1.5">
+            <label class="text-sm font-medium text-gray-600 whitespace-nowrap">Mes hasta</label>
+            <input type="month" :value="mesVentaHasta" :min="mesVenta" @input="$emit('update:mesVentaHasta', $event.target.value)" class="bg-transparent text-sm font-semibold text-gray-800 outline-none" />
+          </div>
+          <div v-if="agruparPorSemana && activeTab === 'venta'" class="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-3 py-1.5">
+            <label class="text-sm font-medium text-gray-600 whitespace-nowrap">Semana desde</label>
+            <input type="date" :value="semanaDesde" :max="semanaHasta" @input="$emit('update:semanaDesde', $event.target.value)" class="bg-transparent text-sm font-semibold text-gray-800 outline-none" />
+          </div>
+          <div v-if="agruparPorSemana && activeTab === 'venta'" class="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-3 py-1.5">
+            <label class="text-sm font-medium text-gray-600 whitespace-nowrap">Semana hasta</label>
+            <input type="date" :value="semanaHasta" :min="semanaDesde" @input="$emit('update:semanaHasta', $event.target.value)" class="bg-transparent text-sm font-semibold text-gray-800 outline-none" />
+          </div>
           <div v-if="agruparPorSemana" class="flex items-center gap-2 bg-white border border-orange-200 rounded-xl px-3 py-1.5">
             <label class="text-sm font-medium text-gray-600 whitespace-nowrap">La semana inicia</label>
             <input type="date" :value="inicioSemana" @input="$emit('update:inicioSemana', $event.target.value)" class="bg-transparent text-sm font-semibold text-orange-600 outline-none" />
@@ -181,11 +211,31 @@ const props = defineProps({
     type: Boolean,
     default: false
   },
+  agruparPorMes: {
+    type: Boolean,
+    default: false
+  },
   inicioSemana: {
     type: String,
     default: ''
   },
   finSemana: {
+    type: String,
+    default: ''
+  },
+  mesVenta: {
+    type: String,
+    default: ''
+  },
+  mesVentaHasta: {
+    type: String,
+    default: ''
+  },
+  semanaDesde: {
+    type: String,
+    default: ''
+  },
+  semanaHasta: {
     type: String,
     default: ''
   },
@@ -243,7 +293,17 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['update:filtroCategoria', 'update:agruparPorSemana', 'update:inicioSemana', 'update:finSemana', 'aplicarFiltroRapido', 'exportarExcel', 'exportarPdf'])
+const emit = defineEmits(['update:filtroCategoria', 'update:agruparPorSemana', 'update:agruparPorMes', 'update:inicioSemana', 'update:finSemana', 'update:mesVenta', 'update:mesVentaHasta', 'update:semanaDesde', 'update:semanaHasta', 'aplicarFiltroRapido', 'exportarExcel', 'exportarPdf'])
+
+const permiteMes = computed(() => ['ventas', 'comision', 'venta'].includes(props.activeTab))
+
+// En "por Mes" o "por Semana" del reporte de venta, las fechas las fijan los selectores
+const bloqueaFechas = computed(() => (props.agruparPorMes || props.agruparPorSemana) && props.activeTab === 'venta')
+
+const setModo = (modo) => {
+  emit('update:agruparPorSemana', modo === 'semana')
+  emit('update:agruparPorMes', modo === 'mes')
+}
 
 const localFiltroCategoria = computed({
   get: () => props.filtroCategoria,

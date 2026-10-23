@@ -239,6 +239,7 @@ export const getReporteRevendedorDetallado = async (req: Request, res: Response)
             'producto', prod.nombre,
             'presentacion', COALESCE(pre.nombre, 'Sin Presentacion'),
             'idpresentacion', pm.idpresentacion,
+            'unidades_por_presentacion', COALESCE(pm.cantidad, 1),
             'presentacion_abreviatura', COALESCE(NULLIF(pre.abreviatura, ''), pre.nombre, 'Sin Presentacion'),
             'cantidad_entregada', dc.cantidadentregada,
             'cantidad_devuelta', dc.cantidaddevuelta,

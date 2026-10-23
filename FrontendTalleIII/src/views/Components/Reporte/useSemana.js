@@ -72,4 +72,25 @@ const getWeekLabel = (weekStartStr) => {
   return `${fmt(d)} - ${fmt(end)}`;
 };
 
-export { useInicioSemana, setInicioSemana, useFinSemana, setFinSemana, getAnchorWeekday, getWeekStart, getWeekLabel };
+const MESES_NOMBRES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
+const getMonthKey = (dateStr) => {
+  if (!dateStr || dateStr === 'N/A' || dateStr === 'Sin fecha') return dateStr;
+  const clean = String(dateStr).split('T')[0];
+  if (!/^\d{4}-\d{2}/.test(clean)) return clean;
+  return clean.slice(0, 7);
+};
+
+const getMonthLabel = (monthKey) => {
+  if (!monthKey || monthKey === 'N/A' || monthKey === 'Sin fecha') return monthKey;
+  const parts = String(monthKey).split('-');
+  if (parts.length < 2) return monthKey;
+  const idx = Number(parts[1]) - 1;
+  if (isNaN(idx) || idx < 0 || idx > 11) return monthKey;
+  return `${MESES_NOMBRES[idx]} ${parts[0]}`;
+};
+
+const sortMonthsDesc = (months) =>
+  [...months].sort((a, b) => new Date(b.monthKey + '-01') - new Date(a.monthKey + '-01'));
+
+export { useInicioSemana, setInicioSemana, useFinSemana, setFinSemana, getAnchorWeekday, getWeekStart, getWeekLabel, getMonthKey, getMonthLabel, sortMonthsDesc, MESES_NOMBRES };

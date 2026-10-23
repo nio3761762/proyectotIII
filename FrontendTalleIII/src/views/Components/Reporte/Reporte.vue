@@ -11,8 +11,17 @@
       v-model:filtros="filtros"
       v-model:filtro-categoria="filtroCategoria"
       v-model:agrupar-por-semana="agruparPorSemana"
+      v-model:agrupar-por-mes="agruparPorMes"
       v-model:inicio-semana="inicioSemana"
       v-model:fin-semana="finSemana"
+      :mes-venta="mesVenta"
+      :mes-venta-hasta="mesVentaHasta"
+      @update:mes-venta="seleccionarMesDesde"
+      @update:mes-venta-hasta="seleccionarMesHasta"
+      :semana-desde="semanaDesde"
+      :semana-hasta="semanaHasta"
+      @update:semana-desde="seleccionarSemanaDesde"
+      @update:semana-hasta="seleccionarSemanaHasta"
       :active-tab="activeTab"
       :sucursales="sucursales"
       :empleados="empleados"
@@ -48,7 +57,16 @@
       </div>
 
       <div v-if="activeTab === 'ventas'">
-        <VentasTable ref="ventasTableRef" :sorted-ventas="sortedVentas" :format-fecha="formatFecha" :consolidado="ventasConsolidada" :agrupar-por-semana="agruparPorSemana" />
+        <VentasTable ref="ventasTableRef" :sorted-ventas="sortedVentas" :format-fecha="formatFecha" :consolidado="ventasConsolidada" :agrupar-por-semana="agruparPorSemana" :agrupar-por-mes="agruparPorMes" />
+      </div>
+
+      <div v-if="activeTab === 'venta'">
+        <VentaUnificadaMatriz
+          :reporte="reporteVentaUnificada"
+          :format-fecha="formatFecha"
+          :vista-agregacion="ventaVistaAgrupacion"
+          :cargando="cargandoVentaUnificada"
+        />
       </div>
 
       <div v-if="activeTab === 'pedidos'">
@@ -103,6 +121,7 @@
           :consolidado="comisionConsolidada"
           :format-fecha="formatFecha"
           :agrupar-por-semana="agruparPorSemana"
+          :agrupar-por-mes="agruparPorMes"
         />
       </div>
 
@@ -148,6 +167,7 @@
 
 <script setup>
 import { ref, onMounted, watch, computed, nextTick } from "vue"
+
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import * as XLSX from 'xlsx'
@@ -184,10 +204,14 @@ import DestinosTurnosTable from './DestinosTurnosTable.vue'
 import DestinosResumenGeneral from './DestinosResumenGeneral.vue'
 import ResumenTurnosTable from './ResumenTurnosTable.vue'
 import ResumenGananciasDiarias from './ResumenGananciasDiarias.vue'
+import VentaUnificadaMatriz from './VentaUnificadaMatriz.vue'
+import { exportarVentaUnificadaPDF } from './VentaUnificadaPdf.js'
+
 
 import logoMasasCori from '@/views/assets/LogoMasasCorir.png';
-import { useInicioSemana, useFinSemana, getAnchorWeekday, getWeekStart as semanaGetWeekStart, getWeekLabel as semanaGetWeekLabel } from './useSemana'
+import { useInicioSemana, useFinSemana, getAnchorWeekday, getWeekStart as semanaGetWeekStart, getWeekLabel as semanaGetWeekLabel, getMonthKey as semanaGetMonthKey, getMonthLabel as semanaGetMonthLabel, sortMonthsDesc as semanaSortMonthsDesc } from './useSemana'
 import { claveColumna, construirColumnas } from './useComisionColumnas'
+import { ReporteVentaUnificada } from '@/Server/Reporte'
 
 // --- Lógica de Pestañas ---
 const activeTab = ref('financiero');
@@ -201,17 +225,120 @@ const comprasTableRef = ref(null);
 const produccionTableRef = ref(null);
 const inventarioTableRef = ref(null);
 const comisionTableRef = ref(null);
+const reporteVentaUnificada = ref(null);
+const cargandoVentaUnificada = ref(false);
 const gastosGeneralesTableRef = ref(null);
 const produccionVsVentaTurnosTableRef = ref(null);
 
-// --- Agrupación por Semana ---
+// --- Agrupación por Semana / Mes ---
 const agruparPorSemana = ref(false)
+const agruparPorMes = ref(false)
+
+// Vista del reporte de venta: derivada del modo elegido (diario | semanal | mensual)
+const ventaVistaAgrupacion = computed(() => {
+  if (agruparPorMes.value) return 'mensual'
+  if (agruparPorSemana.value) return 'semanal'
+  return 'diario'
+})
+
+// Mes elegido en el reporte de venta: fija desde (dia 1) y hasta (ultimo dia del mes)
+const mesActualYM = () => `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`
+const mesVenta = ref(mesActualYM())        // mes desde (YYYY-MM)
+const mesVentaHasta = ref(mesActualYM())   // mes hasta (YYYY-MM)
+
+// Fija desde (dia 1 del mes desde) y hasta (ultimo dia del mes hasta)
+const aplicarMesVenta = (desdeYM, hastaYM) => {
+  if (!desdeYM || !hastaYM || activeTab.value !== 'venta') return
+  const [year, month] = hastaYM.split('-').map(Number)
+  const ultimoDia = new Date(year, month, 0).getDate()
+  filtros.value.desde = `${desdeYM}-01`
+  filtros.value.hasta = `${hastaYM}-${String(ultimoDia).padStart(2, '0')}`
+}
+
+// Mes desde: si queda despues del mes hasta, el mes hasta lo sigue
+const seleccionarMesDesde = (ym) => {
+  if (!ym) return
+  mesVenta.value = ym
+  if (mesVentaHasta.value < ym) mesVentaHasta.value = ym
+  aplicarMesVenta(mesVenta.value, mesVentaHasta.value)
+}
+
+// Mes hasta: si queda antes del mes desde, el mes desde lo sigue
+const seleccionarMesHasta = (ym) => {
+  if (!ym) return
+  mesVentaHasta.value = ym
+  if (mesVenta.value > ym) mesVenta.value = ym
+  aplicarMesVenta(mesVenta.value, mesVentaHasta.value)
+}
+
+watch(agruparPorMes, (v) => {
+  if (v) agruparPorSemana.value = false
+  if (v && activeTab.value === 'venta' && filtros.value.desde) {
+    mesVenta.value = filtros.value.desde.slice(0, 7)
+    mesVentaHasta.value = (filtros.value.hasta || filtros.value.desde).slice(0, 7)
+    aplicarMesVenta(mesVenta.value, mesVentaHasta.value)
+  }
+})
+// --- Semanas en el reporte de venta: cada fecha elegida se ajusta a su semana completa ---
+const isoLocal = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+const inicioSemanaDe = (fecha) => {
+  const d = new Date(`${fecha}T12:00:00`)
+  d.setDate(d.getDate() - ((d.getDay() - getAnchorWeekday() + 7) % 7))
+  return isoLocal(d)
+}
+const finSemanaDe = (fecha) => {
+  const d = new Date(`${inicioSemanaDe(fecha)}T12:00:00`)
+  d.setDate(d.getDate() + 6)
+  return isoLocal(d)
+}
+
+const semanaDesde = ref(isoLocal(new Date()))  // fecha cualquiera dentro de la semana inicial
+const semanaHasta = ref(isoLocal(new Date()))  // fecha cualquiera dentro de la semana final
+
+// Fija desde (inicio de la semana de "semanaDesde") y hasta (fin de la semana de "semanaHasta")
+const aplicarSemanaVenta = () => {
+  if (activeTab.value !== 'venta' || !semanaDesde.value || !semanaHasta.value) return
+  filtros.value.desde = inicioSemanaDe(semanaDesde.value)
+  filtros.value.hasta = finSemanaDe(semanaHasta.value)
+}
+
+const seleccionarSemanaDesde = (fecha) => {
+  if (!fecha) return
+  semanaDesde.value = fecha
+  if (semanaHasta.value < fecha) semanaHasta.value = fecha
+  aplicarSemanaVenta()
+}
+
+const seleccionarSemanaHasta = (fecha) => {
+  if (!fecha) return
+  semanaHasta.value = fecha
+  if (semanaDesde.value > fecha) semanaDesde.value = fecha
+  aplicarSemanaVenta()
+}
+
+watch(agruparPorSemana, (v) => {
+  if (v) agruparPorMes.value = false
+  if (v && activeTab.value === 'venta' && filtros.value.desde) {
+    semanaDesde.value = filtros.value.desde
+    semanaHasta.value = filtros.value.hasta || filtros.value.desde
+    aplicarSemanaVenta()
+  }
+})
+
 
 const inicioSemana = useInicioSemana()
 const finSemana = useFinSemana()
 
+// Si cambia el dia de inicio de semana, las fechas se reajustan a las nuevas semanas
+watch([() => inicioSemana.value, () => finSemana.value], () => {
+  if (agruparPorSemana.value) aplicarSemanaVenta()
+})
+
 const getWeekStart = (dateStr) => semanaGetWeekStart(dateStr)
 const getWeekLabel = (weekStartStr) => semanaGetWeekLabel(weekStartStr)
+const getMonthKey = (dateStr) => semanaGetMonthKey(dateStr)
+const getMonthLabel = (monthKey) => semanaGetMonthLabel(monthKey)
+const sortMonthsDesc = (months) => semanaSortMonthsDesc(months)
 
 const groupByWeek = (dayGroups, itemsKey, totalKey) => {
   const weeks = {}
@@ -428,7 +555,7 @@ const year = today.getFullYear();
 const month = String(today.getMonth() + 1).padStart(2, '0');
 const day = String(today.getDate()).padStart(2, '0');
 const currentDate = `${year}-${month}-${day}`;
-const filtros = ref({ desde: currentDate, hasta: currentDate, tienda: "", vendedor: "", metodoPago: 0, cliente: "", subcategorias:'', TipoCliente:'', IdEstado:0, IdEstadoVenta:0, idtipopedido: 0, estado: "", idsucursalorigen: "", idsucursaldestino: "", idempleado: "", idproveedor: "", idinsumo: "", tipoItem: "", iditem: "" });
+const filtros = ref({ desde: currentDate, hasta: currentDate, tienda: "", vendedor: "", idrevendedor: "", metodoPago: 0, cliente: "", subcategorias:'', TipoCliente:'', IdEstado:0, IdEstadoVenta:0, idtipopedido: 0, estado: "", idsucursalorigen: "", idsucursaldestino: "", idempleado: "", idproveedor: "", idinsumo: "", tipoItem: "", iditem: "" });
 const filtroCategoria = ref('');
 const categorias = ref([]);
 const subcategoriasParaFiltro = ref([]);
@@ -529,8 +656,105 @@ const cargarSucursales = async () => {
     console.error('Error al cargar sucursales, empleados o revendedores:', error); 
   } 
 };
+// Convierte los controles de revendedor en la misma forma que las ventas de tienda (ventas + consolidado)
+const construirVentasDesdeRevendedor = (reporte = []) => {
+  const ventasLista = []
+  const porPeriodo = {}
+  const porSucursal = {}
+  const productos = {}
+  let totalGeneral = 0
+
+  reporte.forEach(grupo => {
+    const fecha = String(grupo.fecha || '').split('T')[0]
+    ;(grupo.controles || []).forEach(c => {
+      const detalles = c.detalles || []
+      const sucursal = c.sucursal || 'Sin sucursal'
+      const totalVenta = Number(c.total_liquido_panaderia || 0) + Number(c.total_comision || 0)
+      const gastoExtra = Number(c.total_gasto_extra || 0)
+
+      ventasLista.push({
+        idventa: `REV-${c.idcontrol}`,
+        fechaventa: fecha,
+        cliente: c.empleado || 'Revendedor',
+        sucursal,
+        preciototal: totalVenta,
+        gastoextra: gastoExtra,
+        estado: 1,
+        tiene_factura: false,
+        nro_factura: null,
+        factura_url: null,
+        detalles: detalles.map(d => {
+          const cantidad = Number(d.cantidad_vendida || 0)
+          const subtotal = Number(d.liquido_panaderia || 0) + Number(d.comision_total || 0)
+          return {
+            item_nombre: d.producto,
+            presentacion: d.presentacion,
+            cantidad,
+            precio: cantidad > 0 ? subtotal / cantidad : Number(d.precio_venta || 0)
+          }
+        })
+      })
+
+      if (!porPeriodo[fecha]) porPeriodo[fecha] = { fecha, cant_ventas: 0, total: 0 }
+      porPeriodo[fecha].cant_ventas++
+      porPeriodo[fecha].total += totalVenta
+
+      if (!porSucursal[sucursal]) porSucursal[sucursal] = { nombre: sucursal, cant_ventas: 0, total: 0, participacion: 0 }
+      porSucursal[sucursal].cant_ventas++
+      porSucursal[sucursal].total += totalVenta
+      totalGeneral += totalVenta
+
+      detalles.forEach(d => {
+        const cantidad = Number(d.cantidad_vendida || 0)
+        const subtotal = Number(d.liquido_panaderia || 0) + Number(d.comision_total || 0)
+        const unidades = Number(d.unidades_por_presentacion || 1)
+        if (!productos[d.idproducto]) {
+          productos[d.idproducto] = { idproducto: d.idproducto, nombre: d.producto, imagen: null, total_unidades_vendidas: 0, ingresos_totales: 0, presentaciones: {} }
+        }
+        const prod = productos[d.idproducto]
+        prod.total_unidades_vendidas += cantidad * unidades
+        prod.ingresos_totales += subtotal
+        const pKey = `${d.presentacion}|${unidades}`
+        if (!prod.presentaciones[pKey]) {
+          prod.presentaciones[pKey] = { presentacion: d.presentacion, unidades_por_presentacion: unidades, cantidad_vendida: 0, subtotal_ingresos: 0 }
+        }
+        prod.presentaciones[pKey].cantidad_vendida += cantidad
+        prod.presentaciones[pKey].subtotal_ingresos += subtotal
+      })
+    })
+  })
+
+  return {
+    ventas: { ventas: ventasLista, topVendedor: null, topCliente: null },
+    consolidado: {
+      ventasPorPeriodo: Object.values(porPeriodo).sort((a, b) => a.fecha.localeCompare(b.fecha)),
+      ventasPorSucursal: Object.values(porSucursal)
+        .map(s => ({ ...s, participacion: totalGeneral > 0 ? (s.total * 100) / totalGeneral : 0 }))
+        .sort((a, b) => b.total - a.total),
+      productosTop: Object.values(productos)
+        .map(p => ({ ...p, presentaciones: Object.values(p.presentaciones) }))
+        .sort((a, b) => b.ingresos_totales - a.ingresos_totales),
+      promocionesTop: [],
+      metodosPago: [],
+      ventasPorUsuario: []
+    }
+  }
+}
+
 const cargarventas = async () => { 
   try { 
+    if (filtros.value.idrevendedor) {
+      const respRev = await ReporteComisionDetallado(
+        filtros.value.desde,
+        filtros.value.hasta,
+        filtros.value.idrevendedor,
+        filtros.value.tienda || null
+      );
+      const mapeado = construirVentasDesdeRevendedor(respRev?.reporte || []);
+      ventas.value = mapeado.ventas;
+      ventasConsolidada.value = mapeado.consolidado;
+      return;
+    }
     const [ventasResp, consolidadoResp] = await Promise.all([
       ReporteVenta(
         filtros.value.tienda || null, 
@@ -1003,8 +1227,10 @@ const addChartDataToWorkbook = (wb, sheetName, labels, datasets) => {
 };
 
 watch(activeTab, () => {
+    if (!['ventas', 'comision', 'venta'].includes(activeTab.value)) agruparPorMes.value = false;
     clearTimeout(filtrosTimer);
     filtros.value.vendedor = "";
+    filtros.value.idrevendedor = "";
     filtros.value.cliente = "";
     filtros.value.metodoPago = 0;
     filtros.value.TipoCliente = "";
@@ -1051,11 +1277,41 @@ const cargarReporteActivo = async () => {
     comision: cargarComision,
     'gastos-generales': cargarGastosGenerales,
     'produccion-vs-venta': cargarProduccionVsVenta,
-    'destinos': cargarDestinos
+    'destinos': cargarDestinos,
+    'venta': cargarReporteVentaUnificada
   };
   const fn = mapa[activeTab.value];
   if (fn) await fn();
 };
+
+const cargarReporteVentaUnificada = async () => {
+  cargandoVentaUnificada.value = true
+  try {
+    const sucursal = filtros.value.tienda || null
+    const data = await ReporteVentaUnificada(filtros.value.desde, filtros.value.hasta, sucursal, getAnchorWeekday())
+    reporteVentaUnificada.value = data
+  } catch (error) {
+    console.error('Error al cargar reporte unificado de venta:', error)
+    reporteVentaUnificada.value = { columnas: [], grupos: [], dias: [], semanas: [], meses: [], porcentajes: [], totalesGlobales: { ingreso: 0, gastoExtra: 0, neto: 0, comision: 0 } }
+  } finally {
+    cargandoVentaUnificada.value = false
+  }
+};
+
+watch(
+  [
+    () => filtros.value.desde,
+    () => filtros.value.hasta,
+    () => filtros.value.tienda,
+    () => inicioSemana.value,
+    () => finSemana.value
+  ],
+  async () => {
+    if (activeTab.value === 'venta') {
+      await cargarReporteVentaUnificada()
+    }
+  }
+)
 
 const generarReporte = async () => {
   await cargarReporteActivo();
@@ -1256,7 +1512,19 @@ const generarReporte = async () => {
 
 const exportarPDF = async () => {
   try {
+  if (activeTab.value === 'venta') {
+    const tienda = sucursales.value.find(s => String(s.idsucursal) === String(filtros.value.tienda))?.nombre || 'Todas las tiendas'
+    await exportarVentaUnificadaPDF({
+      reporte: reporteVentaUnificada.value || {},
+      modo: ventaVistaAgrupacion.value,
+      desde: filtros.value.desde,
+      hasta: filtros.value.hasta,
+      tienda
+    })
+    return
+  }
   const isSemanal = agruparPorSemana.value
+  const isMes = agruparPorMes.value
   const fmtPeriodo = (g) => isSemanal ? (g.semanaLabel || g.fecha) : formatFecha(g.fecha)
   const groupByWeek = (items, getDate) => {
     if (!isSemanal || !items?.length) return null
@@ -1269,14 +1537,20 @@ const exportarPDF = async () => {
     })
     return Object.values(weeks).sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
   }
-  // Expandir semanas para capturar gráficas semanales
-  const tableRefs = { financiero: financieroTableRef, ventas: ventasTableRef, pedidos: pedidosTableRef, transferencias: transferenciasTableRef, compras: comprasTableRef, produccion: produccionTableRef, comision: comisionTableRef, 'produccion-vs-venta': produccionVsVentaTurnosTableRef }
+  // Expandir semanas/meses para capturar gráficas
+  const tableRefs = { financiero: financieroTableRef, ventas: ventasTableRef, venta: null, pedidos: pedidosTableRef, transferencias: transferenciasTableRef, compras: comprasTableRef, produccion: produccionTableRef, comision: comisionTableRef, 'produccion-vs-venta': produccionVsVentaTurnosTableRef }
   const curRef = tableRefs[activeTab.value]
-  if (isSemanal && curRef?.value?.expandAllSemanas) {
+  if (isMes && curRef?.value?.expandAllMeses) {
+    curRef.value.expandAllMeses()
+    await new Promise(r => setTimeout(r, 600))
+  } else if (isSemanal && curRef?.value?.expandAllSemanas) {
     curRef.value.expandAllSemanas()
     await new Promise(r => setTimeout(r, 600))
   }
-  const collapseWeeks = () => { if (isSemanal && curRef?.value?.collapseAllSemanas) curRef.value.collapseAllSemanas() }
+  const collapseWeeks = () => {
+    if (isSemanal && curRef?.value?.collapseAllSemanas) curRef.value.collapseAllSemanas()
+    if (isMes && curRef?.value?.collapseAllMeses) curRef.value.collapseAllMeses()
+  }
   if (activeTab.value === 'financiero') {
     const data = reporteFinanciero.value;
     if (!data || !data.resumenGeneral) {
@@ -1659,10 +1933,13 @@ const exportarPDF = async () => {
       return;
     }
     const doc = new jsPDF();
-    let startY = await addPDFHeader(doc, `Reporte de Ventas${agruparPorSemana.value ? ' Semanal' : ''}`);
+    let startY = await addPDFHeader(doc, `Reporte de Ventas${isMes ? ' Mensual' : isSemanal ? ' Semanal' : ''}`);
     const pageW = doc.internal.pageSize.getWidth();
 
-    if (isSemanal && ventasTableRef.value?.expandAllSemanas) {
+    if (isMes && ventasTableRef.value?.expandAllMeses) {
+      ventasTableRef.value.expandAllMeses()
+      await new Promise(r => setTimeout(r, 600))
+    } else if (isSemanal && ventasTableRef.value?.expandAllSemanas) {
       ventasTableRef.value.expandAllSemanas()
       await new Promise(r => setTimeout(r, 600))
     }
@@ -1670,7 +1947,125 @@ const exportarPDF = async () => {
     const cons = ventasConsolidada.value;
     const totalVendido = cons?.ventasPorPeriodo?.reduce((acc, curr) => acc + parseFloat(curr.total || 0), 0) || 0;
 
-    if (!isSemanal) {
+    if (isMes) {
+      // === VISTA MENSUAL (mes -> semanas -> días) ===
+      const chartW = pageW - 28
+      const chM1 = addChartToPDF(doc, 0, 14, startY + 5, chartW)
+      if (chM1 !== null) {
+        startY += chM1 + 15
+      }
+
+      const months = {}
+      sortedVentas.value.forEach(g => {
+        const fecha = String(g.fecha).split('T')[0]
+        const mk = getMonthKey(fecha)
+        if (!months[mk]) months[mk] = { monthKey: mk, monthLabel: getMonthLabel(mk), weeks: {}, totalIngreso: 0, totalGastoExtra: 0, cantVentas: 0 }
+        const month = months[mk]
+        const monday = getWeekStart(fecha)
+        if (!month.weeks[monday]) month.weeks[monday] = { fecha: monday, semanaLabel: getWeekLabel(monday), groups: [], totalIngreso: 0 }
+        month.weeks[monday].groups.push(g)
+        month.weeks[monday].totalIngreso += g.totalIngreso || 0
+        month.totalIngreso += g.totalIngreso || 0
+        month.totalGastoExtra += g.totalGastoExtra || 0
+        month.cantVentas += (g.ventas || []).length
+      })
+      const sortedMonths = sortMonthsDesc(Object.values(months))
+
+      sortedMonths.forEach((month) => {
+        if (startY > 240) { doc.addPage(); startY = 50 }
+
+        // Título de mes
+        doc.setFillColor(255, 247, 237)
+        doc.rect(14, startY - 5, pageW - 28, 10, 'F')
+        doc.setFontSize(12)
+        doc.setTextColor(0)
+        doc.setFont(undefined, 'bold')
+        doc.text(month.monthLabel, 18, startY)
+        const promMes = month.cantVentas > 0 ? month.totalIngreso / month.cantVentas : 0
+        doc.setFontSize(9)
+        doc.setTextColor(22, 163, 74)
+        doc.text(`Total: ${month.totalIngreso.toFixed(2)} Bs.`, pageW - 95, startY)
+        doc.setTextColor(37, 99, 235)
+        doc.text(`Prom: ${promMes.toFixed(2)} Bs.`, pageW - 50, startY)
+        startY += 12
+
+        // KPIs del mes
+        const cw = Math.floor((pageW - 28) / 3)
+        const mkpi = [
+          { fill: [239,246,255], tc: [37,99,235], vc: [29,78,216], label: 'Total Ventas', val: `${month.totalIngreso.toFixed(2)} Bs.` },
+          { fill: [240,253,244], tc: [22,163,74], vc: [21,128,61], label: 'Transacciones', val: `${month.cantVentas}` },
+          { fill: [254,242,242], tc: [220,38,38], vc: [185,28,28], label: 'Gasto Extra', val: `${month.totalGastoExtra.toFixed(2)} Bs.` },
+        ]
+        mkpi.forEach((c, i) => {
+          const x = 14 + i * cw
+          doc.setFillColor(c.fill[0], c.fill[1], c.fill[2])
+          doc.rect(x, startY, cw - 2, 14, 'F')
+          doc.setFontSize(7)
+          doc.setTextColor(c.tc[0], c.tc[1], c.tc[2])
+          doc.setFont(undefined, 'bold')
+          doc.text(c.label, x + 2, startY + 5)
+          doc.setFontSize(9)
+          doc.setTextColor(c.vc[0], c.vc[1], c.vc[2])
+          doc.text(c.val, x + 2, startY + 13)
+        })
+        startY += 20
+
+        const sortedWeeks = Object.values(month.weeks).sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
+        sortedWeeks.forEach((sem) => {
+          if (startY > 250) { doc.addPage(); startY = 50 }
+
+          // Sub-título de semana dentro del mes
+          doc.setFillColor(239, 246, 255)
+          doc.rect(18, startY - 3, pageW - 36, 8, 'F')
+          doc.setFontSize(9)
+          doc.setTextColor(0)
+          doc.setFont(undefined, 'bold')
+          doc.text(`Semana: ${sem.semanaLabel}`, 22, startY)
+          doc.setFontSize(8)
+          doc.setTextColor(37, 99, 235)
+          doc.text(`${sem.totalIngreso.toFixed(2)} Bs.`, pageW - 55, startY)
+          startY += 10
+
+          sem.groups.sort((a, b) => new Date(b.fecha) - new Date(a.fecha)).forEach(g => {
+            if (startY > 255) { doc.addPage(); startY = 50 }
+
+            // Header día
+            doc.setFillColor(240, 245, 255)
+            doc.rect(22, startY - 3, pageW - 44, 7, 'F')
+            doc.setFontSize(8)
+            doc.setTextColor(0)
+            doc.setFont(undefined, 'bold')
+            doc.text(`${fmtPeriodo(g)} (${(g.ventas || []).length} transacciones)`, 26, startY)
+            doc.setTextColor(37, 99, 235)
+            doc.text(`${g.totalIngreso.toFixed(2)} Bs.`, pageW - 55, startY)
+            startY += 8
+
+            const detRows = []
+            g.ventas.forEach(v => {
+              const span = v.clientRowspan || 1
+              const sucLabel = v.sucursal === 'Cocina' || v.sucursal === 'cocina' ? 'Pedido' : (v.sucursal || '')
+              if (v.isFirstInSale) {
+                detRows.push([
+                  { content: v.cliente, rowSpan: span },
+                  { content: sucLabel, rowSpan: span },
+                  v.producto, v.cantidad, `${v.precio} Bs.`, `${v.subtotal} Bs.`,
+                  { content: v.estado, rowSpan: span },
+                  { content: v.hasFactura ? v.nroFactura : 'S/F', rowSpan: span }
+                ])
+              } else {
+                detRows.push([v.producto, v.cantidad, `${v.precio} Bs.`, `${v.subtotal} Bs.`])
+              }
+            })
+            autoTable(doc, {
+              head: [['Cliente', 'Tienda/Sucursal', 'Producto', 'Cant.', 'P. Unit.', 'Subtotal', 'Estado', 'Factura']],
+              body: detRows, startY, styles: { fontSize: 6, lineWidth: 0.1, lineColor: [120, 120, 120] }, theme: 'grid', columnStyles: { 0: { cellWidth: 20 }, 1: { cellWidth: 20 }, 2: { cellWidth: 30 } }
+            })
+            startY = doc.lastAutoTable.finalY + 3
+          })
+          startY += 5
+        })
+      })
+    } else if (!isSemanal) {
       // === VISTA DIARIA ===
       // KPI cards
       const cards = [
@@ -2046,7 +2441,7 @@ const exportarPDF = async () => {
       })
     }
 
-    doc.save(`reporte_ventas${agruparPorSemana.value ? '_semanal' : ''}_${new Date().toISOString().slice(0, 10)}.pdf`);
+    doc.save(`reporte_ventas${isMes ? '_mensual' : isSemanal ? '_semanal' : ''}_${new Date().toISOString().slice(0, 10)}.pdf`);
   } else if (activeTab.value === 'pedidos') {
     if (!processedPedidosGrouped.value || processedPedidosGrouped.value.length === 0) {
       alert("No hay datos de pedidos para exportar a PDF.");
@@ -3167,7 +3562,7 @@ const exportarPDF = async () => {
       return;
     }
     const doc = new jsPDF('l');
-    let startY = await addPDFHeader(doc, `Reporte de Comisiones${isSemanal ? ' Semanal' : ''}`);
+    let startY = await addPDFHeader(doc, `Reporte de Comisiones${isMes ? ' Mensual' : isSemanal ? ' Semanal' : ''}`);
     const pageW = doc.internal.pageSize.getWidth();
     startY += 10;
 
@@ -3215,7 +3610,171 @@ const exportarPDF = async () => {
     startY = renderKpiCom(startY);
 
     const chartW = pageW - 28;
-    if (!isSemanal) {
+    if (isMes && comisionDetallada.value?.reporte?.length) {
+      // === VISTA MENSUAL (mes -> semanas -> días) ===
+      const chWeekM = addChartToPDF(doc, 0, 14, startY + 5, chartW);
+      if (chWeekM !== null) startY += chWeekM + 15;
+
+      const months = {}
+      comisionDetallada.value.reporte.forEach(g => {
+        const fecha = g.fecha ? g.fecha.split('T')[0] : null
+        if (!fecha) return
+        const mk = getMonthKey(fecha)
+        if (!months[mk]) months[mk] = { monthKey: mk, monthLabel: getMonthLabel(mk), weeks: {}, totalComision: 0, totalLiquido: 0, totalGastoExtra: 0, totalControles: 0 }
+        const month = months[mk]
+        const monday = getWeekStart(fecha)
+        if (!month.weeks[monday]) month.weeks[monday] = { fecha: monday, semanaLabel: getWeekLabel(monday), groups: [], totalComision: 0, totalLiquido: 0, totalGastoExtra: 0, totalControles: 0 }
+        const week = month.weeks[monday]
+        week.groups.push(g)
+        if (Array.isArray(g.controles)) g.controles.forEach(c => {
+          week.totalControles++
+          month.totalControles++
+          const gastoExtra = Number(c.total_gasto_extra || 0)
+          week.totalGastoExtra += gastoExtra
+          month.totalGastoExtra += gastoExtra
+          if (Array.isArray(c.detalles)) c.detalles.forEach(d => {
+            week.totalComision += Number(d.comision_total || 0)
+            week.totalLiquido += Number(d.liquido_panaderia || 0)
+            month.totalComision += Number(d.comision_total || 0)
+            month.totalLiquido += Number(d.liquido_panaderia || 0)
+          })
+        })
+      })
+      const sortedMonthsCom = sortMonthsDesc(Object.values(months))
+
+      const renderComisionMatrix = (controles) => {
+        const empMap = {}
+        const comItems = []
+        controles.forEach(control => {
+          if (!empMap[control.empleado]) empMap[control.empleado] = { empleado: control.empleado, total_comision: 0, total_liquido: 0, total_gasto_extra: 0, neto_a_entregar: 0, celdas: {} }
+          empMap[control.empleado].total_gasto_extra += Number(control.total_gasto_extra || 0)
+          if (Array.isArray(control.detalles)) control.detalles.forEach(det => {
+            comItems.push(det)
+            const key = claveColumna(det)
+            empMap[control.empleado].celdas[key] = (empMap[control.empleado].celdas[key] || 0) + Number(det.cantidad_vendida || 0)
+            empMap[control.empleado].total_comision += Number(det.comision_total || 0)
+            empMap[control.empleado].total_liquido += Number(det.liquido_panaderia || 0)
+          })
+        })
+        Object.values(empMap).forEach(e => { e.neto_a_entregar = e.total_liquido - e.total_gasto_extra })
+        const { grupos: comGrupos, columnas: comColumnas } = construirColumnas(comItems)
+        const empleados = Object.values(empMap)
+        return { empleados, comGrupos, comColumnas }
+      }
+
+      sortedMonthsCom.forEach((month) => {
+        if (startY > 240) { doc.addPage('l'); startY = 50 }
+        doc.setFillColor(255, 247, 237)
+        doc.rect(14, startY - 5, pageW - 28, 10, 'F')
+        doc.setFontSize(12); doc.setTextColor(0); doc.setFont(undefined, 'bold')
+        doc.text(month.monthLabel, 18, startY)
+        const totNetoMes = month.totalLiquido - month.totalGastoExtra
+        doc.setFontSize(8); doc.setTextColor(220, 38, 38)
+        doc.text(`G.Extra: ${month.totalGastoExtra.toFixed(2)}`, pageW - 200, startY)
+        doc.setTextColor(22, 163, 74)
+        doc.text(`Liq: ${month.totalLiquido.toFixed(2)}`, pageW - 145, startY)
+        doc.setTextColor(37, 99, 235)
+        doc.text(`Com: ${month.totalComision.toFixed(2)}`, pageW - 90, startY)
+        doc.setTextColor(220, 38, 38); doc.setFont(undefined, 'bold')
+        doc.text(`Neto: ${totNetoMes.toFixed(2)}`, pageW - 50, startY)
+        startY += 12
+
+        // Gráficas del mes (doughnut + comparación)
+        const mChartId = 'mchart-' + sanitizeId(month.monthKey)
+        const chH1 = captureCanvasById(doc, mChartId, 14, startY, Math.min(chartW / 2.3, 100))
+        const mChart2Id = 'mchart2-' + sanitizeId(month.monthKey)
+        const chH2 = captureCanvasById(doc, mChart2Id, 14 + Math.min(chartW / 2.3, 100) + 5, startY, Math.min(chartW / 2.3, 100))
+        if (chH1 !== null || chH2 !== null) startY += Math.max(chH1 || 0, chH2 || 0) + 10
+
+        // Resumen de Comisiones del mes
+        const monthControles = []
+        Object.values(month.weeks).forEach(w => w.groups.forEach(g => { if (Array.isArray(g.controles)) monthControles.push(...g.controles) }))
+        const { empleados, comGrupos, comColumnas } = renderComisionMatrix(monthControles)
+        if (empleados.length && comColumnas.length) {
+          if (startY > 240) { doc.addPage('l'); startY = 50 }
+          doc.setFontSize(10); doc.setTextColor(0); doc.setFont(undefined, 'bold')
+          doc.text('Resumen de Comisiones del Mes', 14, startY)
+          startY += 7
+          const stCabCom = { fontSize: 6, fontStyle: 'bold', halign: 'center', fillColor: [249, 115, 22], textColor: [255, 255, 255] };
+          const stProdCom = { fontSize: 6, fontStyle: 'bold', halign: 'center', fillColor: [67, 56, 202], textColor: [255, 255, 255] };
+          const stPresCom = { fontSize: 6, fontStyle: 'bold', halign: 'center', fillColor: [224, 231, 255], textColor: [67, 56, 202] };
+          const head = [
+            [
+              { content: 'Empleado', rowSpan: 2, styles: stCabCom },
+              ...comGrupos.map(g => ({ content: g.producto, colSpan: g.presentaciones.length, styles: stProdCom })),
+              { content: 'Comisión', rowSpan: 2, styles: stCabCom },
+              { content: 'Líq. Panadería', rowSpan: 2, styles: stCabCom },
+              { content: 'Gasto Extra', rowSpan: 2, styles: stCabCom },
+              { content: 'Neto a Entregar', rowSpan: 2, styles: stCabCom }
+            ],
+            comColumnas.map(c => ({ content: c.presentacion, styles: stPresCom }))
+          ];
+          const rows = empleados.map(e => [e.empleado, ...comColumnas.map(c => e.celdas[c.key] ?? '-'), `${e.total_comision.toFixed(2)} Bs.`, `${e.total_liquido.toFixed(2)} Bs.`, `${e.total_gasto_extra.toFixed(2)} Bs.`, `${e.neto_a_entregar.toFixed(2)} Bs.`])
+          autoTable(doc, { head, body: rows, startY, styles: { fontSize: 6 }, theme: 'striped' })
+          startY = doc.lastAutoTable.finalY + 8
+        }
+
+        // Semanas dentro del mes
+        const sortedWeeksCom = Object.values(month.weeks).sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
+        sortedWeeksCom.forEach((sem) => {
+          if (startY > 245) { doc.addPage('l'); startY = 50 }
+          doc.setFillColor(239, 246, 255)
+          doc.rect(18, startY - 3, pageW - 36, 8, 'F')
+          doc.setFontSize(9); doc.setTextColor(0); doc.setFont(undefined, 'bold')
+          doc.text(`Semana: ${sem.semanaLabel}`, 22, startY)
+          const totNetoSem = sem.totalLiquido - sem.totalGastoExtra
+          doc.setFontSize(7); doc.setTextColor(220, 38, 38)
+          doc.text(`G.Extra: ${sem.totalGastoExtra.toFixed(2)}`, pageW - 190, startY)
+          doc.setTextColor(22, 163, 74)
+          doc.text(`Liq: ${sem.totalLiquido.toFixed(2)}`, pageW - 135, startY)
+          doc.setTextColor(37, 99, 235)
+          doc.text(`Com: ${sem.totalComision.toFixed(2)}`, pageW - 80, startY)
+          doc.setTextColor(220, 38, 38)
+          doc.text(`Neto: ${totNetoSem.toFixed(2)}`, pageW - 40, startY)
+          startY += 8
+
+          const dayGroups = {}
+          sem.groups.forEach(g => {
+            const fecha = g.fecha ? g.fecha.split('T')[0] : 'N/A'
+            if (!dayGroups[fecha]) dayGroups[fecha] = { fecha, controles: [] }
+            if (Array.isArray(g.controles)) g.controles.forEach(c => dayGroups[fecha].controles.push(c))
+          })
+          const sortedDays = Object.values(dayGroups).sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
+
+          sortedDays.forEach(day => {
+            if (startY > 255) { doc.addPage('l'); startY = 50 }
+            doc.setFillColor(240, 245, 255)
+            doc.rect(22, startY - 3, pageW - 44, 7, 'F')
+            doc.setFontSize(7); doc.setTextColor(0); doc.setFont(undefined, 'bold')
+            doc.text(`${formatFecha(day.fecha)} (${(day.controles||[]).length} controles)`, 26, startY)
+            startY += 8
+
+            const rows = []
+            if (Array.isArray(day.controles)) day.controles.forEach(control => {
+              const gastoExtra = Number(control.total_gasto_extra || 0)
+              const netoEntrega = Number(control.neto_a_entregar || control.total_liquido_panaderia || 0)
+              if (Array.isArray(control.detalles)) control.detalles.forEach((det, dIdx) => {
+                rows.push([
+                  dIdx === 0 ? control.empleado : '', dIdx === 0 ? control.sucursal : '',
+                  det.producto, det.presentacion,
+                  Number(det.cantidad_entregada || 0), Number(det.cantidad_devuelta || 0),
+                  Number(det.cantidadajustada ?? det.cantidad_ajustada ?? 0), Number(det.cantidad_vendida || 0),
+                  `${Number(det.precio_venta || 0).toFixed(2)} Bs.`,
+                  `${Number(det.comision_unitaria || 0).toFixed(2)} Bs.`,
+                  `${Number(det.comision_total || 0).toFixed(2)} Bs.`,
+                  `${Number(det.liquido_panaderia || 0).toFixed(2)} Bs.`,
+                  dIdx === 0 ? `${gastoExtra.toFixed(2)} Bs.` : '',
+                  dIdx === 0 ? `${netoEntrega.toFixed(2)} Bs.` : ''
+                ])
+              })
+            })
+            autoTable(doc, { head: [["Empleado", "Sucursal", "Producto", "Presentación", "Entregado", "Devuelto", "Ajustado", "Vendido", "Precio Vta.", "Comisión Unit.", "Comisión Total", "Líq. Panadería", "Gasto Extra", "Neto a Entregar"]], body: rows, startY, styles: { fontSize: 6 } })
+            startY = doc.lastAutoTable.finalY + 3
+          })
+          startY += 5
+        })
+      })
+    } else if (!isSemanal) {
       const chCo1 = addChartToPDF(doc, 0, 14, startY + 5, Math.floor(chartW / 2.1));
       if (chCo1 !== null) {
         let chartY = startY + 5;
@@ -3439,7 +3998,7 @@ const exportarPDF = async () => {
         startY += 5
       })
     }
-    doc.save(`reporte_comisiones${isSemanal ? '_semanal' : ''}_${new Date().toISOString().slice(0, 10)}.pdf`);
+    doc.save(`reporte_comisiones${isMes ? '_mensual' : isSemanal ? '_semanal' : ''}_${new Date().toISOString().slice(0, 10)}.pdf`);
     } catch (e_com) {
       console.error('Error en bloque comisiones PDF:', e_com);
       console.error('Stack:', e_com.stack);
@@ -4451,6 +5010,7 @@ const generarResumenSemanalPDF = async (fechadesde, fechahasta, idsucursal) => {
 const exportarExcel = () => {
   try {
   const isSemanal = agruparPorSemana.value
+  const isMes = agruparPorMes.value
   const fmtPeriodo = (g) => isSemanal ? (g.semanaLabel || g.fecha) : formatFecha(g.fecha)
   const groupByWeek = (items, getDate) => {
     if (!isSemanal || !items?.length) return null
@@ -4788,24 +5348,55 @@ const exportarExcel = () => {
     const header = ["Cliente", "Tienda/Sucursal", "Producto", "Cantidad", "Precio Unitario (Bs.)", "Subtotal (Bs.)", "Estado", "Factura"];
     header.forEach((h, c) => { const cellRef = XLSX.utils.encode_cell({ r: rowIndex, c }); ws[cellRef] = { t: 's', v: h, s: { font: { bold: true } } }; });
     rowIndex++;
-    sortedVentas.value.forEach(dateGroup => {
-      if (dateGroup.ventas.length > 0) {
-        const dateHeaderCellRef = XLSX.utils.encode_cell({ r: rowIndex, c: 0 });
-        ws[dateHeaderCellRef] = { t: 's', v: `${isSemanal ? 'Semana' : 'Fecha'}: ${fmtPeriodo(dateGroup)} - ${isSemanal ? 'Total de la Semana' : 'Total del Día'}: ${dateGroup.totalIngreso.toFixed(2)} Bs.`, s: { fill: { patternType: "solid", fgColor: { rgb: "FFE5E7EB" } }, font: { bold: true }, alignment: { horizontal: "center" } } };
-        merges.push({ s: { r: rowIndex, c: 0 }, e: { r: rowIndex, c: header.length - 1 } });
-        rowIndex++;
-        dateGroup.ventas.forEach(venta => {
-          const sucLabel = venta.sucursal === 'Cocina' || venta.sucursal === 'cocina' ? 'Pedido' : (venta.sucursal || '');
-          const row = [ venta.cliente, sucLabel, venta.producto, venta.cantidad, parseFloat(venta.precio), parseFloat(venta.subtotal), venta.estado, venta.hasFactura ? venta.nroFactura : 'S/F' ];
-          if (venta.isFirstInSale && venta.clientRowspan > 1) {
-            merges.push({ s: { r: rowIndex, c: 0 }, e: { r: rowIndex + venta.clientRowspan - 1, c: 0 } });
-            merges.push({ s: { r: rowIndex, c: 1 }, e: { r: rowIndex + venta.clientRowspan - 1, c: 1 } });
-          }
-          row.forEach((val, c) => { const cellRef = XLSX.utils.encode_cell({ r: rowIndex, c }); const cell = { v: val }; if (typeof val === 'number') { cell.t = 'n'; } else { cell.t = 's'; } ws[cellRef] = cell; });
-          rowIndex++;
-        });
+    const writeVentaRow = (venta) => {
+      const sucLabel = venta.sucursal === 'Cocina' || venta.sucursal === 'cocina' ? 'Pedido' : (venta.sucursal || '');
+      const row = [ venta.cliente, sucLabel, venta.producto, venta.cantidad, parseFloat(venta.precio), parseFloat(venta.subtotal), venta.estado, venta.hasFactura ? venta.nroFactura : 'S/F' ];
+      if (venta.isFirstInSale && venta.clientRowspan > 1) {
+        merges.push({ s: { r: rowIndex, c: 0 }, e: { r: rowIndex + venta.clientRowspan - 1, c: 0 } });
+        merges.push({ s: { r: rowIndex, c: 1 }, e: { r: rowIndex + venta.clientRowspan - 1, c: 1 } });
       }
-    });
+      row.forEach((val, c) => { const cellRef = XLSX.utils.encode_cell({ r: rowIndex, c }); const cell = { v: val }; if (typeof val === 'number') { cell.t = 'n'; } else { cell.t = 's'; } ws[cellRef] = cell; });
+      rowIndex++;
+    };
+    const writeGroupHeader = (label) => {
+      const cellRef = XLSX.utils.encode_cell({ r: rowIndex, c: 0 });
+      ws[cellRef] = { t: 's', v: label, s: { fill: { patternType: "solid", fgColor: { rgb: "FFE5E7EB" } }, font: { bold: true }, alignment: { horizontal: "center" } } };
+      merges.push({ s: { r: rowIndex, c: 0 }, e: { r: rowIndex, c: header.length - 1 } });
+      rowIndex++;
+    };
+    if (isMes) {
+      const months = {}
+      sortedVentas.value.forEach(dateGroup => {
+        const fecha = String(dateGroup.fecha).split('T')[0]
+        const mk = getMonthKey(fecha)
+        if (!months[mk]) months[mk] = { monthKey: mk, monthLabel: getMonthLabel(mk), weeks: {}, totalIngreso: 0 }
+        const month = months[mk]
+        const monday = getWeekStart(fecha)
+        if (!month.weeks[monday]) month.weeks[monday] = { fecha: monday, semanaLabel: getWeekLabel(monday), groups: [], totalIngreso: 0 }
+        month.weeks[monday].groups.push(dateGroup)
+        month.weeks[monday].totalIngreso += dateGroup.totalIngreso || 0
+        month.totalIngreso += dateGroup.totalIngreso || 0
+      })
+      sortMonthsDesc(Object.values(months)).forEach(month => {
+        writeGroupHeader(`Mes: ${month.monthLabel} - Total del Mes: ${month.totalIngreso.toFixed(2)} Bs.`);
+        Object.values(month.weeks).sort((a, b) => new Date(b.fecha) - new Date(a.fecha)).forEach(sem => {
+          writeGroupHeader(`Semana: ${sem.semanaLabel} - Total de la Semana: ${sem.totalIngreso.toFixed(2)} Bs.`);
+          sem.groups.sort((a, b) => new Date(b.fecha) - new Date(a.fecha)).forEach(g => {
+            if (g.ventas.length > 0) {
+              writeGroupHeader(`Fecha: ${formatFecha(g.fecha)} - Total del Día: ${g.totalIngreso.toFixed(2)} Bs.`);
+              g.ventas.forEach(venta => writeVentaRow(venta));
+            }
+          });
+        });
+      });
+    } else {
+      sortedVentas.value.forEach(dateGroup => {
+        if (dateGroup.ventas.length > 0) {
+          writeGroupHeader(`${isSemanal ? 'Semana' : 'Fecha'}: ${fmtPeriodo(dateGroup)} - ${isSemanal ? 'Total de la Semana' : 'Total del Día'}: ${dateGroup.totalIngreso.toFixed(2)} Bs.`);
+          dateGroup.ventas.forEach(venta => writeVentaRow(venta));
+        }
+      });
+    }
     const range = { s: { r: 0, c: 0 }, e: { r: rowIndex - 1, c: header.length - 1 } };
     ws['!ref'] = XLSX.utils.encode_range(range);
     ws['!merges'] = merges;
@@ -4815,7 +5406,7 @@ const exportarExcel = () => {
     // Hoja: Datos de Gráficas
     const consV = ventasConsolidada.value;
     if (sortedVentas.value?.length) {
-      addChartDataToWorkbook(workbook, 'Gráfica Ventas', sortedVentas.value.map(g => agruparPorSemana.value ? g.semanaLabel || g.fecha : formatFecha(g.fecha)), [
+      addChartDataToWorkbook(workbook, 'Gráfica Ventas', sortedVentas.value.map(g => isMes ? g.fecha : (agruparPorSemana.value ? g.semanaLabel || g.fecha : formatFecha(g.fecha))), [
         { label: 'Total Ingreso (Bs.)', data: sortedVentas.value.map(g => Number(g.totalIngreso || 0)) }
       ]);
     }
@@ -4825,7 +5416,7 @@ const exportarExcel = () => {
       ]);
     }
 
-    XLSX.writeFile(workbook, `reporte_ventas${agruparPorSemana.value ? '_semanal' : ''}_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    XLSX.writeFile(workbook, `reporte_ventas${isMes ? '_mensual' : agruparPorSemana.value ? '_semanal' : ''}_${new Date().toISOString().slice(0, 10)}.xlsx`);
   } else if (activeTab.value === 'pedidos') {
     if (!processedPedidosGrouped.value || processedPedidosGrouped.value.length === 0) {
       alert("No hay datos de pedidos para exportar a Excel.");
@@ -5397,27 +5988,50 @@ const exportarExcel = () => {
     // Sheet 3: Detalle
     if (comisionDetallada.value?.reporte?.length) {
       const detailedData = [];
-      comisionDetallada.value.reporte.forEach(group => {
-        group.controles.forEach(control => {
-          control.detalles.forEach(det => {
-            detailedData.push({
-              Fecha: formatFecha(group.fecha),
-              Empleado: control.empleado,
-              Sucursal: control.sucursal,
-              Producto: det.producto,
-              Presentación: det.presentacion,
-              Entregado: Number(det.cantidad_entregada || 0),
-              Devuelto: Number(det.cantidad_devuelta || 0),
-              Ajustado: Number(det.cantidadajustada ?? det.cantidad_ajustada ?? 0),
-              Vendido: Number(det.cantidad_vendida || 0),
-              'Precio Venta (Bs.)': Number(det.precio_venta || 0),
-              'Comisión Unitaria (Bs.)': Number(det.comision_unitaria || 0),
-              'Comisión Total (Bs.)': Number(det.comision_total || 0),
-              'Líquido Panadería (Bs.)': Number(det.liquido_panaderia || 0)
-            });
+      const pushControlDetalles = (control, ctx) => {
+        control.detalles.forEach(det => {
+          detailedData.push({
+            Mes: ctx.mes,
+            Semana: ctx.semana,
+            Fecha: formatFecha(ctx.fecha),
+            Empleado: control.empleado,
+            Sucursal: control.sucursal,
+            Producto: det.producto,
+            Presentación: det.presentacion,
+            Entregado: Number(det.cantidad_entregada || 0),
+            Devuelto: Number(det.cantidad_devuelta || 0),
+            Ajustado: Number(det.cantidadajustada ?? det.cantidad_ajustada ?? 0),
+            Vendido: Number(det.cantidad_vendida || 0),
+            'Precio Venta (Bs.)': Number(det.precio_venta || 0),
+            'Comisión Unitaria (Bs.)': Number(det.comision_unitaria || 0),
+            'Comisión Total (Bs.)': Number(det.comision_total || 0),
+            'Líquido Panadería (Bs.)': Number(det.liquido_panaderia || 0)
           });
         });
-      });
+      };
+      if (isMes) {
+        const months = {}
+        comisionDetallada.value.reporte.forEach(group => {
+          const fecha = group.fecha ? String(group.fecha).split('T')[0] : null
+          if (!fecha) return
+          const mk = getMonthKey(fecha)
+          if (!months[mk]) months[mk] = { monthKey: mk, monthLabel: getMonthLabel(mk), weeks: {} }
+          const monday = getWeekStart(fecha)
+          if (!months[mk].weeks[monday]) months[mk].weeks[monday] = { fecha: monday, semanaLabel: getWeekLabel(monday), groups: [] }
+          months[mk].weeks[monday].groups.push(group)
+        })
+        sortMonthsDesc(Object.values(months)).forEach(month => {
+          Object.values(month.weeks).sort((a, b) => new Date(b.fecha) - new Date(a.fecha)).forEach(sem => {
+            sem.groups.forEach(group => {
+              group.controles.forEach(control => pushControlDetalles(control, { mes: month.monthLabel, semana: sem.semanaLabel, fecha: group.fecha }))
+            })
+          })
+        })
+      } else {
+        comisionDetallada.value.reporte.forEach(group => {
+          group.controles.forEach(control => pushControlDetalles(control, { mes: '', semana: '', fecha: group.fecha }))
+        })
+      }
       const wsDet = XLSX.utils.json_to_sheet(detailedData);
       XLSX.utils.book_append_sheet(workbook, wsDet, "Detalle");
     }
@@ -5435,7 +6049,7 @@ const exportarExcel = () => {
       }
     }
 
-    XLSX.writeFile(workbook, `reporte_comisiones${agruparPorSemana.value ? '_semanal' : ''}_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    XLSX.writeFile(workbook, `reporte_comisiones${isMes ? '_mensual' : agruparPorSemana.value ? '_semanal' : ''}_${new Date().toISOString().slice(0, 10)}.xlsx`);
   } else if (activeTab.value === 'inventario') {
     const data = reporteInventario.value;
     if (!data || !data.sucursales) {
