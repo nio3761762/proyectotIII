@@ -179,23 +179,46 @@ export const getRevendedorControls = async (req: Request, res: Response) => {
           AND ($2::varchar IS NULL OR rc.idempleado = $2 OR rc.idpersona = $2)
           AND ($3::varchar IS NULL OR rc.idsucursal = $3)
       ),
+      -- Precios agregados UNA sola vez por detalle (antes eran subconsultas por fila)
+      precios_agg AS (
+        SELECT
+          p.idrevendedorcontroldetalle,
+          COALESCE(SUM(p.cantidad) FILTER (WHERE p.estado = 'NORMAL'), 0) AS vendido_normal,
+          COALESCE(SUM(p.cantidad * p.precioventa), 0) AS venta_total,
+          json_agg(json_build_object(
+            'IdPrecio', p.idrevendedorcontrolprecio,
+            'Cantidad', p.cantidad,
+            'PrecioVenta', p.precioventa,
+            'Estado', p.estado,
+            'Observacion', p.observacion
+          )) AS precios_ajustados
+        FROM revendedorcontrolprecio p
+        WHERE p.idrevendedorcontroldetalle IN (
+          SELECT d2.idrevendedorcontroldetalle
+          FROM revendedorcontroldetalle d2
+          INNER JOIN filtered_rc rc2 ON rc2.idrevendedorcontrol = d2.idrevendedorcontrol
+        )
+        GROUP BY p.idrevendedorcontroldetalle
+      ),
       detalles_calc AS (
         SELECT 
           d.*,
           rc.fecha,
           rc.idempleado,
           (d.cantidadentregada - d.cantidaddevuelta) as vendido_total,
-          COALESCE((SELECT SUM(p.cantidad) FROM revendedorcontrolprecio p WHERE p.idrevendedorcontroldetalle = d.idrevendedorcontroldetalle AND p.estado = 'NORMAL'), 0) as vendido_normal,
-          COALESCE((SELECT SUM(p.cantidad * p.precioventa) FROM revendedorcontrolprecio p WHERE p.idrevendedorcontroldetalle = d.idrevendedorcontroldetalle), 0) as venta_total,
+          COALESCE(pa.vendido_normal, 0) as vendido_normal,
+          COALESCE(pa.venta_total, 0) as venta_total,
+          pa.precios_ajustados,
           (
             GREATEST(0, (d.cantidadentregada - d.cantidaddevuelta) - COALESCE(d.cantidadsincomision, 0)) * d.comisionunitaria
           ) as comision_total,
           (
-            COALESCE((SELECT SUM(p.cantidad * p.precioventa) FROM revendedorcontrolprecio p WHERE p.idrevendedorcontroldetalle = d.idrevendedorcontroldetalle), 0) - 
+            COALESCE(pa.venta_total, 0) - 
             (GREATEST(0, (d.cantidadentregada - d.cantidaddevuelta) - COALESCE(d.cantidadsincomision, 0)) * d.comisionunitaria)
           ) as liquido_panaderia
         FROM revendedorcontroldetalle d
         INNER JOIN filtered_rc rc ON rc.idrevendedorcontrol = d.idrevendedorcontrol
+        LEFT JOIN precios_agg pa ON pa.idrevendedorcontroldetalle = d.idrevendedorcontroldetalle
       )
       SELECT 
         rc.idrevendedorcontrol,
@@ -247,16 +270,7 @@ export const getRevendedorControls = async (req: Request, res: Response) => {
               'ComisionTotal', dc.comision_total,
               'LiquidoPanaderia', dc.liquido_panaderia,
               'Motivo', dc.motivo,
-              'PreciosAjustados', COALESCE((
-                SELECT json_agg(json_build_object(
-                  'IdPrecio', p.idrevendedorcontrolprecio,
-                  'Cantidad', p.cantidad,
-                  'PrecioVenta', p.precioventa,
-                  'Estado', p.estado,
-                  'Observacion', p.observacion
-                )) FROM revendedorcontrolprecio p 
-                WHERE p.idrevendedorcontroldetalle = dc.idrevendedorcontroldetalle
-              ), '[]')
+              'PreciosAjustados', COALESCE(dc.precios_ajustados, '[]'::json)
             ) ORDER BY prod.nombre
           ) FILTER (WHERE dc.idrevendedorcontroldetalle IS NOT NULL),
           '[]'

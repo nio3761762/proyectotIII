@@ -14,3 +14,5 @@ CREATE INDEX IF NOT EXISTS idx_detalleproduccion_idproduccion ON detalle_producc
 CREATE INDEX IF NOT EXISTS idx_revendedorcontrol_fecha ON revendedorcontrol (fecha, estado, idsucursal);
 CREATE INDEX IF NOT EXISTS idx_revendedorcontrol_idsucursal ON revendedorcontrol (idsucursal);
 CREATE INDEX IF NOT EXISTS idx_revcontroldetalle_idcontrol ON revendedorcontroldetalle (idrevendedorcontrol);
+CREATE INDEX IF NOT EXISTS idx_revcontrolprecio_detalle ON revendedorcontrolprecio (idrevendedorcontroldetalle, estado);
+ANALYZE revendedorcontrolprecio;

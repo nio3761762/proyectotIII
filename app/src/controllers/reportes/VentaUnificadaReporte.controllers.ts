@@ -231,11 +231,11 @@ export const getReporteVentaUnificada = async (req: Request, res: Response) => {
       SELECT
         TO_CHAR(v.fechaventa, 'YYYY-MM-DD') AS fecha,
         CASE
-          WHEN LOWER(s.nombre) LIKE '%cocina%' OR LOWER(s.nombre) LIKE '%pedido%' THEN 'Cocina'
-          ELSE 'Tienda Central'
+          WHEN s.central = 3 OR LOWER(s.nombre) LIKE '%cocina%' OR LOWER(s.nombre) LIKE '%pedido%' THEN 'Cocina'
+          ELSE s.nombre
         END AS origen,
         CASE
-          WHEN LOWER(s.nombre) LIKE '%cocina%' OR LOWER(s.nombre) LIKE '%pedido%' THEN 'Pedido'
+          WHEN s.central = 3 OR LOWER(s.nombre) LIKE '%cocina%' OR LOWER(s.nombre) LIKE '%pedido%' THEN 'Pedido'
           ELSE 'Vendido'
         END AS tipo,
         COALESCE(prod.nombre, prom.nombre, 'Sin Producto') AS producto,
@@ -264,11 +264,11 @@ export const getReporteVentaUnificada = async (req: Request, res: Response) => {
       SELECT
         TO_CHAR(v.fechaventa, 'YYYY-MM-DD') AS fecha,
         CASE
-          WHEN LOWER(s.nombre) LIKE '%cocina%' OR LOWER(s.nombre) LIKE '%pedido%' THEN 'Cocina'
-          ELSE 'Tienda Central'
+          WHEN s.central = 3 OR LOWER(s.nombre) LIKE '%cocina%' OR LOWER(s.nombre) LIKE '%pedido%' THEN 'Cocina'
+          ELSE s.nombre
         END AS origen,
         CASE
-          WHEN LOWER(s.nombre) LIKE '%cocina%' OR LOWER(s.nombre) LIKE '%pedido%' THEN 'Pedido'
+          WHEN s.central = 3 OR LOWER(s.nombre) LIKE '%cocina%' OR LOWER(s.nombre) LIKE '%pedido%' THEN 'Pedido'
           ELSE 'Vendido'
         END AS tipo,
         SUM(COALESCE(v.gastoextra, 0)) AS gasto_extra
@@ -355,12 +355,47 @@ export const getReporteVentaUnificada = async (req: Request, res: Response) => {
       GROUP BY fecha, origen
     `;
 
-    const [ventas, gastoVentas, comisiones, gastoComisiones] = await Promise.all([
+    // Sucursales activas: cada una tiene fila fija en el reporte aunque no tenga ventas en el rango
+    const paramsSucursales: any[] = [];
+    let sucursalFiltro = "";
+    if (idsucursal && idsucursal !== "TODOS") {
+      sucursalFiltro = " AND s.idsucursal = $1";
+      paramsSucursales.push(idsucursal);
+    }
+
+    const sqlSucursales = `
+      SELECT s.idsucursal, s.nombre, s.central
+      FROM sucursal s
+      WHERE s.estado = 1 ${sucursalFiltro}
+      ORDER BY s.nombre
+    `;
+
+    const [ventas, gastoVentas, comisiones, gastoComisiones, sucursales] = await Promise.all([
       AppDataSource.query(sqlVentas, params),
       AppDataSource.query(sqlGastoVentas, params),
       AppDataSource.query(sqlComisiones, params),
-      AppDataSource.query(sqlGastoComisiones, params)
+      AppDataSource.query(sqlGastoComisiones, params),
+      AppDataSource.query(sqlSucursales, paramsSucursales)
     ]);
+
+    // Filas base: tiendas en "Vendido" (con su nombre) y cocina en "Pedido"
+    const filasBase = new Map<string, { origen: string; tipo: string }>();
+    (sucursales as any[]).forEach((suc) => {
+      const esCocina = Number(suc.central) === 3 || /cocina|pedido/i.test(String(suc.nombre || ""));
+      const base = esCocina
+        ? { origen: "Cocina", tipo: "Pedido" }
+        : { origen: String(suc.nombre), tipo: "Vendido" };
+      filasBase.set(`${base.origen}||${base.tipo}`, base);
+    });
+
+    // Agrega las filas base que falten (en cero) y ordena
+    const completarFilas = (filas: Fila[]): Fila[] => {
+      const existentes = new Set(filas.map((fila) => `${fila.origen}||${fila.tipo}`));
+      const faltantes = Array.from(filasBase.entries())
+        .filter(([key]) => !existentes.has(key))
+        .map(([, base]) => crearFila(base.origen, base.tipo));
+      return ordenarFilas([...filas, ...faltantes]);
+    };
 
     const columnasMapa = new Map<string, Columna>();
     const diasMapa = new Map<string, Map<string, Fila>>();
@@ -449,7 +484,7 @@ export const getReporteVentaUnificada = async (req: Request, res: Response) => {
             return fila;
           })
           .filter((fila) => fila.ingreso !== 0 || fila.gastoExtra !== 0 || Object.values(fila.cantidades).some((c) => c !== 0));
-        return { fecha, filas: ordenarFilas(filas) };
+        return { fecha, filas: completarFilas(filas) };
       })
       .sort((a, b) => b.fecha.localeCompare(a.fecha));
 
@@ -496,7 +531,7 @@ export const getReporteVentaUnificada = async (req: Request, res: Response) => {
     });
 
     // Totales globales por origen||tipo
-    const filasGlobales = combinarFilas(dias.map((dia) => dia.filas));
+    const filasGlobales = completarFilas(combinarFilas(dias.map((dia) => dia.filas)));
     const bloqueGlobal = construirBloque(filasGlobales, columnas);
     const totalesGlobales = bloqueGlobal.totales;
 
