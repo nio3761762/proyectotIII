@@ -59,6 +59,16 @@
 
     <!-- Vista Diaria -->
     <div v-if="vistaAgregacion === 'diario'" class="space-y-6">
+      <!-- General de todo el rango (inicio a fin) -->
+      <VentaUnificadaTabla
+        v-if="general"
+        :titulo="tituloGeneral('Diario')"
+        :columnas="columnas"
+        :grupos="grupos"
+        :filas="general.filas"
+        :totales="general.totales"
+        :totales-por-columna="general.totalesPorColumna"
+      />
       <VentaUnificadaTabla
         v-for="dia in dias"
         :key="dia.fecha"
@@ -73,6 +83,16 @@
 
     <!-- Vista Semanal: general de la semana + tablas diarias -->
     <div v-if="vistaAgregacion === 'semanal'" class="space-y-8">
+      <!-- General de todo el rango (inicio a fin) -->
+      <VentaUnificadaTabla
+        v-if="general"
+        :titulo="tituloGeneral('Semanal')"
+        :columnas="columnas"
+        :grupos="grupos"
+        :filas="general.filas"
+        :totales="general.totales"
+        :totales-por-columna="general.totalesPorColumna"
+      />
       <div v-for="semana in semanas" :key="semana.key" class="space-y-4">
         <h2 class="text-base font-semibold text-gray-800">Semana {{ semana.label }}</h2>
 
@@ -101,6 +121,16 @@
 
     <!-- Vista Mensual: general del mes + semanas (sin detalle diario) -->
     <div v-if="vistaAgregacion === 'mensual'" class="space-y-8">
+      <!-- General de todo el rango (inicio a fin) -->
+      <VentaUnificadaTabla
+        v-if="general"
+        :titulo="tituloGeneral('Mensual')"
+        :columnas="columnas"
+        :grupos="grupos"
+        :filas="general.filas"
+        :totales="general.totales"
+        :totales-por-columna="general.totalesPorColumna"
+      />
       <!-- Resumen general por meses -->
       <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden">
         <div class="px-5 py-3 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
@@ -226,6 +256,9 @@ const formatCurrency = (val) => Number(val || 0).toFixed(2)
 
 // Todos los datos de agregacion (semanas, meses, totales) llegan calculados desde el backend
 const columnas = computed(() => props.reporte?.columnas || [])
+// Tabla general de todo el rango (backend: reporte.general = { titulo, filas, totales, totalesPorColumna })
+const general = computed(() => props.reporte?.general || null)
+const tituloGeneral = (modo) => general.value?.titulo ? `General ${modo} - ${general.value.titulo}` : `General ${modo}`
 const grupos = computed(() => props.reporte?.grupos || [])
 const dias = computed(() => props.reporte?.dias || [])
 const semanas = computed(() => props.reporte?.semanas || [])

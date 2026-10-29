@@ -1,5 +1,16 @@
 <template>
   <div class="space-y-10">
+    <!-- Tabla General: una sola tabla que agrupa todo el rango por día, semana o mes -->
+    <VentaUnificadaTabla
+      v-if="reporteGeneral"
+      :titulo="tituloGeneral"
+      :columnas="reporteGeneral.columnas"
+      :grupos="reporteGeneral.grupos"
+      :filas="reporteGeneral.filas"
+      :totales="reporteGeneral.totales"
+      :totales-por-columna="reporteGeneral.totalesPorColumna"
+    />
+
     <!-- Resumen Mensual (Acordeón: Mes -> Semanas -> Días) -->
     <div v-if="props.agruparPorMes" class="space-y-4">
       <template v-for="mes in ventasMensualDetalle" :key="mes.monthKey">
@@ -729,6 +740,7 @@
 import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { Chart, registerables } from 'chart.js'
 import { getWeekStart as sharedWeekStart, getWeekLabel as sharedWeekLabel, getMonthKey as sharedMonthKey, getMonthLabel as sharedMonthLabel, sortMonthsDesc as sharedSortMonthsDesc } from './useSemana'
+import VentaUnificadaTabla from './VentaUnificadaTabla.vue'
 import { 
   Package, List, Calendar, FileText, Search, Star, 
   ChevronDown, Store, CreditCard, ChevronRight 
@@ -756,6 +768,11 @@ const props = defineProps({
   agruparPorMes: {
     type: Boolean,
     default: false
+  },
+  // Tabla general enviada por el backend: { titulo, filas, totales, totalesPorColumna, columnas, grupos }
+  reporteGeneral: {
+    type: Object,
+    default: null
   }
 })
 
@@ -779,6 +796,18 @@ const toggleSemana = (key) => { expandedSemanas.value[key] = !expandedSemanas.va
 
 const expandedMeses = ref({})
 const toggleMes = (key) => { expandedMeses.value[key] = !expandedMeses.value[key] }
+
+// Tabla general del modo activo (los datos llegan del backend, rango completo del modo)
+const modoGeneral = computed(() => {
+  if (props.agruparPorMes) return 'mes'
+  if (props.agruparPorSemana) return 'semana'
+  return 'dia'
+})
+const nombreModo = computed(() => ({ dia: 'Diario', semana: 'Semanal', mes: 'Mensual' })[modoGeneral.value])
+const tituloGeneral = computed(() => {
+  const rango = props.reporteGeneral?.titulo ? ` — ${props.reporteGeneral.titulo}` : ''
+  return `Tabla General ${nombreModo.value}${rango}`
+})
 
 const buildWeekEntry = (monday) => ({
   semana: monday,

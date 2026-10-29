@@ -52,7 +52,7 @@ const inicioSemanaISO = (fecha: string, diaInicio: number): string => {
 
 const ordenOrigen = (tipo: string): number => {
   if (tipo === "Revendedor") return 0;
-  if (tipo === "Vendido") return 1;
+  if (tipo === "Venta") return 1;
   if (tipo === "Pedido") return 2;
   return 3;
 };
@@ -236,7 +236,7 @@ export const getReporteVentaUnificada = async (req: Request, res: Response) => {
         END AS origen,
         CASE
           WHEN s.central = 3 OR LOWER(s.nombre) LIKE '%cocina%' OR LOWER(s.nombre) LIKE '%pedido%' THEN 'Pedido'
-          ELSE 'Vendido'
+          ELSE 'Venta'
         END AS tipo,
         COALESCE(prod.nombre, prom.nombre, 'Sin Producto') AS producto,
         CASE
@@ -269,7 +269,7 @@ export const getReporteVentaUnificada = async (req: Request, res: Response) => {
         END AS origen,
         CASE
           WHEN s.central = 3 OR LOWER(s.nombre) LIKE '%cocina%' OR LOWER(s.nombre) LIKE '%pedido%' THEN 'Pedido'
-          ELSE 'Vendido'
+          ELSE 'Venta'
         END AS tipo,
         SUM(COALESCE(v.gastoextra, 0)) AS gasto_extra
       FROM venta v
@@ -561,7 +561,16 @@ export const getReporteVentaUnificada = async (req: Request, res: Response) => {
       cantidadMeses: meses.length,
       porcentajes,
       totalesGlobales,
-      totalesPorColumnaGlobales: bloqueGlobal.totalesPorColumna
+      totalesPorColumnaGlobales: bloqueGlobal.totalesPorColumna,
+      // Tabla general de todo el rango: una fila por revendedor, tienda y cocina
+      general: {
+        titulo: `Del ${formatoDMY(desdeISO)} al ${formatoDMY(hastaISO)}`,
+        desde: desdeISO,
+        hasta: hastaISO,
+        filas: filasGlobales,
+        totales: totalesGlobales,
+        totalesPorColumna: bloqueGlobal.totalesPorColumna
+      }
     });
   } catch (error) {
     console.error("Error en reporte de venta unificada:", error);

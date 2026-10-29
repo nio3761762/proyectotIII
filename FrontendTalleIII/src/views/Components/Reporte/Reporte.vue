@@ -57,7 +57,7 @@
       </div>
 
       <div v-if="activeTab === 'ventas'">
-        <VentasTable ref="ventasTableRef" :sorted-ventas="sortedVentas" :format-fecha="formatFecha" :consolidado="ventasConsolidada" :agrupar-por-semana="agruparPorSemana" :agrupar-por-mes="agruparPorMes" />
+        <VentasTable ref="ventasTableRef" :sorted-ventas="sortedVentas" :format-fecha="formatFecha" :consolidado="ventasConsolidada" :agrupar-por-semana="agruparPorSemana" :agrupar-por-mes="agruparPorMes" :reporte-general="reporteGeneralVentas" />
       </div>
 
       <div v-if="activeTab === 'venta'">
@@ -573,6 +573,8 @@ const comisionConsolidada = ref({});
 const reporteGastosGenerales = ref({});
 const reporteProduccionVsVenta = ref({});
 const reporteDestinos = ref({});
+// Tabla general del reporte de ventas (backend: bloque "general" de venta-unificada)
+const reporteGeneralVentas = ref(null);
 
 const processedTransferencias = computed(() => {
   const data = transferencias.value?.data || transferencias.value?.transferencias || (Array.isArray(transferencias.value) ? transferencias.value : []);
@@ -1264,6 +1266,35 @@ onMounted(async () => {
   await generarReporte();
 });
 
+// Rango de la tabla general segun el modo: dia = desde/hasta, semana = semanas completas, mes = meses completos
+const ultimoDiaDelMesISO = (ym) => {
+  const [y, m] = ym.split('-').map(Number)
+  return `${ym}-${String(new Date(y, m, 0).getDate()).padStart(2, '0')}`
+}
+const rangoTablaGeneral = () => {
+  const desde = filtros.value.desde
+  const hasta = filtros.value.hasta
+  if (!desde || !hasta) return null
+  if (agruparPorMes.value) return { desde: `${desde.slice(0, 7)}-01`, hasta: ultimoDiaDelMesISO(hasta.slice(0, 7)) }
+  if (agruparPorSemana.value) return { desde: inicioSemanaDe(desde), hasta: finSemanaDe(hasta) }
+  return { desde, hasta }
+}
+
+const cargarReporteGeneralVentas = async () => {
+  if (activeTab.value !== 'ventas') return
+  const rango = rangoTablaGeneral()
+  if (!rango || rango.desde > rango.hasta) { reporteGeneralVentas.value = null; return }
+  try {
+    const data = await ReporteVentaUnificada(rango.desde, rango.hasta, filtros.value.tienda || null, getAnchorWeekday())
+    reporteGeneralVentas.value = data?.general
+      ? { ...data.general, columnas: data.columnas || [], grupos: data.grupos || [] }
+      : null
+  } catch (error) {
+    console.error('Error al cargar la tabla general de ventas:', error)
+    reporteGeneralVentas.value = null
+  }
+}
+
 const cargarReporteActivo = async () => {
   const mapa = {
     financiero: cargarFinanciero,
@@ -1282,7 +1313,14 @@ const cargarReporteActivo = async () => {
   };
   const fn = mapa[activeTab.value];
   if (fn) await fn();
+  if (activeTab.value === 'ventas') await cargarReporteGeneralVentas();
 };
+
+// Al cambiar el modo (dia / semana / mes) o el inicio de semana, la tabla general cambia de rango
+watch(
+  [agruparPorSemana, agruparPorMes, () => inicioSemana.value, () => finSemana.value],
+  () => { if (activeTab.value === 'ventas') cargarReporteGeneralVentas() }
+);
 
 const cargarReporteVentaUnificada = async () => {
   cargandoVentaUnificada.value = true
