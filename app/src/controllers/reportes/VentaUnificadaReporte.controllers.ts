@@ -71,6 +71,8 @@ type Fila = {
   origen: string;
   tipo: string;
   cantidades: Record<string, number>;
+  // Monto a precio normal (sin restar comision) por columna producto||presentacion
+  montos: Record<string, number>;
   ingreso: number;
   gastoExtra: number;
   neto: number;
@@ -129,6 +131,7 @@ const crearFila = (origen: string, tipo: string): Fila => ({
   origen,
   tipo,
   cantidades: {},
+  montos: {},
   ingreso: 0,
   gastoExtra: 0,
   neto: 0,
@@ -138,6 +141,10 @@ const crearFila = (origen: string, tipo: string): Fila => ({
 
 const sumarCantidad = (fila: Fila, clave: string, cantidad: any) => {
   fila.cantidades[clave] = numero(fila.cantidades[clave]) + numero(cantidad);
+};
+
+const sumarMonto = (fila: Fila, clave: string, monto: any) => {
+  fila.montos[clave] = numero(fila.montos[clave]) + numero(monto);
 };
 
 const ordenarFilas = (filas: Fila[]): Fila[] =>
@@ -153,6 +160,9 @@ const combinarFilas = (listas: Fila[][]): Fila[] => {
       const destino = mapa.get(key)!;
       Object.entries(fila.cantidades).forEach(([clave, cantidad]) => {
         destino.cantidades[clave] = numero(destino.cantidades[clave]) + numero(cantidad);
+      });
+      Object.entries(fila.montos).forEach(([clave, monto]) => {
+        destino.montos[clave] = numero(destino.montos[clave]) + numero(monto);
       });
       destino.ingreso += fila.ingreso;
       destino.gastoExtra += fila.gastoExtra;
@@ -325,6 +335,7 @@ export const getReporteVentaUnificada = async (req: Request, res: Response) => {
         COALESCE(pre.abreviatura, '') AS abreviatura,
         COALESCE(pm.cantidad, 1) AS factor,
         SUM(dc.vendido_total) AS cantidad,
+        SUM(dc.venta_total) AS monto,
         SUM(dc.comision_total) AS comision,
         SUM(dc.liquido_panaderia) AS ingreso
       FROM detalles_calc dc
@@ -395,6 +406,7 @@ export const getReporteVentaUnificada = async (req: Request, res: Response) => {
       const key = registrarColumna(row.producto, row.presentacion, row.abreviatura, row.factor);
       const fila = obtenerFila(fecha, row.origen, row.tipo);
       sumarCantidad(fila, key, row.cantidad);
+      sumarMonto(fila, key, row.ingreso);
       fila.ingreso += numero(row.ingreso);
     });
 
@@ -412,6 +424,7 @@ export const getReporteVentaUnificada = async (req: Request, res: Response) => {
       const key = registrarColumna(row.producto, row.presentacion, row.abreviatura, row.factor);
       const fila = obtenerFila(fecha, String(row.origen || "Revendedor").trim() || "Revendedor", "Revendedor");
       sumarCantidad(fila, key, row.cantidad);
+      sumarMonto(fila, key, row.monto);
       fila.comision += numero(row.comision);
       fila.ingreso += numero(row.ingreso);
       fila.liquidoPanaderia += numero(row.ingreso);

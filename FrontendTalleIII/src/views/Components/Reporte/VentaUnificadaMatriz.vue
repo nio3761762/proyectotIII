@@ -5,7 +5,7 @@
       <div class="px-5 py-3 border-b border-gray-200 bg-gray-50">
         <h3 class="text-sm font-semibold text-gray-800">Porcentajes sobre ventas (general)</h3>
       </div>
-      <table class="w-full text-left border-collapse">
+      <table class="w-full text-left border-collapse [&_th]:border [&_td]:border [&_th]:border-gray-400 [&_td]:border-gray-400">
         <thead>
           <tr class="text-[11px] text-gray-500 uppercase">
             <th class="px-5 py-2 font-medium border-b border-gray-200">Origen</th>
@@ -81,7 +81,7 @@
       />
     </div>
 
-    <!-- Vista Semanal: general de la semana + tablas diarias -->
+    <!-- Vista Semanal: general del rango + general de cada semana + tabla semanal por revendedor, tienda y pedido -->
     <div v-if="vistaAgregacion === 'semanal'" class="space-y-8">
       <!-- General de todo el rango (inicio a fin) -->
       <VentaUnificadaTabla
@@ -105,16 +105,16 @@
           :totales-por-columna="semana.totalesPorColumna"
         />
 
-        <VentaUnificadaTabla
-          v-for="dia in diasDeSemana(semana)"
-          :key="dia.fecha"
-          :titulo="formatFecha(dia.fecha)"
-          :grande="false"
+        <!-- Detalle semanal por revendedor, tienda y pedido (cocina): Lunes..Domingo, C / P, Total, Comision, Gasto, Neto -->
+        <VentaSemanalOrigenTabla
+          v-for="origen in semana.filas"
+          :key="origen.origen + '||' + origen.tipo"
+          :origen="origen.origen"
+          :tipo="origen.tipo"
+          :fechas="rangoFechasSemana(semana.fechaInicio, semana.fechaFin)"
+          :dias-por-fecha="diasPorFecha"
           :columnas="columnas"
-          :grupos="grupos"
-          :filas="dia.filas"
-          :totales="dia.totales"
-          :totales-por-columna="dia.totalesPorColumna"
+          :format-fecha="formatFecha"
         />
       </div>
     </div>
@@ -137,7 +137,7 @@
           <h3 class="text-sm font-semibold text-gray-800">Resumen general por meses</h3>
           <span class="text-xs text-gray-500">Cantidad de meses: {{ cantidadMeses }}</span>
         </div>
-        <table class="w-full text-left border-collapse">
+        <table class="w-full text-left border-collapse [&_th]:border [&_td]:border [&_th]:border-gray-400 [&_td]:border-gray-400">
           <thead>
             <tr class="text-[11px] text-gray-500 uppercase">
               <th class="px-5 py-2 font-medium border-b border-gray-200">Mes</th>
@@ -189,7 +189,7 @@
           <div class="px-5 py-3 border-b border-gray-200 bg-gray-50">
             <h3 class="text-sm font-semibold text-gray-800">Resumen por semanas</h3>
           </div>
-          <table class="w-full text-left border-collapse">
+          <table class="w-full text-left border-collapse [&_th]:border [&_td]:border [&_th]:border-gray-400 [&_td]:border-gray-400">
             <thead>
               <tr class="text-[11px] text-gray-500 uppercase">
                 <th class="px-5 py-2 font-medium border-b border-gray-200">Semana</th>
@@ -244,6 +244,8 @@
 <script setup>
 import { computed } from 'vue'
 import VentaUnificadaTabla from './VentaUnificadaTabla.vue'
+import VentaSemanalOrigenTabla from './VentaSemanalOrigenTabla.vue'
+import { rangoFechasSemana } from './ventaSemanalModelo.js'
 
 const props = defineProps({
   reporte: { type: Object, default: () => ({}) },
@@ -277,7 +279,4 @@ const diasPorFecha = computed(() => {
   return mapa
 })
 
-const diasDeSemana = (semana) => (semana.fechas || [])
-  .map((fecha) => diasPorFecha.value[fecha])
-  .filter(Boolean)
 </script>

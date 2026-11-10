@@ -4,7 +4,7 @@
       <h3 :class="['font-semibold text-gray-800', grande ? 'text-base' : 'text-sm']">{{ titulo }}</h3>
     </div>
     <div class="overflow-x-auto">
-      <table class="w-full text-left border-collapse min-w-[1200px]">
+      <table class="w-full text-left border-collapse min-w-[1200px] [&_th]:border [&_td]:border [&_th]:border-gray-400 [&_td]:border-gray-400">
         <thead>
           <tr class="bg-gray-50">
             <th class="p-2 text-[10px] font-semibold text-gray-500 uppercase border-b border-r border-gray-200" rowspan="2"></th>

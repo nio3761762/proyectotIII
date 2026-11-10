@@ -1,8 +1,10 @@
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import logoMasasCori from '@/views/assets/LogoMasasCorir.png'
+import { construirSemanalOrigen, etiquetaTipoOrigen, rangoFechasSemana } from './ventaSemanalModelo.js'
 
 const MODO_TITULO = { diario: 'Por día', semanal: 'Por semana', mensual: 'Por mes' }
+const NOMBRE_MODO = { diario: 'Diario', semanal: 'Semanal', mensual: 'Mensual' }
 
 // Estilos de cada bloque: fondo (fondo) y color del texto (texto)
 const COLOR_MES = { fondo: [229, 231, 235], texto: [31, 41, 55] }     // gris claro: general del mes
@@ -10,6 +12,7 @@ const COLOR_SEMANA = { fondo: [224, 242, 254], texto: [31, 41, 55] }  // celeste
 const COLOR_RESUMEN = { fondo: [51, 65, 85], texto: [255, 255, 255] } // resumenes generales
 const COLOR_DIA = { fondo: [100, 116, 139], texto: [255, 255, 255] }  // dias
 const COLOR_RESUMEN_SEMANAS = { fondo: [243, 244, 246], texto: [55, 65, 81] } // resumen por semanas (mas suave que el mes)
+const COLOR_ORIGEN = { fondo: [67, 56, 202], texto: [255, 255, 255] }   // revendedor, tienda o pedido (semanal)
 
 const estiloCabecera = (estilo) => ({ fillColor: estilo.fondo, textColor: estilo.texto, fontStyle: 'bold' })
 
@@ -82,11 +85,12 @@ const tituloSeccion = (doc, y, texto, estilo = COLOR_RESUMEN) => {
   return yy + 4
 }
 
+// Lineas mas marcadas en todas las tablas del reporte
 const ESTILO_BASE = {
   fontSize: 6.5,
   cellPadding: 1.2,
-  lineColor: [200, 200, 200],
-  lineWidth: 0.1,
+  lineColor: [120, 120, 120],
+  lineWidth: 0.2,
   halign: 'center',
   valign: 'middle',
   textColor: [31, 41, 55]
@@ -225,6 +229,79 @@ const tablaResumenSemanas = (doc, y, mes) => {
   return doc.lastAutoTable.finalY + 6
 }
 
+// Tabla semanal de un revendedor, tienda o pedido: Lunes..Domingo con C y P,
+// Total de la semana, Comision, Gasto y Neto (mismos datos que en pantalla)
+const tablaSemanalOrigen = (doc, y, { origen, tipo, fechas, diasPorFecha, columnas }) => {
+  const m = construirSemanalOrigen({ origen, tipo, fechas, diasPorFecha, columnas })
+  const rango = fechas.length ? `${fechaCorta(fechas[0])} - ${fechaCorta(fechas[fechas.length - 1])}` : ''
+  const nombreOrigen = /^cocina$/i.test(String(origen)) ? 'Cocina' : origen
+  y = tituloSeccion(doc, y, `${etiquetaTipoOrigen(tipo)}: ${nombreOrigen}   |   Fecha : ${rango}`, COLOR_ORIGEN)
+
+  const head = [
+    [
+      { content: 'Producto', rowSpan: 2 },
+      { content: 'Presentación', rowSpan: 2 },
+      ...m.dias.map((d) => ({ content: `${d.nombre}\n${fechaCorta(d.fecha)}`, colSpan: 2 })),
+      { content: 'Total semana', colSpan: 2 }
+    ],
+    [...m.dias.flatMap(() => ['C', 'P']), 'C', 'P']
+  ]
+
+  const body = m.filas.map((f) => {
+    const fila = []
+    if (f.inicioProducto) {
+      fila.push({ content: f.producto, rowSpan: f.rowspanProducto, styles: { fontStyle: 'bold', halign: 'left', valign: 'middle' } })
+    }
+    fila.push({ content: f.etiqueta, styles: { halign: 'left' } })
+    f.celdas.forEach((c) => {
+      fila.push(String(c.cantidad))
+      fila.push(dinero(c.monto))
+    })
+    fila.push({ content: String(f.totalC), styles: { fontStyle: 'bold', fillColor: [255, 247, 237] } })
+    fila.push({ content: dinero(f.totalP), styles: { fontStyle: 'bold', fillColor: [255, 247, 237] } })
+    return fila
+  })
+
+  if (!m.filas.length) {
+    body.push([{ content: 'Sin movimientos en la semana', colSpan: 4 + m.dias.length * 2, styles: { textColor: [150, 150, 150] } }])
+  }
+
+  // Total: solo montos (P) por dia y de la semana
+  body.push([
+    { content: 'Total', colSpan: 2, styles: { fontStyle: 'bold', fillColor: [243, 244, 246], halign: 'left' } },
+    ...m.resumenDias.flatMap((r) => [celdaTotal(''), celdaTotal(dinero(r.monto))]),
+    celdaTotal(''),
+    celdaTotal(dinero(m.totalGeneral.monto))
+  ])
+  body.push([
+    { content: 'Comisión', colSpan: 2, styles: { halign: 'left', fontStyle: 'bold', textColor: [29, 78, 216] } },
+    ...m.resumenDias.map((r) => ({ content: dinero(r.comision), colSpan: 2 })),
+    { content: dinero(m.totalGeneral.comision), colSpan: 2, styles: { fontStyle: 'bold' } }
+  ])
+  body.push([
+    { content: 'Gasto', colSpan: 2, styles: { halign: 'left', fontStyle: 'bold', textColor: [194, 65, 12] } },
+    ...m.resumenDias.map((r) => ({ content: dinero(r.gasto), colSpan: 2 })),
+    { content: dinero(m.totalGeneral.gasto), colSpan: 2, styles: { fontStyle: 'bold' } }
+  ])
+  body.push([
+    { content: 'Neto', colSpan: 2, styles: { halign: 'left', fontStyle: 'bold', fillColor: [236, 253, 245], textColor: [6, 95, 70] } },
+    ...m.resumenDias.map((r) => ({ content: dinero(r.neto), colSpan: 2, styles: { fontStyle: 'bold', fillColor: [236, 253, 245] } })),
+    { content: dinero(m.totalGeneral.neto), colSpan: 2, styles: { fontStyle: 'bold', fillColor: [209, 250, 229] } }
+  ])
+
+  autoTable(doc, {
+    startY: y,
+    head,
+    body,
+    theme: 'grid',
+    styles: { ...ESTILO_BASE, halign: 'center' },
+    headStyles: { fillColor: [241, 245, 249], textColor: [31, 41, 55], fontStyle: 'bold', halign: 'center' },
+    margin: { left: 14, right: 14 }
+  })
+
+  return doc.lastAutoTable.finalY + 6
+}
+
 // Leyenda de colores: un cuadro de color + su significado, en una sola linea
 const dibujarLeyenda = (doc, y, items) => {
   let x = 14
@@ -273,7 +350,7 @@ const tablaPorcentajes = (doc, y, porcentajes) => {
 /**
  * Exporta el reporte de venta segun el modo:
  * - mensual: resumen por meses + general de cada mes (color propio) + resumen por semanas + semanas
- * - semanal: general de cada semana (color propio) + sus dias
+ * - semanal: general de cada semana (color propio) + tabla por revendedor, tienda y pedido (sin dias)
  * - diario: solo dias
  */
 export const exportarVentaUnificadaPDF = async ({ reporte, modo, desde, hasta, tienda }) => {
@@ -297,7 +374,7 @@ export const exportarVentaUnificadaPDF = async ({ reporte, modo, desde, hasta, t
     ],
     semanal: [
       { estilo: COLOR_SEMANA, texto: 'General de la semana' },
-      { estilo: COLOR_DIA, texto: 'Día' },
+      { estilo: COLOR_ORIGEN, texto: 'Revendedor / tienda / pedido (Lunes a Domingo)' },
       { estilo: COLOR_RESUMEN, texto: 'Resumen (porcentajes y ganancias)' }
     ],
     diario: [
@@ -306,6 +383,12 @@ export const exportarVentaUnificadaPDF = async ({ reporte, modo, desde, hasta, t
     ]
   }[modo] || []
   y = dibujarLeyenda(doc, y + 4, leyenda)
+
+  // Tabla general de todo el rango (inicio a fin), igual que en pantalla
+  if (reporte?.general) {
+    y = tituloSeccion(doc, y, `Tabla general ${NOMBRE_MODO[modo] || ''} - ${reporte.general.titulo}`, COLOR_RESUMEN)
+    y = tablaBloque(doc, y, { ...opciones, ...reporte.general }, COLOR_RESUMEN)
+  }
 
   y = tituloSeccion(doc, y, 'Porcentajes sobre ventas (general)')
   y = tablaPorcentajes(doc, y, reporte?.porcentajes)
@@ -338,14 +421,13 @@ export const exportarVentaUnificadaPDF = async ({ reporte, modo, desde, hasta, t
       }
     }
   } else if (modo === 'semanal') {
+    // Semanal: general de la semana + una tabla Lunes..Domingo por revendedor, tienda y pedido (sin detalle diario)
     for (const semana of reporte?.semanas || []) {
       y = tituloSeccion(doc, y, `General de la semana (${semana.label})`, COLOR_SEMANA)
       y = tablaBloque(doc, y, { ...opciones, ...semana }, COLOR_SEMANA)
-      for (const fecha of semana.fechas || []) {
-        const dia = diasPorFecha[fecha]
-        if (!dia) continue
-        y = tituloSeccion(doc, y, fechaCorta(dia.fecha), COLOR_DIA)
-        y = tablaBloque(doc, y, { ...opciones, ...dia }, COLOR_DIA)
+      const fechas = rangoFechasSemana(semana.fechaInicio, semana.fechaFin)
+      for (const origen of semana.filas || []) {
+        y = tablaSemanalOrigen(doc, y, { origen: origen.origen, tipo: origen.tipo, fechas, diasPorFecha, columnas })
       }
     }
   } else {
